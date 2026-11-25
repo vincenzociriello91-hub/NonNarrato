@@ -5,6 +5,7 @@ extends Area2D
 
 var foglio := "barile"
 var vita := 1
+var silenzioso := false   # per il preriscaldamento all'avvio: niente rapporto né vibrazione
 var sprite: SpriteAnimato
 
 
@@ -44,8 +45,9 @@ func subisci(danno: int, da: Vector2, _spinta: float) -> bool:
 
 
 func _rompi(da: Vector2) -> void:
-	Rapporto.conta("oggetti_rotti")
-	Rapporto.evento("rotto", {"cosa": foglio, "x": roundi(global_position.x)})
+	if not silenzioso:
+		Rapporto.conta("oggetti_rotti")
+		Rapporto.evento("rotto", {"cosa": foglio, "x": roundi(global_position.x)})
 	var misura := Vector2(sprite.dimensione())
 	var angolo := global_position - sprite.piedi()
 	var lato := signf(global_position.x - da.x)
@@ -78,10 +80,12 @@ func _rompi(da: Vector2) -> void:
 			pezzo.angular_velocity = randf_range(-9.0, 9.0)
 			get_parent().add_child(pezzo)
 			var tw := pezzo.create_tween()
-			tw.tween_interval(1.6)
-			tw.tween_property(pezzo, "modulate:a", 0.0, 0.6)
+			# Nel preriscaldamento i pezzi spariscono finché lo schermo è ancora nero.
+			tw.tween_interval(0.25 if silenzioso else 1.6)
+			tw.tween_property(pezzo, "modulate:a", 0.0, 0.1 if silenzioso else 0.6)
 			tw.tween_callback(pezzo.queue_free)
 	Effetti.scoppio(get_parent(), global_position + Vector2(0.0, -misura.y * 0.5), Color(0.52, 0.43, 0.33, 0.8),
 			14, 90.0, 0.5, 220.0, false)
-	Controlli.vibra(0.5, 0.1)
+	if not silenzioso:
+		Controlli.vibra(0.5, 0.1)
 	queue_free()

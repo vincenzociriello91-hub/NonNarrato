@@ -316,7 +316,7 @@ func _esegui() -> void:
 	await _scatta("tasti_a_schermo")
 	_verifica("la leva a schermo muove il giocatore", _g().position.x > x0 + 20.0, "%.0f -> %.0f" % [x0, _g().position.x])
 	colpi = Rapporto.contatore("attacchi")
-	var k: float = Impostazioni.leggi("controlli/dimensione_touch")
+	var k := Dispositivo.scala_touch()
 	var tasto := Vector2(area.x - 96.0 * k, area.y - 96.0 * k)
 	_tocco_schermo(1, tasto, true)
 	await _fotogrammi(4)
@@ -378,6 +378,24 @@ func _esegui() -> void:
 	await _fotogrammi(30)
 	_verifica("comandi a caso: il giocatore resta nella stanza", fuori == 0, "fotogrammi fuori: %d" % fuori)
 	await _scatta("fine")
+
+	# Tasti a schermo: adatti allo schermo finché l'utente non sceglie, poi vale la sua scelta.
+	Impostazioni.ripristina()
+	var automatica := Dispositivo.scala_touch()
+	Impostazioni.scrivi("controlli/dimensione_touch", 1.45)
+	_verifica("grandezza tasti: automatica e poi scelta a mano",
+			automatica >= 1.0 and automatica <= 1.6 and is_equal_approx(Dispositivo.scala_touch(), 1.45),
+			"auto %.2f, scelta %.2f" % [automatica, Dispositivo.scala_touch()])
+	Impostazioni.ripristina()
+
+	# Un fotogramma lento finisce nel rapporto con il contesto della partita.
+	Rapporto.call("_registra_scatto", 0.12, 3)
+	var ultimo: Dictionary = {}
+	for e: Dictionary in Rapporto.get("_eventi"):
+		if e.get("tipo", "") == "scatto":
+			ultimo = e
+	_verifica("scatto registrato con il contesto", ultimo.get("ms", 0.0) == 120.0 and ultimo.get("shader_nuovi", -1) == 3
+			and ultimo.has("stato") and ultimo.has("torce_con_ombra"), str(ultimo))
 
 	# Rapporto.
 	var testo := Rapporto.salva("prova")

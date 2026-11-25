@@ -78,6 +78,7 @@ func _ready() -> void:
 	_applica_profilo()
 	_nuova_stanza()
 	_riscalda()
+	Rapporto.contesto = _contesto
 	Rapporto.evento("avvio", {"sogno": sogno, "comandi": Controlli.nome_modo()})
 
 	if Dispositivo.in_prova:
@@ -166,6 +167,31 @@ func _riscalda() -> void:
 	sfera.position = dove
 	sfera.set("_vita", 0.25)
 	stanza.add_child(sfera)
+	# Lampo bianco del colpo ricevuto, scia della spada e frammenti dei barili.
+	Effetti.lampo(stanza.giocatore.sprite, 0.3)
+	stanza.giocatore.call("_fendente")
+	var barile := Rompibile.new()
+	barile.silenzioso = true
+	barile.position = dove + Vector2(40, 0)
+	stanza.add_child(barile)
+	barile.subisci(9, dove, 0.0)
+	# Tutte le torce accese con le ombre per qualche fotogramma, poi si torna alla regola normale.
+	stanza.riscalda_luci(0.4)
+
+
+func _contesto() -> Dictionary:
+	# Cosa succede in partita: finisce nel rapporto accanto a ogni fotogramma lento.
+	if not is_instance_valid(stanza) or not is_instance_valid(stanza.giocatore):
+		return {}
+	var g := stanza.giocatore
+	return {
+		"stato": Giocatore.Stato.keys()[g.stato],
+		"x": roundi(g.position.x),
+		"y": roundi(g.position.y),
+		"torce_con_ombra": stanza.torce_con_ombra(),
+		"nemici": get_tree().get_nodes_in_group("nemici").size(),
+		"menu": menu.aperto,
+	}
 
 
 func _su_morte() -> void:

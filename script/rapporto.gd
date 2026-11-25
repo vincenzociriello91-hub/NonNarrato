@@ -64,6 +64,11 @@ var _acc_fotogrammi := 0
 var _fotogrammi := 0
 var _scatti := 0
 var _peggiore_ms := 0.0
+var _scatti_registrati := 0
+var _compilazioni_prima := 0
+
+# Chi vuole può dire cosa sta succedendo in partita: finisce accanto a ogni scatto registrato.
+var contesto: Callable
 
 
 func _ready() -> void:
@@ -94,14 +99,44 @@ func _process(delta: float) -> void:
 	_fotogrammi += 1
 	_acc_tempo += delta
 	_acc_fotogrammi += 1
+	var compilazioni := compilazioni_shader()
 	if delta > 0.05:
 		_scatti += 1
+		_registra_scatto(delta, compilazioni - _compilazioni_prima)
+	_compilazioni_prima = compilazioni
 	_peggiore_ms = maxf(_peggiore_ms, delta * 1000.0)
 	if _acc_tempo >= 1.0:
 		if _fps_serie.size() < 900:
 			_fps_serie.append(roundi(float(_acc_fotogrammi) / _acc_tempo))
 		_acc_tempo = 0.0
 		_acc_fotogrammi = 0
+
+
+static func compilazioni_shader() -> int:
+	# Quante volte il motore ha dovuto preparare un effetto grafico nuovo: è la causa più comune degli scatti.
+	return int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_CANVAS)
+			+ Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)
+			+ Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE)
+			+ Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW)
+			+ Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION))
+
+
+func _registra_scatto(delta: float, compilazioni: int) -> void:
+	# Ogni fotogramma lento finisce nel rapporto con ciò che stava succedendo, per capirne la causa.
+	if _scatti_registrati >= 40:
+		return
+	_scatti_registrati += 1
+	var dati := {
+		"ms": snappedf(delta * 1000.0, 0.1),
+		"shader_nuovi": compilazioni,
+		"nodi": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"disegni": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+	}
+	if contesto.is_valid():
+		var extra: Variant = contesto.call()
+		if typeof(extra) == TYPE_DICTIONARY:
+			dati.merge(extra)
+	evento("scatto", dati)
 
 
 # ------------------------------------------------------------------ raccolta
@@ -228,6 +263,7 @@ func _statistiche_fps() -> Dictionary:
 		"peggior_secondo_su_cento": ordinata[int(ordinata.size() * 0.01)],
 		"fotogrammi": _fotogrammi,
 		"scatti_oltre_50ms": _scatti,
+		"shader_preparati": compilazioni_shader(),
 		"fotogramma_peggiore_ms": snappedf(_peggiore_ms, 0.1),
 		"serie_al_secondo": serie,
 	}

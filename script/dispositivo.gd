@@ -17,6 +17,8 @@ const GPU_FORTI: Array[String] = [
 	"mali-g71", "mali-g72", "mali-g78", "mali-g9", "xclipse 9", "apple", "nvidia", "geforce", "radeon rx",
 ]
 const SEGNO_JNI := "user://lettura_android_in_corso"
+const SEGNO_FREQUENZA := "user://frequenza_in_corso"
+const TASTO_COLPO_MM := 13.0      # diametro voluto del tasto principale a schermo
 
 var info := {}
 var livello_consigliato := "media"
@@ -31,6 +33,10 @@ var riduzione_scatti := 0
 var letture_android := false
 var forzato := ""                # livello imposto da riga di comando (prove)
 var in_prova := false
+var sdk := 0                     # livello delle API di Android (0 = non Android)
+
+var _frequenza_chiesta := 0
+var _esito_frequenza := ""
 
 var _tempo := 0.0
 var _fotogrammi := 0
@@ -123,7 +129,10 @@ func _leggi_android() -> void:
 	var runtime: Object = Engine.get_singleton("AndroidRuntime")
 	var attivita: Variant = runtime.call("getActivity")
 	if attivita != null:
-		var android := OS.get_version().to_int()
+		if sdk == 0:
+			var versione: Variant = JavaClassWrapper.wrap("android.os.Build$VERSION").get("SDK_INT")
+			sdk = versione if typeof(versione) == TYPE_INT else 0
+			info["sdk"] = sdk
 		var gestore_batteria: Variant = attivita.call("getSystemService", "batterymanager")
 		if gestore_batteria != null:
 			var carica: Variant = gestore_batteria.call("getIntProperty", 4)  # BATTERY_PROPERTY_CAPACITY
@@ -136,11 +145,11 @@ func _leggi_android() -> void:
 				var poca: Variant = gestore_attivita.call("isLowRamDevice")
 				info["poca_memoria"] = poca if typeof(poca) == TYPE_BOOL else false
 		var gestore_energia: Variant = attivita.call("getSystemService", "power")
-		if gestore_energia != null and android >= 10:
+		if gestore_energia != null and sdk >= 29:
 			var stato: Variant = gestore_energia.call("getCurrentThermalStatus")
 			if typeof(stato) == TYPE_INT:
 				stato_termico = stato
-			if android >= 11:
+			if sdk >= 30:
 				var margine: Variant = gestore_energia.call("getThermalHeadroom", 0)
 				if typeof(margine) == TYPE_FLOAT and not is_nan(margine):
 					margine_termico = margine
@@ -184,7 +193,113 @@ func applica() -> void:
 		fps_obiettivo = mini(fps_obiettivo, 60)
 	if not in_prova:
 		Engine.max_fps = fps_obiettivo
+	_richiedi_frequenza.call_deferred()
 	profilo_cambiato.emit()
+
+
+func _notification(cosa: int) -> void:
+	if cosa == NOTIFICATION_APPLICATION_RESUMED and _frequenza_chiesta > 0:
+		# Tornando dal secondo piano Android può aver rifatto la superficie: richiedo di nuovo.
+		_frequenza_chiesta = 0
+		get_tree().create_timer(1.0).timeout.connect(_richiedi_frequenza)
+
+
+# ------------------------------------------------------------------ frequenza dello schermo
+
+func _richiedi_frequenza() -> void:
+	# Su Android 15 e successivi (Pixel compresi) i giochi restano a 60 Hz finché non chiedono di più.
+	# La richiesta parte solo se l'utente ha scelto più di 60 FPS, o per tornare a 60 dopo averne chiesti di più.
+	if not letture_android or sdk < 30:
+		return
+	if fps_obiettivo == _frequenza_chiesta or (fps_obiettivo <= 60 and _frequenza_chiesta == 0):
+		return
+	if FileAccess.file_exists(SEGNO_FREQUENZA):
+		info["frequenza"] = "saltata: la volta scorsa la richiesta non è finita"
+		return
+	var runtime: Object = Engine.get_singleton("AndroidRuntime")
+	var attivita: Variant = runtime.call("getActivity")
+	if attivita == null:
+		return
+	var segno := FileAccess.open(SEGNO_FREQUENZA, FileAccess.WRITE)
+	if segno != null:
+		segno.store_string(str(fps_obiettivo))
+		segno.close()
+	_frequenza_chiesta = fps_obiettivo
+	_esito_frequenza = ""
+	var hz := float(fps_obiettivo)
+	var livello_api := sdk
+	# Le viste di Android si toccano solo dal loro thread: la richiesta passa da runOnUiThread.
+	var lavoro := func() -> void:
+		_esito_frequenza = _imposta_frequenza(attivita, hz, livello_api)
+	attivita.call("runOnUiThread", runtime.call("createRunnableFromGodotCallable", lavoro))
+	get_tree().create_timer(2.5).timeout.connect(_dopo_frequenza)
+
+
+static func _imposta_frequenza(attivita: Variant, hz: float, livello_api: int) -> String:
+	var finestra: Variant = attivita.call("getWindow")
+	if finestra == null:
+		return "finestra non trovata"
+	var superficie_vista: Variant = _cerca_superficie(finestra.call("getDecorView"), 0)
+	if superficie_vista == null:
+		return "superficie non trovata"
+	var contenitore: Variant = superficie_vista.call("getHolder")
+	var superficie: Variant = contenitore.call("getSurface") if contenitore != null else null
+	if superficie == null:
+		return "superficie non pronta"
+	if livello_api >= 31:
+		superficie.call("setFrameRate", hz, 0, 1)  # compatibilità predefinita, cambio sempre permesso
+	else:
+		superficie.call("setFrameRate", hz, 0)
+	var errore: Variant = JavaClassWrapper.get_exception()
+	if errore != null:
+		return "errore: " + str(errore.call("toString")).left(200)
+	return "chiesti %d Hz" % int(hz)
+
+
+static func _cerca_superficie(vista: Variant, profondita: int) -> Variant:
+	if vista == null or profondita > 8:
+		return null
+	if vista.has_java_method("getHolder"):
+		return vista
+	if not vista.has_java_method("getChildCount"):
+		return null
+	var quanti: Variant = vista.call("getChildCount")
+	if typeof(quanti) != TYPE_INT:
+		return null
+	for i in quanti:
+		var trovata: Variant = _cerca_superficie(vista.call("getChildAt", i), profondita + 1)
+		if trovata != null:
+			return trovata
+	return null
+
+
+func _dopo_frequenza() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SEGNO_FREQUENZA))
+	info["frequenza"] = _esito_frequenza if _esito_frequenza != "" else "nessuna risposta"
+	info["hz"] = _frequenza_schermo()
+	_evento("frequenza", {"richiesta": _frequenza_chiesta, "esito": info["frequenza"], "hz_schermo": info["hz"]})
+
+
+# ------------------------------------------------------------------ tasti a schermo
+
+func scala_touch() -> float:
+	# Grandezza dei tasti a schermo: quella scelta dall'utente, oppure quella adatta allo schermo.
+	var scelta: float = Impostazioni.leggi("controlli/dimensione_touch")
+	return scelta if scelta > 0.0 else scala_touch_consigliata()
+
+
+func scala_touch_consigliata() -> float:
+	# Il tasto "Colpo" deve misurare circa 13 mm sul vetro, qualunque sia il telefono.
+	var dpi := float(DisplayServer.screen_get_dpi())
+	var finestra := Vector2(DisplayServer.window_get_size())
+	if dpi <= 0.0 or finestra.y <= 0.0 or not DisplayServer.is_touchscreen_available():
+		return 1.0
+	var base := Vector2(ProjectSettings.get_setting("display/window/size/viewport_width", 1280),
+			ProjectSettings.get_setting("display/window/size/viewport_height", 720))
+	var pixel_per_unita := minf(finestra.x / base.x, finestra.y / base.y)
+	var mm_per_unita := pixel_per_unita / dpi * 25.4
+	var diametro := 92.0 * mm_per_unita
+	return clampf(snappedf(TASTO_COLPO_MM / maxf(diametro, 0.1), 0.05), 1.0, 1.6)
 
 
 func risoluzione_interna(finestra: Vector2i) -> Dictionary:

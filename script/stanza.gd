@@ -434,6 +434,16 @@ func _aggiorna_luci() -> void:
 		((in_vista[i][1] as Dictionary)["muro"] as PointLight2D).shadow_enabled = i < con_ombra
 
 
+func riscalda_luci(durata: float) -> void:
+	# All'avvio, dietro il velo nero: tutte le luci accese e con ombra, così il dispositivo
+	# prepara subito ciò che servirà, invece di farlo quando una torcia entra in vista.
+	_t_luci = durata
+	for t: Dictionary in _torce:
+		for chiave in ["muro", "davanti"]:
+			(t[chiave] as PointLight2D).enabled = true
+		(t["muro"] as PointLight2D).shadow_enabled = true
+
+
 func torce_con_ombra() -> int:
 	var n := 0
 	for t: Dictionary in _torce:

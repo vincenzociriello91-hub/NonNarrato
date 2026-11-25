@@ -11,7 +11,7 @@ const PREDEFINITE := {
 	"grafica/limite_fps": 0,            # 0 = consigliato per il dispositivo
 	"grafica/palette": true,            # filtro "palette fissa" in pixel art
 	"grafica/ombre": true,              # ombre dinamiche delle luci
-	"controlli/dimensione_touch": 1.0,
+	"controlli/dimensione_touch": -1.0,  # -1 = adatta allo schermo
 	"controlli/opacita_touch": 0.6,
 	"controlli/vibrazione": true,
 	"gioco/debug": true,                # schermata con FPS e dati del dispositivo

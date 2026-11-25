@@ -176,7 +176,7 @@ func _disponi() -> void:
 	_messaggio.position = Vector2(0.0, area.y * 0.3)
 	_messaggio.size = Vector2(area.x, 50.0)
 
-	var k: float = Impostazioni.leggi("controlli/dimensione_touch")
+	var k := Dispositivo.scala_touch()
 	_touch.modulate.a = Impostazioni.leggi("controlli/opacita_touch")
 	_leva.position = Vector2(m[0], area.y * 0.36)
 	_leva.size = Vector2(area.x * 0.42 - m[0], area.y * 0.64 - m[3])

@@ -1,5 +1,12 @@
 # Novità di NonNarrato
 
+## 0.1 — Correzioni dopo le prime prove sul Pixel
+
+- Tasti a schermo grandi quanto serve: il gioco misura lo schermo e li fa di circa 13 mm. Se li hai già regolati a mano resta la tua scelta; "Ripristina i valori consigliati" torna alla misura automatica.
+- 90 e 120 FPS: se li scegli nel menu, il gioco ora chiede ad Android di alzare la frequenza dello schermo (sul Pixel serve anche "Display fluido" acceso nelle impostazioni del telefono).
+- All'avvio, dietro lo schermo nero, il gioco prepara tutti gli effetti, per evitare piccoli scatti la prima volta che compaiono.
+- Il rapporto annota ogni fotogramma lento con cosa stava succedendo, per trovare la causa di eventuali scatti.
+
 ## 0.1 — La stanza di prova
 
 Prima versione: una sola stanza, per capire se lo stile rende come vogliamo.

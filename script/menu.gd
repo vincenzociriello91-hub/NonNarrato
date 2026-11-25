@@ -102,7 +102,7 @@ func _costruisci() -> void:
 	_ombre = _interruttore(colonna, "Ombre dinamiche", "grafica/ombre")
 
 	_sezione(colonna, "Comandi")
-	_dimensione = _cursore(colonna, "Grandezza tasti a schermo", 0.7, 1.5, "controlli/dimensione_touch")
+	_dimensione = _cursore(colonna, "Grandezza tasti a schermo", 0.7, 1.8, "controlli/dimensione_touch")
 	_opacita = _cursore(colonna, "Visibilità tasti a schermo", 0.2, 1.0, "controlli/opacita_touch")
 	_vibrazione = _interruttore(colonna, "Vibrazione", "controlli/vibrazione")
 
@@ -199,7 +199,7 @@ func _carica_valori() -> void:
 	_fps.select(maxi(0, LIMITI_FPS.find(Impostazioni.leggi("grafica/limite_fps"))))
 	_palette.set_pressed_no_signal(Impostazioni.leggi("grafica/palette"))
 	_ombre.set_pressed_no_signal(Impostazioni.leggi("grafica/ombre"))
-	_dimensione.set_value_no_signal(Impostazioni.leggi("controlli/dimensione_touch"))
+	_dimensione.set_value_no_signal(Dispositivo.scala_touch())
 	_opacita.set_value_no_signal(Impostazioni.leggi("controlli/opacita_touch"))
 	_vibrazione.set_pressed_no_signal(Impostazioni.leggi("controlli/vibrazione"))
 	_debug.set_pressed_no_signal(Impostazioni.leggi("gioco/debug"))
