@@ -1,0 +1,23 @@
+{
+	"animazioni": {
+		"gira": {
+			"ciclo": true,
+			"fps": 20.0,
+			"frame": [
+				0,
+				1,
+				2,
+				3
+			]
+		}
+	},
+	"cella": [
+		38,
+		37
+	],
+	"colonne": 4,
+	"piedi": [
+		19,
+		40
+	]
+}

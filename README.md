@@ -7,7 +7,7 @@ e rinasce a ogni morte.
 
 Nome del gioco e del repository sono provvisori.
 
-## Stato: prototipo (una stanza di prova)
+## Stato: prototipo (una stanza di prova: cripta e galleria)
 
 Serve a capire se lo stile e i comandi rendono come vogliamo, prima di costruire mondi e storia.
 L'elenco di ciò che c'è è in [distribuzione/NOVITA.md](distribuzione/NOVITA.md).
@@ -30,6 +30,7 @@ quando c'è una versione nuova.
 | Rotolare | B | Rotola | K |
 | Schivare / scatto (con la direzione: avanti o indietro) | Y o RB | Schiva | L |
 | Afferrare una cassa (tenere premuto) | LB | Afferra (solo vicino a una cassa) | E |
+| Tirare una leva, aprire un forziere | LB | Leva / Apri (solo accanto) | E |
 | Scavalcare un ostacolo basso | su + direzione | leva in diagonale | W + direzione |
 | Scendere da una piattaforma | giù + A | giù + Salto | S + Spazio |
 | Pausa e impostazioni | Start | II | Esc |
@@ -62,14 +63,25 @@ si scelgono dal menu di pausa, sezione Aspetto.
 ## Cartelle
 
 - `script/` — il gioco. `principale.gd` avvia tutto; `stanza.gd` costruisce la stanza; `giocatore.gd`, `figura_viva.gd`,
-  `equipaggiamento.gd`, `bot.gd`, `nemico.gd`,
-  `rompibile.gd`, `proiettile.gd`; `dispositivo.gd` (riconoscimento e qualità), `controlli.gd`, `impostazioni.gd`,
+  `equipaggiamento.gd`, `bot.gd`, `navigatore.gd`, `nemico.gd`, `memoria.gd`,
+  `rompibile.gd`, `proiettile.gd`; meccanismi e trappole della galleria: `porta.gd`, `leva.gd`, `piastra.gd`,
+  `forziere.gd`, `spuntoni.gd`, `pendolo.gd`, `balestra.gd`, `piattaforma_mobile.gd`, `piattaforma_fragile.gd`,
+  `bracieri.gd`; `dispositivo.gd` (riconoscimento e qualità), `controlli.gd`, `impostazioni.gd`,
   `rapporto.gd`; `hud.gd` e `menu.gd` per l'interfaccia.
 - `shader/` — filtro palette e nebbia.
 - `arte/` — sprite e grafica d'ambiente; `arte/figure/` le animazioni del protagonista. `modelli/` — il manichino.
   `sorgenti3d/` — modelli originali (non entrano nell'APK).
 - `strumenti/` — strumenti di lavoro. `test/` — prova automatica.
 - `distribuzione/` — novità e chiave di firma del canale di prova.
+
+## La stanza
+
+Due parti, costruite da codice in `script/stanza.gd`. La **cripta** (piattaforme, cunicolo da passare rotolando, cassa,
+barili, scheletri e mago) e, oltre la terrazza, la **galleria** su tre piani: spuntoni a tempo, sega a pendolo,
+balestra con piastra, una torre con montacarichi e lastre che crollano, la sala con l'enigma della cassa sulla piastra,
+il salone con l'enigma dei bracieri (ordine diverso a ogni sogno) e una nicchia segreta. Leve e forzieri si usano col
+tasto Afferra. I forzieri danno vita, frammenti della storia e, quello d'oro, colori rari per l'aspetto: i tesori trovati
+sono salvati in `user://equipaggiamento.cfg` (sezione `tesori`).
 
 ## Nemici e memoria del sogno
 
@@ -82,7 +94,9 @@ dell'ultima posizione vista, tattiche scelte secondo i risultati (osserva, decid
 
 Dal menu di pausa, "Fai giocare il bot" (oppure `godot --path . -- --bot` sul computer). `script/bot.gd` gioca da solo
 la stanza come una persona (solo comandi, nessun teletrasporto: i percorsi li trova `script/navigatore.gd`, che
-ricorda quali passaggi falliscono), combatte schivando, muore contro uno scheletro e affronta la sua nemesi, prova mosse,
+ricorda quali passaggi falliscono e sa quando una grata è aperta o una lastra è crollata), combatte schivando, muore
+contro uno scheletro e affronta la sua nemesi, aspetta il momento giusto davanti alle trappole, prende il montacarichi,
+risolve i due enigmi e apre i forzieri, prova mosse,
 aspetti e qualità, misura la fluidità di ogni fase, rimette le scelte di chi gioca, salva il
 rapporto con la sezione `bot` e chiude il gioco. Se il gioco si chiude a metà, al riavvio le scelte vengono rimesse.
 
@@ -95,6 +109,7 @@ godot --headless --fixed-fps 60 --path . -- --prova
 
 La prova fa giocare lo stesso bot (corsa, salto, colpi, cassa, barili, nemici, cunicolo, piattaforme, tasti a schermo,
 menu, aspetto, mosse, morte, comandi a caso, qualità) e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno schermo e `--schermate=/cartella` salva anche le immagini.
+Per correggere più in fretta, `--fasi=torre,enigma_cassa` fa giocare al bot solo alcune fasi.
 
 ## Pubblicazione
 

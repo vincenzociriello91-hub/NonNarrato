@@ -2,7 +2,9 @@ class_name Navigatore
 extends RefCounted
 # La mappa della stanza per il bot: superfici su cui stare in piedi e i modi per passare dall'una
 # all'altra (camminare, saltare, aggrapparsi a un bordo, scendere da un bordo, attraversare una
-# piattaforma con giù + salto, rotolare nel cunicolo). Trova il percorso più comodo e tiene
+# piattaforma con giù + salto, rotolare nel cunicolo, passare una grata aperta, prendere il
+# montacarichi). Alcuni passaggi esistono solo a certe condizioni (grata aperta, lastra non
+# crollata): le chiede alla stanza con "condizione". Trova il percorso più comodo e tiene
 # l'esperienza: un passaggio fallito costa di più la volta dopo e il punto di stacco viene corretto,
 # così lo stesso errore non si ripete (come il bot di Minecraft). Salvata in user://bot_esperienza.cfg.
 
@@ -11,25 +13,37 @@ const SALTO_PIENO := 76.0        # dislivello superabile con un salto normale
 const SALTO_CON_PRESA := 135.0   # aggrappandosi al bordo
 const DISTANZA_SALTO := 90.0
 
-var superfici := {}              # id -> {x0, x1, y, passante}
-var archi: Array = []            # {da, a, tipo, stacco, verso, altezza}
+var superfici := {}              # id -> {x0, x1, y, passante, isolata?, fragile?, condizione?}
+var archi: Array = []            # {da, a, tipo, stacco, verso, altezza, meta?, condizione?}
+var condizione: Callable         # nome -> bool (se non c'è, tutto è sempre possibile)
+var _speciali: Array = []
+var _vietati := {}
 var esperienza := {}             # chiave arco -> {prove, riuscite, scarto, errori_di_fila}
 var errori_ripetuti := 0
 var lezioni: Array = []
 
 
-func _init(elenco: Array) -> void:
+func _init(elenco: Array, speciali: Array = []) -> void:
 	for s: Dictionary in elenco:
 		superfici[s["id"]] = s
+	_speciali = speciali
 	_costruisci()
 	_carica()
 
 
 func _costruisci() -> void:
 	archi.clear()
+	_vietati.clear()
+	for sp: Dictionary in _speciali:
+		if sp.get("tipo", "") == "vietato":
+			_vietati["%s>%s" % [sp["da"], sp["a"]]] = true
+			continue
+		var arco := sp.duplicate()
+		arco["altezza"] = float(superfici[sp["da"]]["y"]) - float(superfici[sp["a"]]["y"])
+		archi.append(arco)
 	for id_a: String in superfici:
 		for id_b: String in superfici:
-			if id_a != id_b:
+			if id_a != id_b and not _vietati.has("%s>%s" % [id_a, id_b]):
 				var arco := _arco(superfici[id_a], superfici[id_b])
 				if not arco.is_empty():
 					archi.append(arco)
@@ -38,13 +52,8 @@ func _costruisci() -> void:
 func _arco(a: Dictionary, b: Dictionary) -> Dictionary:
 	var ida: String = a["id"]
 	var idb: String = b["id"]
-	# Il cunicolo si passa solo rotolando.
-	if ida == "pavimento" and idb == "alcova":
-		return {"da": ida, "a": idb, "tipo": "rotola", "stacco": 1078.0, "verso": 1, "altezza": 0.0}
-	if ida == "alcova" and idb == "pavimento":
-		return {"da": ida, "a": idb, "tipo": "rotola", "stacco": 1222.0, "verso": -1, "altezza": 0.0}
-	if (ida == "alcova") != (idb == "alcova"):
-		return {}  # dall'alcova si esce solo dal cunicolo
+	if a.get("isolata", false) or b.get("isolata", false):
+		return {}  # ci si entra e se ne esce solo dai passaggi speciali (cunicolo, grate)
 	var dy: float = float(a["y"]) - float(b["y"])            # > 0: b è più in alto
 	var sovrapposti := minf(a["x1"], b["x1"]) - maxf(a["x0"], b["x0"])
 	var verso_b := 1 if (float(b["x0"]) + float(b["x1"])) * 0.5 > (float(a["x0"]) + float(a["x1"])) * 0.5 else -1
@@ -71,13 +80,37 @@ func _arco(a: Dictionary, b: Dictionary) -> Dictionary:
 		if a["passante"] and sovrapposti > 24.0:
 			var centro := (maxf(a["x0"], b["x0"]) + minf(a["x1"], b["x1"])) * 0.5
 			return {"da": ida, "a": idb, "tipo": "attraversa", "stacco": centro, "verso": verso_b, "altezza": dy}
-		# Scendere da un bordo: sotto deve esserci b.
-		if float(b["x0"]) <= float(a["x0"]) - 12.0 and float(b["x1"]) >= float(a["x0"]) - 12.0:
+		# Scendere da un bordo: sotto deve esserci b, e niente in mezzo.
+		if float(b["x0"]) <= float(a["x0"]) - 12.0 and float(b["x1"]) >= float(a["x0"]) - 12.0 \
+				and not _in_mezzo(float(a["x0"]) - 10.0, float(a["y"]), float(b["y"]), [ida, idb]):
 			return {"da": ida, "a": idb, "tipo": "caduta", "stacco": float(a["x0"]) + 3.0, "verso": -1, "altezza": dy}
-		if float(b["x1"]) >= float(a["x1"]) + 12.0 and float(b["x0"]) <= float(a["x1"]) + 12.0:
+		if float(b["x1"]) >= float(a["x1"]) + 12.0 and float(b["x0"]) <= float(a["x1"]) + 12.0 \
+				and not _in_mezzo(float(a["x1"]) + 10.0, float(a["y"]), float(b["y"]), [ida, idb]):
 			return {"da": ida, "a": idb, "tipo": "caduta", "stacco": float(a["x1"]) - 3.0, "verso": 1, "altezza": dy}
 		return {}
 	return {}
+
+
+func _in_mezzo(x: float, y_alto: float, y_basso: float, escluse: Array) -> bool:
+	# Cadendo da x, si atterra prima su un'altra superficie?
+	for id: String in superfici:
+		if escluse.has(id):
+			continue
+		var s: Dictionary = superfici[id]
+		var y := float(s["y"])
+		if y > y_alto + 4.0 and y < y_basso - 4.0 and x >= float(s["x0"]) - 8.0 and x <= float(s["x1"]) + 8.0:
+			return true
+	return false
+
+
+func possibile(arco: Dictionary) -> bool:
+	# Il passaggio si può fare adesso? (grata aperta, lastre al loro posto)
+	if not condizione.is_valid():
+		return true
+	for nome: String in [arco.get("condizione", ""), superfici[arco["da"]].get("condizione", ""), superfici[arco["a"]].get("condizione", "")]:
+		if nome != "" and not condizione.call(nome):
+			return false
+	return true
 
 
 # ------------------------------------------------------------------ dove sono, dove vado
@@ -87,6 +120,8 @@ func superficie_di(piedi: Vector2) -> String:
 	for id: String in superfici:
 		var s: Dictionary = superfici[id]
 		if absf(piedi.y - float(s["y"])) < 5.0 and piedi.x >= float(s["x0"]) - 6.0 and piedi.x <= float(s["x1"]) + 6.0:
+			if s.has("condizione") and condizione.is_valid() and not condizione.call(s["condizione"]):
+				continue
 			return id
 	return ""
 
@@ -99,6 +134,8 @@ func superficie_per(punto: Vector2) -> String:
 		var s: Dictionary = superfici[id]
 		var dentro := punto.x >= float(s["x0"]) - 4.0 and punto.x <= float(s["x1"]) + 4.0
 		var sotto := float(s["y"]) - punto.y
+		if s.has("condizione") and condizione.is_valid() and not condizione.call(s["condizione"]):
+			continue
 		if dentro and sotto > -8.0 and sotto < migliore:
 			migliore = sotto
 			scelta = id
@@ -116,7 +153,7 @@ func percorso(da: String, a: String) -> Array:
 		if ora == a:
 			break
 		for arco: Dictionary in archi:
-			if arco["da"] != ora:
+			if arco["da"] != ora or not possibile(arco):
 				continue
 			var c: float = costi[ora] + costo(arco)
 			if c < float(costi.get(arco["a"], INF)):
@@ -136,10 +173,12 @@ func percorso(da: String, a: String) -> Array:
 
 
 func costo(arco: Dictionary) -> float:
-	var base := {"salto": 0.6, "salto_su": 0.6, "attraversa": 0.4, "caduta": 0.3, "rotola": 0.8}
+	var base := {"salto": 0.6, "salto_su": 0.6, "attraversa": 0.4, "caduta": 0.3, "rotola": 0.8, "passa": 0.3, "ascensore": 2.0}
 	var c: float = base.get(arco["tipo"], 1.0)
 	if float(arco["altezza"]) > SALTO_PIENO:
 		c += 0.4  # serve aggrapparsi
+	if superfici[arco["a"]].get("fragile", false):
+		c += 2.5  # una lastra che crolla: meglio un'altra strada, se c'è
 	var e: Dictionary = esperienza.get(chiave(arco), {})
 	var falliti := int(e.get("prove", 0)) - int(e.get("riuscite", 0))
 	return c + 1.5 * falliti   # i passaggi che hanno fallito costano di più

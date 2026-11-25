@@ -42,7 +42,7 @@ const AZIONI_DI_GIOCO := [
 	["fermo", "Fermo"], ["corsa", "Corsa"], ["salto", "Salto"], ["aria", "In aria"], ["atterra", "Atterraggio"],
 	["attacco1", "Attacco 1"], ["attacco2", "Attacco 2"], ["schivata", "Scatto indietro"], ["scatto", "Scatto avanti"],
 	["rotolata", "Rotolata"], ["rotolata_indietro", "Rotolo indietro"], ["scavalco", "Scavalcare"],
-	["presa", "Afferrare"], ["spinge", "Spingere"], ["tira", "Tirare"], ["colpito", "Colpito"], ["morte", "Morte"],
+	["presa", "Afferrare"], ["spinge", "Spingere"], ["tira", "Tirare"], ["usa", "Usare"], ["colpito", "Colpito"], ["morte", "Morte"],
 ]
 var _collegamento := ""
 var _in_caricamento := false
@@ -152,7 +152,7 @@ func _costruisci() -> void:
 		chiudi()
 		bot_richiesto.emit())
 	var spiega := Label.new()
-	spiega.text = "Il bot gioca da solo per qualche minuto come una persona: si muove, combatte, muore e affronta la sua nemesi, prova mosse, aspetti e qualità. Alla fine rimette le tue scelte e i tuoi ricordi, salva il rapporto e chiude il gioco. Premi pausa per fermarlo."
+	spiega.text = "Il bot gioca da solo per qualche minuto come una persona: si muove, combatte, muore e affronta la sua nemesi, evita le trappole, risolve gli enigmi, apre i forzieri, prova mosse, aspetti e qualità. Alla fine rimette le tue scelte, i tuoi tesori e i tuoi ricordi, salva il rapporto e chiude il gioco. Premi pausa per fermarlo."
 	spiega.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	spiega.add_theme_font_size_override("font_size", 17)
 	spiega.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
@@ -383,7 +383,12 @@ func _carica_valori() -> void:
 				oggetto.select(i)
 		var colore: OptionButton = _scelte_colore[posto]
 		for i in colore.item_count:
-			if colore.get_item_metadata(i) == Equipaggiamento.colori[posto]:
+			var c: String = colore.get_item_metadata(i)
+			# I colori rari si vedono solo dopo averli trovati in un forziere d'oro.
+			var libero := Equipaggiamento.disponibile(c)
+			colore.set_item_disabled(i, not libero)
+			colore.set_item_text(i, String(Equipaggiamento.COLORI[c][0]) if libero else "??? (forziere d'oro)")
+			if c == Equipaggiamento.colori[posto]:
 				colore.select(i)
 	_in_caricamento = false
 

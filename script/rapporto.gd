@@ -149,6 +149,8 @@ func evento(tipo: String, dati: Dictionary = {}) -> void:
 	var voce := {"t": snappedf(_tempo, 0.01), "tipo": tipo}
 	voce.merge(dati)
 	_eventi.append(voce)
+	if Dispositivo.in_prova and tipo in ["trappola", "piastra", "lastra_trema", "crollo", "morte"]:
+		print("PROVA evento: ", voce)
 
 
 func conta(chiave: String, quanto: int = 1) -> void:

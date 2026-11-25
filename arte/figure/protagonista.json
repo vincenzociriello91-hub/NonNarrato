@@ -164,6 +164,14 @@
 			"clip": "Walking_Backwards",
 			"ciclo": true,
 			"fps": 10
+		},
+		{
+			"nome": "usa",
+			"clip": "Interact",
+			"da": 0.1,
+			"a": 0.9,
+			"frame": 6,
+			"fps": 16
 		}
 	],
 	"mosse": {

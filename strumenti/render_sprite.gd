@@ -104,9 +104,16 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 	var piedi_da_sotto: int = int(voce.get("piedi_da_sotto", 8))
 	var fps: float = voce.get("fps", 12.0)
 
-	var modello := _carica(voce["glb"])
-	if modello == null:
-		printerr("Non riesco a caricare ", voce["glb"])
+	# Un modello GLB, oppure un oggetto composto da forme semplici ("pezzi"), oppure entrambi.
+	var modello: Node3D = null
+	if voce.has("glb"):
+		modello = _carica(voce["glb"])
+		if modello == null:
+			printerr("Non riesco a caricare ", voce["glb"])
+			return false
+	else:
+		modello = Node3D.new()
+	if not _componi(modello, voce.get("pezzi", [])):
 		return false
 
 	# perno (capriole) -> base (rotazione, scala) -> modello
@@ -153,7 +160,20 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 	var scatti: Array = []
 	var animazioni := {}
 	var lista: Array = voce.get("animazioni", [])
-	if lista.is_empty() or lettore == null:
+	var pose: Array = voce.get("pose", [])
+	if not pose.is_empty():
+		# Oggetti senza scheletro: ogni fotogramma sposta o ruota dei nodi (coperchio, leva, punte).
+		for p: Dictionary in pose:
+			var n: int = int(p.get("frame", 1))
+			var indici: Array = []
+			for i in n:
+				indici.append(scatti.size())
+				var k := 0.0 if n <= 1 else float(i) / float(n - 1)
+				if p.get("ciclo", false) and n > 1:
+					k = float(i) / float(n)
+				scatti.append({"clip": "", "t": 0.0, "giro": 0.0, "giu": 0.0, "nodi": p.get("nodi", []), "k": k})
+			animazioni[p["nome"]] = {"fps": p.get("fps", fps), "ciclo": p.get("ciclo", false), "frame": indici}
+	elif lista.is_empty() or lettore == null:
 		scatti.append({"clip": "", "t": 0.0, "giro": 0.0, "giu": 0.0})
 		animazioni["base"] = {"fps": 1.0, "ciclo": false, "frame": [0]}
 	else:
@@ -199,6 +219,8 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 				lettore.play(s["clip"])
 				lettore.seek(s["t"], true)
 				lettore.pause()
+			if s.has("nodi"):
+				_metti_in_posa(modello, s["nodi"], s["k"])
 			var centro: float = s.get("centro", 0.0)
 			perno.position = Vector3(0.0, centro - float(s["giu"]), 0.0)
 			base.position = Vector3(sposta[0], sposta[1] - centro, sposta[2])
@@ -225,6 +247,26 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 			foglio_n = foglio_n.get_region(usato)
 			piedi -= usato.position
 			cella = usato.size
+	elif voce.get("ritaglia", false):
+		# Più fotogrammi: tengo in ogni cella lo stesso rettangolo, quello che li contiene tutti.
+		var unione := Rect2i()
+		for i in scatti.size():
+			var dove := Vector2i((i % colonne) * cella.x, (i / colonne) * cella.y)
+			var usato := foglio_c.get_region(Rect2i(dove, cella)).get_used_rect()
+			if usato.size.x > 0 and usato.size.y > 0:
+				unione = usato if unione.size == Vector2i.ZERO else unione.merge(usato)
+		if unione.size.x > 0 and unione.size.y > 0:
+			var nuovo_c := Image.create(colonne * unione.size.x, righe * unione.size.y, false, Image.FORMAT_RGBA8)
+			var nuovo_n := Image.create(colonne * unione.size.x, righe * unione.size.y, false, Image.FORMAT_RGBA8)
+			for i in scatti.size():
+				var da := Vector2i((i % colonne) * cella.x, (i / colonne) * cella.y) + unione.position
+				var a := Vector2i((i % colonne) * unione.size.x, (i / colonne) * unione.size.y)
+				nuovo_c.blit_rect(foglio_c, Rect2i(da, unione.size), a)
+				nuovo_n.blit_rect(foglio_n, Rect2i(da, unione.size), a)
+			foglio_c = nuovo_c
+			foglio_n = nuovo_n
+			piedi -= unione.position
+			cella = unione.size
 
 	var percorso := uscita.path_join(nome)
 	foglio_c.save_png(ProjectSettings.globalize_path(percorso + ".png"))
@@ -242,6 +284,98 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 	perno.queue_free()
 	await process_frame
 	return true
+
+
+func _componi(modello: Node3D, pezzi: Array) -> bool:
+	# Forme semplici (scatola, cilindro, cono, sfera, anello) con un colore: per meccanismi e trappole
+	# che non esistono nei pacchetti di modelli. "genitore" permette di muovere più pezzi insieme.
+	for p: Dictionary in pezzi:
+		var nodo: Node3D
+		var forma: String = p.get("forma", "vuoto")
+		var m: Array = p.get("misura", [1.0, 1.0, 1.0])
+		var mesh: PrimitiveMesh = null
+		match forma:
+			"box":
+				var b := BoxMesh.new()
+				b.size = Vector3(m[0], m[1], m[2])
+				mesh = b
+			"cilindro", "cono":
+				var c := CylinderMesh.new()
+				c.top_radius = 0.0 if forma == "cono" else float(m[0])
+				c.bottom_radius = float(m[1]) if m.size() > 2 else float(m[0])
+				c.height = float(m[m.size() - 1])
+				c.radial_segments = int(p.get("lati", 12))
+				c.rings = 1
+				mesh = c
+			"sfera":
+				var s := SphereMesh.new()
+				s.radius = float(m[0])
+				s.height = float(m[1]) if m.size() > 1 else float(m[0]) * 2.0
+				s.radial_segments = 12
+				s.rings = 6
+				mesh = s
+			"anello":
+				var t := TorusMesh.new()
+				t.inner_radius = float(m[0])
+				t.outer_radius = float(m[1])
+				t.rings = 12
+				t.ring_segments = 6
+				mesh = t
+			"vuoto":
+				pass
+			_:
+				printerr("Forma sconosciuta: ", forma)
+				return false
+		if mesh != null:
+			var materiale := StandardMaterial3D.new()
+			materiale.albedo_color = Color(String(p.get("colore", "#808080")))
+			mesh.material = materiale
+			var mi := MeshInstance3D.new()
+			mi.mesh = mesh
+			nodo = mi
+		else:
+			nodo = Node3D.new()
+		nodo.name = p.get("nome", forma)
+		var pos: Array = p.get("pos", [0.0, 0.0, 0.0])
+		var rot: Array = p.get("rot", [0.0, 0.0, 0.0])
+		nodo.position = Vector3(pos[0], pos[1], pos[2])
+		nodo.rotation_degrees = Vector3(rot[0], rot[1], rot[2])
+		var genitore: Node = modello
+		if p.has("genitore"):
+			genitore = modello.find_child(p["genitore"], true, false)
+			if genitore == null:
+				printerr("Genitore non trovato: ", p["genitore"])
+				return false
+		genitore.add_child(nodo)
+	return true
+
+
+func _metti_in_posa(modello: Node3D, nodi: Array, k: float) -> void:
+	# Ogni voce: {"nodo", "da": {"pos", "rot", "scala"}, "a": {...}}; k va da 0 (da) a 1 (a).
+	for v: Dictionary in nodi:
+		var nodo := modello.find_child(v["nodo"], true, false) as Node3D
+		if nodo == null:
+			printerr("Nodo da mettere in posa non trovato: ", v["nodo"])
+			continue
+		if not nodo.has_meta("riposo"):
+			nodo.set_meta("riposo", nodo.transform)
+		var riposo: Transform3D = nodo.get_meta("riposo")
+		var da: Dictionary = v.get("da", {})
+		var a: Dictionary = v.get("a", da)
+		nodo.transform = riposo
+		if da.has("pos") or a.has("pos"):
+			var p0: Array = da.get("pos", [0.0, 0.0, 0.0])
+			var p1: Array = a.get("pos", p0)
+			nodo.position = riposo.origin + Vector3(p0[0], p0[1], p0[2]).lerp(Vector3(p1[0], p1[1], p1[2]), k)
+		if da.has("rot") or a.has("rot"):
+			var r0: Array = da.get("rot", [0.0, 0.0, 0.0])
+			var r1: Array = a.get("rot", r0)
+			var r := Vector3(r0[0], r0[1], r0[2]).lerp(Vector3(r1[0], r1[1], r1[2]), k)
+			nodo.basis = riposo.basis * Basis.from_euler(r * PI / 180.0)
+		if da.has("scala") or a.has("scala"):
+			var s0: Array = da.get("scala", [1.0, 1.0, 1.0])
+			var s1: Array = a.get("scala", s0)
+			nodo.scale = nodo.scale * Vector3(s0[0], s0[1], s0[2]).lerp(Vector3(s1[0], s1[1], s1[2]), k)
 
 
 func _carica(percorso: String) -> Node3D:

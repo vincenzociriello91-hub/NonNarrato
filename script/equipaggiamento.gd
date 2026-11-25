@@ -1,6 +1,7 @@
 extends Node
 # Cosa indossa il Non Narrato. Ogni oggetto è un insieme di pezzi del manichino
 # (modelli/manichino.scn); ogni posto ha anche un colore. Per ora cambia solo l'aspetto.
+# Qui stanno anche i tesori trovati nei forzieri: colori rari e frammenti della storia.
 # Salvato in user://equipaggiamento.cfg.
 
 signal cambiato
@@ -86,7 +87,23 @@ const COLORI := {
 	"oro_antico": ["Oro antico", Color(1.0, 0.85, 0.55), 1.1, 1.15],
 	"muschio": ["Muschio", Color(0.72, 0.9, 0.66), 0.9, 0.9],
 	"ossa": ["Ossa", Color(1.0, 0.95, 0.82), 0.5, 1.25],
+	"brace": ["Brace", Color(1.0, 0.5, 0.32), 1.35, 1.05],
+	"abisso": ["Abisso", Color(0.45, 0.62, 0.9), 0.9, 0.72],
+	"argento_lunare": ["Argento lunare", Color(0.9, 0.95, 1.05), 0.2, 1.32],
 }
+# Colori che si ottengono solo dai forzieri d'oro, in quest'ordine.
+const DA_TROVARE: Array[String] = ["brace", "abisso", "argento_lunare"]
+
+# Frammenti della storia del Dormiente, uno per forziere, in quest'ordine.
+const FRAMMENTI: Array[String] = [
+	"«Le leggende non nacquero per essere raccontate, ma per essere ripetute. Ogni ripetizione è un punto di sutura sulle palpebre del Dormiente.»",
+	"«Chi scavò questa cripta non seppelliva i morti. Seppelliva le storie che avevano smesso di funzionare.»",
+	"«Le torce non scacciano il buio. Gli ricordano soltanto dove finisce il sogno.»",
+	"«Una leggenda incompiuta non muore: resta sulla soglia. E la soglia, col tempo, impara a camminare.»",
+	"«Il Dormiente non sogna noi. Sogna di non svegliarsi, e noi siamo il modo in cui ci riesce.»",
+	"«Le ossa che si rialzano non portano rancore. Portano memoria. È peggio.»",
+	"«Quando l'ultima storia sarà finita, qualcuno dovrà decidere se raccontarla o lasciarla dormire.»",
+]
 
 # Gruppi di mosse: cambiano le animazioni (per ora solo l'aspetto, i tempi di gioco restano uguali).
 const MOSSE := {
@@ -113,6 +130,8 @@ const PREDEFINITO := {
 var indossati := {}
 var colori := {}
 var mosse_scelte := "auto"       # "auto" oppure un gruppo di MOSSE
+var trovati: Array = []          # colori rari trovati nei forzieri
+var frammenti: Array = []        # indici dei frammenti già letti
 
 
 func _ready() -> void:
@@ -130,6 +149,23 @@ func _ready() -> void:
 	var scelta: String = str(cfg.get_value("mosse", "scelta", "auto"))
 	if scelta == "auto" or MOSSE.has(scelta):
 		mosse_scelte = scelta
+	_leggi_tesori(cfg.get_value("tesori", "colori", []), cfg.get_value("tesori", "frammenti", []))
+	for posto in POSTI:
+		if not disponibile(colori[posto]):
+			colori[posto] = "naturale"
+
+
+func _leggi_tesori(colori_trovati: Variant, letti: Variant) -> void:
+	trovati.clear()
+	frammenti.clear()
+	if typeof(colori_trovati) == TYPE_ARRAY:
+		for c in colori_trovati:
+			if DA_TROVARE.has(str(c)) and not trovati.has(str(c)):
+				trovati.append(str(c))
+	if typeof(letti) == TYPE_ARRAY:
+		for i in letti:
+			if int(i) >= 0 and int(i) < FRAMMENTI.size() and not frammenti.has(int(i)):
+				frammenti.append(int(i))
 
 
 func _predefiniti() -> void:
@@ -170,8 +206,44 @@ func indossa(posto: String, id: String) -> void:
 	_dopo_cambio()
 
 
+func disponibile(colore: String) -> bool:
+	return COLORI.has(colore) and (not DA_TROVARE.has(colore) or trovati.has(colore))
+
+
+func trova_colore() -> String:
+	# Il prossimo colore raro, o "" se si sono già trovati tutti.
+	for c in DA_TROVARE:
+		if not trovati.has(c):
+			trovati.append(c)
+			_salva()
+			cambiato.emit()
+			return c
+	return ""
+
+
+func trova_frammento() -> String:
+	# Il prossimo frammento non ancora letto, o "" se si sono già letti tutti.
+	for i in FRAMMENTI.size():
+		if not frammenti.has(i):
+			frammenti.append(i)
+			_salva()
+			return FRAMMENTI[i]
+	return ""
+
+
+func azzera_tesori() -> void:
+	# Per il bot: parte senza tesori, così i forzieri danno sempre qualcosa (alla fine rimette quelli di chi gioca).
+	trovati.clear()
+	frammenti.clear()
+	for posto in POSTI:
+		if not disponibile(colori[posto]):
+			colori[posto] = "naturale"
+	_salva()
+	cambiato.emit()
+
+
 func colora(posto: String, colore: String) -> void:
-	if not COLORI.has(colore) or colori.get(posto) == colore:
+	if not disponibile(colore) or colori.get(posto) == colore:
 		return
 	colori[posto] = colore
 	_dopo_cambio()
@@ -199,18 +271,20 @@ func scegli_mosse(id: String) -> void:
 
 
 func stato() -> Dictionary:
-	return {"indossati": indossati.duplicate(), "colori": colori.duplicate(), "mosse": mosse_scelte}
+	return {"indossati": indossati.duplicate(), "colori": colori.duplicate(), "mosse": mosse_scelte,
+			"trovati": trovati.duplicate(), "frammenti": frammenti.duplicate()}
 
 
 func ripristina_stato(s: Dictionary) -> void:
-	# Per il bot: rimette l'aspetto che aveva chi gioca.
+	# Per il bot: rimette l'aspetto (e i tesori) che aveva chi gioca.
 	_predefiniti()
+	_leggi_tesori(s.get("trovati", trovati.duplicate()), s.get("frammenti", frammenti.duplicate()))
 	for posto in POSTI:
 		var id: String = str((s.get("indossati", {}) as Dictionary).get(posto, ""))
 		if OGGETTI.has(id) and OGGETTI[id][0] == posto:
 			indossati[posto] = id
 		var c: String = str((s.get("colori", {}) as Dictionary).get(posto, ""))
-		if COLORI.has(c):
+		if disponibile(c):
 			colori[posto] = c
 	var m: String = str(s.get("mosse", "auto"))
 	mosse_scelte = m if m == "auto" or MOSSE.has(m) else "auto"
@@ -222,7 +296,7 @@ func casuale(generatore: RandomNumberGenerator = null) -> void:
 	if g == null:
 		g = RandomNumberGenerator.new()
 		g.randomize()
-	var nomi_colori := COLORI.keys()
+	var nomi_colori := COLORI.keys().filter(disponibile)
 	for posto in POSTI:
 		var elenco := oggetti_del_posto(posto)
 		indossati[posto] = elenco[g.randi() % elenco.size()]
@@ -255,4 +329,6 @@ func _salva() -> void:
 		cfg.set_value("oggetti", posto, indossati[posto])
 		cfg.set_value("colori", posto, colori[posto])
 	cfg.set_value("mosse", "scelta", mosse_scelte)
+	cfg.set_value("tesori", "colori", trovati)
+	cfg.set_value("tesori", "frammenti", frammenti)
 	cfg.save(PERCORSO)

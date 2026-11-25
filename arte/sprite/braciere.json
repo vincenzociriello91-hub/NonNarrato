@@ -1,0 +1,20 @@
+{
+	"animazioni": {
+		"base": {
+			"ciclo": false,
+			"fps": 1.0,
+			"frame": [
+				0
+			]
+		}
+	},
+	"cella": [
+		32,
+		41
+	],
+	"colonne": 1,
+	"piedi": [
+		16,
+		38
+	]
+}

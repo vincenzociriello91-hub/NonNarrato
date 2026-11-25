@@ -1,5 +1,17 @@
 # Novità di NonNarrato
 
+## 0.1 — La galleria: trappole, enigmi e forzieri
+
+- **Una galleria nuova oltre la terrazza**, su tre piani: si scende dalla passerella, si sale su una torre e si arriva fino a un salone in alto.
+- **Leve e grate**: una leva sotto la passerella apre la grata dell'alcova, una scorciatoia per tornare nella cripta.
+- **Trappole**: spuntoni che escono dal pavimento a tempo (prima tremano), una sega a pendolo da passare al momento giusto, una piastra che fa scattare una balestra nel muro (la freccia si schiva saltando, rotolandole incontro o colpendola). Le trappole feriscono anche i nemici.
+- **Piattaforme nuove**: un montacarichi che sale e scende da solo e lastre crepate che crollano poco dopo che ci sali, e poi tornano al loro posto.
+- **Due enigmi**: spingi la cassa giù dalla balconata e mettila sulla piastra, così la grata del tesoro resta alzata; nel salone accendi i tre bracieri (colpendoli) nell'ordine della tavoletta incisa per far salire un gradino segreto. L'ordine cambia a ogni sogno.
+- **Forzieri**: accanto a un forziere (o a una leva) premi **Afferra**; il tasto a schermo dice cosa fa ("Apri", "Leva"). I forzieri di legno ridanno vita e contengono frammenti della storia del Dormiente; il forziere d'oro nella nicchia segreta regala un **colore nuovo** per l'aspetto (in tutto ce ne sono tre, si trovano uno alla volta e restano per sempre).
+- **Nuovi nemici in galleria**: uno scheletro che dorme sotto la passerella, uno nella sala e un mago nel salone.
+- **Il bot prova tutto**: aspetta le trappole e passa al momento giusto, salta le piastre che non deve calpestare, schiva le frecce, prende il montacarichi, risolve i due enigmi (sbagliando apposta una volta) e apre i forzieri. Alla fine rimette anche i tuoi tesori.
+- Corretto un difetto del bot: a volte faceva un salto cortissimo invece di uno normale.
+
 ## 0.1 — Nemici che cambiano idea
 
 - **Il mago non insiste più con quello che non funziona**: se una tattica imparata fallisce sempre (per esempio la raffica, schivata 9 volte su 9), la mette da parte e prova altro.

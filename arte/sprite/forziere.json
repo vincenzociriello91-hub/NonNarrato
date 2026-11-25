@@ -1,20 +1,39 @@
 {
 	"animazioni": {
-		"base": {
+		"aperto": {
 			"ciclo": false,
-			"fps": 1.0,
+			"fps": 12.0,
+			"frame": [
+				7
+			]
+		},
+		"apre": {
+			"ciclo": false,
+			"fps": 14.0,
+			"frame": [
+				1,
+				2,
+				3,
+				4,
+				5,
+				6
+			]
+		},
+		"chiuso": {
+			"ciclo": false,
+			"fps": 12.0,
 			"frame": [
 				0
 			]
 		}
 	},
 	"cella": [
-		42,
-		36
+		64,
+		49
 	],
-	"colonne": 1,
+	"colonne": 8,
 	"piedi": [
-		21,
-		33
+		37,
+		46
 	]
 }

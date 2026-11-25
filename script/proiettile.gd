@@ -1,11 +1,13 @@
 class_name Proiettile
 extends Area2D
-# Sfera di luce lanciata dal mago. Si spegne contro i muri, ferisce il giocatore,
-# e si può spezzare con un colpo di spada.
+# Colpi che volano: la sfera di luce del mago, la freccia delle balestre nei muri.
+# Si spengono contro i muri, feriscono chi gioca e si possono spezzare con un colpo di spada.
 
 const COLORE := Color(0.42, 0.86, 1.0)
 
+var tipo := "sfera"               # "sfera" o "freccia"
 var velocita := Vector2.ZERO
+var danno := 1
 var autore: Node                  # chi l'ha lanciata: saprà se è andata a segno
 var tattica := ""
 var _vita := 3.5
@@ -19,7 +21,15 @@ func _ready() -> void:
 	set_meta("bersaglio", self)
 	add_to_group("sfere")  # il bot le guarda arrivare
 	z_index = 12
+	if tipo == "freccia":
+		_aspetto_freccia()
+	else:
+		_aspetto_sfera()
+	body_entered.connect(func(_corpo: Node2D) -> void: _svanisci())
+	area_entered.connect(_su_area)
 
+
+func _aspetto_sfera() -> void:
 	var cerchio := CircleShape2D.new()
 	cerchio.radius = 4.0
 	var forma := CollisionShape2D.new()
@@ -56,8 +66,20 @@ func _ready() -> void:
 	if Dispositivo.livello != "bassa":
 		add_child(Effetti.luce(COLORE, 62.0, 0.9, 20.0))
 
-	body_entered.connect(func(_corpo: Node2D) -> void: _svanisci())
-	area_entered.connect(_su_area)
+
+func _aspetto_freccia() -> void:
+	_vita = 0.75   # una freccia di balestra arriva poco oltre la piastra, non attraversa tutta la galleria
+	var rett := RectangleShape2D.new()
+	rett.size = Vector2(16, 4)
+	var forma := CollisionShape2D.new()
+	forma.shape = rett
+	add_child(forma)
+	var s := SpriteAnimato.new()
+	s.carica("freccia")
+	s.light_mask = Effetti.L_DAVANTI
+	s.set_process(false)
+	s.flip_h = velocita.x > 0.0     # lo sprite guarda a sinistra
+	add_child(s)
 
 
 func _physics_process(delta: float) -> void:
@@ -69,13 +91,16 @@ func _physics_process(delta: float) -> void:
 
 func _su_area(area: Area2D) -> void:
 	var chi: Variant = area.get_meta("bersaglio", null)
-	if chi is Giocatore and (chi as Giocatore).subisci(1, global_position, 150.0, autore):
+	if chi is Giocatore and (chi as Giocatore).subisci(danno, global_position, 150.0, autore):
 		_colpito = true
+		if tipo == "freccia":
+			Rapporto.conta("trappole_subite")
+			Rapporto.evento("trappola", {"cosa": "freccia", "x": roundi(global_position.x)})
 		_svanisci()
 
 
 func subisci(_danno: int, _da: Vector2, _spinta: float) -> bool:
-	Rapporto.conta("magie_spezzate")
+	Rapporto.conta("frecce_spezzate" if tipo == "freccia" else "magie_spezzate")
 	_svanisci()
 	return true
 
@@ -86,5 +111,8 @@ func _svanisci() -> void:
 	_spenta = true
 	if is_instance_valid(autore) and autore.has_method("esito_sfera"):
 		autore.esito_sfera(tattica, _colpito)
-	Effetti.scoppio(get_parent(), global_position, COLORE, 8, 70.0, 0.3, 0.0)
+	if tipo == "freccia":
+		Effetti.scoppio(get_parent(), global_position, Color(0.6, 0.5, 0.4, 0.8), 6, 60.0, 0.3, 200.0, false)
+	else:
+		Effetti.scoppio(get_parent(), global_position, COLORE, 8, 70.0, 0.3, 0.0)
 	queue_free()

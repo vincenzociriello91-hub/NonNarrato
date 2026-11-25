@@ -1,0 +1,27 @@
+{
+	"animazioni": {
+		"giu": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				1
+			]
+		},
+		"su": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				0
+			]
+		}
+	},
+	"cella": [
+		46,
+		11
+	],
+	"colonne": 2,
+	"piedi": [
+		23,
+		6
+	]
+}

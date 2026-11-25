@@ -1,7 +1,8 @@
 class_name Bot
 extends Node
 # Il bot di prova: gioca da solo la stanza come farebbe chi gioca (corsa, salti, colpi, cassa,
-# barili, nemici, cunicolo, piattaforme, schivate, tasti a schermo, menu), prova ogni gruppo di mosse,
+# barili, nemici, cunicolo, piattaforme, schivate, tasti a schermo, menu, poi la galleria con leve,
+# trappole, montacarichi, lastre che crollano, enigmi e forzieri), prova ogni gruppo di mosse,
 # ogni azione del menu, molti aspetti e le tre qualità, e misura la fluidità di ogni fase.
 # Alla fine rimette impostazioni e aspetto di chi gioca e salva il rapporto (che finisce in
 # Download/NonNarrato_report e da lì su Drive). Sul telefono poi chiude il gioco.
@@ -11,13 +12,14 @@ signal finito(falliti: int)
 signal _mai                                 # non arriva mai: tiene ferma la sequenza dopo uno stop
 
 const SEGNO := "user://bot_in_corso.txt"   # stato di chi gioca, se il gioco si chiude a metà
-const AZIONI: Array[String] = ["sinistra", "destra", "su", "giu", "salta", "attacca", "rotola", "schiva"]
+const AZIONI: Array[String] = ["sinistra", "destra", "su", "giu", "salta", "attacca", "rotola", "schiva", "afferra"]
 const LENTO_MS := 33.4                      # sotto i 30 FPS
 const MOLTO_LENTO_MS := 50.0                # sotto i 20 FPS
 
 var chiudi_alla_fine := true     # sul telefono: chiude il gioco dopo aver salvato il rapporto
 var scritta := true              # la scritta "Bot in azione" in alto
 var cartella_foto := ""          # solo nelle prove sul computer
+var solo_fasi: Array = []        # solo nelle prove sul computer: fa soltanto queste fasi (per correggere più in fretta)
 var falliti := 0
 var controlli: Array = []
 var fasi: Array = []
@@ -40,6 +42,11 @@ var _difese := {}                # schivata -> [prove, riuscite]
 var _passaggi := {}              # modo di muoversi -> volte
 var _morti_impreviste := 0
 var _memoria_bot := {}
+var _attese_trappole := 0        # quante volte ha aspettato il momento giusto davanti a una trappola
+var _difese_in_cammino := 0      # frecce e sfere schivate mentre camminava
+var _tesori_bot := {}
+var _piastre_saltate := 0
+var _trappole_forzate := {}      # trappola -> fino a quando non la si aspetta più (ms)
 
 
 static func ripara_se_interrotto() -> void:
@@ -74,7 +81,8 @@ func avvia() -> void:
 	_inizio_ms = Time.get_ticks_msec()
 	_stato_utente = {"impostazioni": Impostazioni.tutte(), "aspetto": Equipaggiamento.stato(), "memoria": Memoria.stato()}
 	_caso.seed = 4242
-	_nav = Navigatore.new(Stanza.superfici())
+	_nav = Navigatore.new(Stanza.superfici(), Stanza.passaggi_speciali())
+	_nav.condizione = func(nome: String) -> bool: return _principale.stanza.condizione(nome)
 	var f := FileAccess.open(SEGNO, FileAccess.WRITE)
 	if f != null:
 		f.store_string(var_to_str(_stato_utente))
@@ -140,8 +148,11 @@ func _tocca(azione: String) -> void:
 
 
 func _rilascia_tutto() -> void:
+	# Solo i tasti davvero premuti: lasciare e ripremere un tasto nello stesso istante vale come
+	# un tocco rapidissimo (per esempio un salto cortissimo).
 	for azione in AZIONI:
-		Input.action_release(azione)
+		if Input.is_action_pressed(azione):
+			Input.action_release(azione)
 
 
 func _verifica(nome: String, riuscita: bool, dettaglio: String = "") -> void:
@@ -221,7 +232,15 @@ func _cassa_davanti(v: int) -> bool:
 	return false
 
 
-func _cammina_verso(x: float, tolleranza: float = 6.0, massimo: int = 600) -> bool:
+func _cassa_sotto() -> RigidBody2D:
+	var g := _g()
+	for c: RigidBody2D in get_tree().get_nodes_in_group("casse"):
+		if absf(c.global_position.x - g.global_position.x) < 26.0 and absf(c.global_position.y - 32.0 - g.global_position.y) < 6.0:
+			return c
+	return null
+
+
+func _cammina_verso(x: float, tolleranza: float = 6.0, massimo: int = 600, scavalca: bool = true) -> bool:
 	var fermo := 0
 	var ultimo := _g().global_position.x
 	for i in massimo:
@@ -231,19 +250,35 @@ func _cammina_verso(x: float, tolleranza: float = 6.0, massimo: int = 600) -> bo
 		var dx := x - g.global_position.x
 		if absf(dx) <= tolleranza + 4.0:
 			_rilascia_tutto()
-			await _fotogrammi(6)
+			await _veglia(6)
 			return absf(x - _g().global_position.x) <= tolleranza + 8.0
 		var v := 1 if dx > 0.0 else -1
 		Input.action_release("sinistra" if v > 0 else "destra")
 		Input.action_press("destra" if v > 0 else "sinistra")
 		# Una cassa sulla strada: su + direzione per scavalcarla.
-		if g.is_on_floor() and _cassa_davanti(v):
+		if scavalca and g.is_on_floor() and _cassa_davanti(v):
 			Input.action_press("su")
 		else:
 			Input.action_release("su")
 		if i % 10 == 0 and _combatte_minacce and _minaccia() != null:
 			_rilascia_tutto()
 			return false
+		# Una freccia o una sfera in arrivo: prima ci si difende.
+		var colpo := _sfera_in_arrivo()
+		if colpo != null:
+			_difese_in_cammino += 1
+			await _difenditi(colpo, "sfera")
+			continue
+		# Una trappola sulla strada: ci si ferma prima e si passa al momento giusto.
+		if g.is_on_floor() and await _aspetta_trappola(v, x):
+			continue
+		# Una piastra che fa scattare una trappola: la si salta (a meno che non sia proprio la meta).
+		if g.is_on_floor() and g.stato == Giocatore.Stato.NORMALE and _piastra_davanti(v, x):
+			_piastre_saltate += 1
+			Input.action_press("salta")
+			await _fotogrammi(14)
+			Input.action_release("salta")
+			continue
 		await _fotogrammi(1)
 		if absf(_g().global_position.x - ultimo) < 0.5:
 			fermo += 1
@@ -287,10 +322,15 @@ func _vai_a(dove: Vector2, tolleranza: float = 8.0) -> bool:
 				_rilascia_tutto()
 				await _atterra()
 			else:
-				await _cammina_verso(dove.x, 4.0, 60)
+				# Si scende dalla cassa dalla parte della meta, oltre il bordo, senza riscavalcarla.
+				var sotto := _cassa_sotto()
+				var x_giu := dove.x
+				if sotto != null:
+					x_giu = sotto.global_position.x + (30.0 if dove.x >= sotto.global_position.x else -30.0)
+				await _cammina_verso(x_giu, 4.0, 90, false)
 			continue
 		if da == a:
-			if await _cammina_verso(dove.x, tolleranza):
+			if await _cammina_verso(dove.x, tolleranza) and _nav.superficie_di(_g().global_position) == a:
 				return true
 			continue
 		var cammino := _nav.percorso(da, a)
@@ -299,6 +339,9 @@ func _vai_a(dove: Vector2, tolleranza: float = 8.0) -> bool:
 		var arco: Dictionary = cammino[0]
 		var riuscito := await _esegui_arco(arco)
 		_nav.esito(arco, riuscito)
+		if Dispositivo.in_prova:
+			print("PROVA passaggio: %s>%s %s %s -> %s" % [arco["da"], arco["a"], arco["tipo"], "ok" if riuscito else "NO",
+					str(_g().global_position.round())])
 		_passaggi[arco["tipo"]] = int(_passaggi.get(arco["tipo"], 0)) + 1
 	return false
 
@@ -354,12 +397,124 @@ func _esegui_arco(arco: Dictionary) -> bool:
 				await _fotogrammi(1)
 				if _g().stato == Giocatore.Stato.NORMALE and _g().is_on_floor():
 					break
+		"passa":
+			# Una grata aperta: si cammina oltre.
+			await _cammina_verso(float(arco["meta"]), 6.0, 300)
+		"ascensore":
+			if not await _prendi_montacarichi(arco):
+				_rilascia_tutto()
+				return false
 	_rilascia_tutto()
 	await _atterra(120)
 	return _nav.superficie_di(_g().global_position) == arco["a"]
 
 
 # ------------------------------------------------------------------ combattere come chi gioca
+
+func _prendi_montacarichi(arco: Dictionary) -> bool:
+	# Si aspetta il piano alla propria quota, ci si sale, si aspetta la sosta dall'altra parte e si scende.
+	var m := _principale.stanza.meccanismi["montacarichi"] as PiattaformaMobile
+	var sale := int(arco["verso"]) > 0
+	var lato := float(arco["stacco"]) + (-48.0 if sale else 48.0)   # si aspetta di fianco, non sotto
+	await _cammina_verso(lato, 6.0, 300)
+	for i in 900:
+		if not is_instance_valid(m) or _g().stato == Giocatore.Stato.MORTO:
+			return false
+		if _combatte_minacce and _minaccia() != null:
+			return false   # prima si affronta chi arriva, poi si riprova
+		if (m.fermo_in_basso(0.9) if sale else m.fermo_in_alto()):
+			break
+		await _veglia(1)
+	await _cammina_verso(float(arco["stacco"]), 5.0, 120)
+	for i in 900:
+		await _veglia(1)
+		if not is_instance_valid(m) or _g().stato == Giocatore.Stato.MORTO:
+			return false
+		if (m.fermo_in_alto() if sale else m.fermo_in_basso()) and _g().is_on_floor():
+			break
+	await _cammina_verso(float(arco["meta"]), 8.0, 200)
+	return true
+
+
+func _aspetta_trappola(v: int, meta_x: float) -> bool:
+	# Se poco più avanti c'è una trappola che colpirebbe chi passa adesso, ci si ferma e si aspetta
+	# il momento giusto (la trappola simula il passaggio). Dopo 8 secondi si passa comunque.
+	# Vero se ha aspettato.
+	var g := _g()
+	var px := g.global_position.x
+	for t: Node in get_tree().get_nodes_in_group("trappole"):
+		var z: Rect2 = t.call("zona")
+		if absf(g.global_position.y - z.end.y) > 8.0 or _trappole_forzate.get(t.get_instance_id(), 0) > Time.get_ticks_msec():
+			continue
+		var vicino := z.position.x - 8.0 if v > 0 else z.end.x + 8.0
+		var distanza := (vicino - px) * v
+		if distanza < 0.0 or distanza > 34.0 or (meta_x - vicino) * v <= 0.0:
+			continue
+		if t.call("attraversabile", px, v, Giocatore.VELOCITA * 0.92, 0.1):
+			if Dispositivo.in_prova:
+				print("PROVA trappola: passa %s da %.0f verso %d" % [t.name, px, v])
+			return false
+		_rilascia_tutto()
+		_attese_trappole += 1
+		for i in 480:
+			await _fotogrammi(1)
+			if _combatte_minacce and _minaccia() != null:
+				return true
+			if t.call("attraversabile", _g().global_position.x, v, Giocatore.VELOCITA * 0.92, 0.1):
+				return true
+		_trappole_forzate[t.get_instance_id()] = Time.get_ticks_msec() + 3000   # non si apre mai: si passa comunque
+		return true
+	return false
+
+
+func _piastra_davanti(v: int, meta_x: float) -> bool:
+	var px := _g().global_position.x
+	for n: Node in get_tree().get_nodes_in_group("piastre"):
+		var p := n as Piastra
+		if p.modo != "scatto" or absf(p.global_position.y - _g().global_position.y) > 6.0:
+			continue
+		var vicino := p.global_position.x - 17.0 * v
+		var lontano := p.global_position.x + 17.0 * v
+		var distanza := (vicino - px) * v
+		if distanza > 8.0 and distanza < 30.0 and (meta_x - lontano) * v > 10.0:
+			return true
+	return false
+
+
+func _sfera_in_arrivo() -> Node2D:
+	# Una sfera o una freccia che sta per arrivare addosso (conta anche come ci si sta muovendo).
+	var g := _g()
+	for s: Node in get_tree().get_nodes_in_group("sfere"):
+		var sfera := s as Proiettile
+		var ds := sfera.global_position - (g.global_position + Vector2(0, -22))
+		var relativa := sfera.velocita - g.velocity
+		var avvicina := -ds.dot(relativa) / maxf(1.0, ds.length())
+		if avvicina > 20.0 and ds.length() / avvicina < 0.3 and absf(ds.y) < 60.0:
+			return sfera
+	return null
+
+
+func _veglia(n: int) -> void:
+	# Aspetta n fotogrammi, difendendosi da quello che arriva.
+	for i in n:
+		var colpo := _sfera_in_arrivo()
+		if colpo != null:
+			await _difenditi(colpo, "sfera")
+		else:
+			await _fotogrammi(1)
+
+
+func _usa(nodo: Node2D) -> bool:
+	# Va accanto a una leva o a un forziere e preme "afferra". Vero se era a portata.
+	var lato := -14.0 if _g().global_position.x < nodo.global_position.x else 14.0
+	await _vai_a(nodo.global_position + Vector2(lato, 0.0), 5.0)
+	await _guarda(1 if nodo.global_position.x > _g().global_position.x else -1)
+	await _fotogrammi(4)
+	var a_portata := _g().interagibile_vicino() == nodo
+	await _tocca("afferra")
+	await _fotogrammi(30)
+	return a_portata
+
 
 func _nemici_vivi(tipo: String = "") -> Array:
 	var elenco: Array = []
@@ -370,6 +525,10 @@ func _nemici_vivi(tipo: String = "") -> Array:
 	elenco.sort_custom(func(a: Nemico, b: Nemico) -> bool:
 		return a.global_position.distance_to(g.global_position) < b.global_position.distance_to(g.global_position))
 	return elenco
+
+
+func _nemici_cripta() -> Array:
+	return _nemici_vivi().filter(func(n: Nemico) -> bool: return n.global_position.x < Stanza.CRIPTA)
 
 
 func _minaccia() -> Nemico:
@@ -390,20 +549,17 @@ func _pericolo(n: Nemico) -> String:
 	if n.stato == Nemico.Stato.ATTACCO and float(n.get("_t_stato")) < Nemico.ATTACCO_INIZIO - 0.06 \
 			and absf(d.x) < 72.0 and absf(d.y) < 40.0:
 		return "colpo"
-	for s: Node in get_tree().get_nodes_in_group("sfere"):
-		var sfera := s as Proiettile
-		var ds := sfera.global_position - (g.global_position + Vector2(0, -22))
-		var velocita := maxf(1.0, sfera.velocita.length())
-		# Si reagisce quando sta per arrivare (un rotolo protegge solo per un attimo).
-		if ds.dot(sfera.velocita) < 0.0 and ds.length() / velocita < 0.34 and absf(ds.y) < 60.0:
-			return "sfera"
+	# Si reagisce quando sta per arrivare (un rotolo protegge solo per un attimo).
+	if _sfera_in_arrivo() != null:
+		return "sfera"
 	return ""
 
 
 func _scegli_difesa(pericolo: String) -> String:
 	# Come i nemici: prova le schivate, ricorda quali funzionano e usa più spesso quelle.
+	# Contro sfere e frecce si salta, si colpisce o si rotola verso il colpo (rotolando via, arriva a fine rotolo).
 	var opzioni: Array = ["scatto_indietro", "rotolo_indietro", "rotolo_avanti"] if pericolo == "colpo" \
-			else ["salto", "colpisci", "rotolo_indietro"]
+			else ["salto", "colpisci", "rotolo_avanti"]
 	if _caso.randf() < 0.25:
 		return opzioni[_caso.randi() % opzioni.size()]
 	var migliore: String = opzioni[0]
@@ -417,13 +573,16 @@ func _scegli_difesa(pericolo: String) -> String:
 	return migliore
 
 
-func _difenditi(n: Nemico, pericolo: String) -> void:
+func _difenditi(n: Node2D, pericolo: String) -> void:
 	var g := _g()
 	var v := 1 if n.global_position.x > g.global_position.x else -1
 	var avanti := "destra" if v > 0 else "sinistra"
 	var indietro := "sinistra" if v > 0 else "destra"
 	var mossa := _scegli_difesa(pericolo)
 	var vita_prima := g.vita
+	if Dispositivo.in_prova:
+		print("PROVA difesa: %s contro %s a %.0f px, stato %s, a terra %s" % [mossa, pericolo,
+				n.global_position.distance_to(g.global_position + Vector2(0, -22)), Giocatore.Stato.keys()[g.stato], g.is_on_floor()])
 	_rilascia_tutto()
 	if g.verso != v and mossa in ["scatto_indietro", "rotolo_indietro"]:
 		await _guarda(v)
@@ -558,6 +717,9 @@ func _chiudi_fase() -> void:
 
 
 func _process(delta: float) -> void:
+	if Dispositivo.in_prova and in_corso and Engine.get_process_frames() % 600 == 0 and _principale.stanza != null:
+		var g := _g()
+		print("PROVA traccia: %s %s %s" % [fase_nome, str(g.global_position.round()), Giocatore.Stato.keys()[g.stato]])
 	if _fase.is_empty() or (get_tree().paused and fase_nome != "menu_mosse"):
 		return
 	var ms := delta * 1000.0
@@ -594,6 +756,7 @@ func _esegui() -> void:
 		_principale.menu.chiudi()
 	Impostazioni.ripristina()
 	Equipaggiamento.ripristina()
+	Equipaggiamento.azzera_tesori()   # senza tesori i forzieri danno sempre qualcosa (alla fine tornano quelli di chi gioca)
 	Memoria.ripristina_stato({})   # il bot parte da un sogno senza ricordi: risultati confrontabili
 	Impostazioni.scrivi("grafica/qualita", "alta")
 	Impostazioni.scrivi("controlli/vibrazione", false)
@@ -606,19 +769,12 @@ func _esegui() -> void:
 			"%s, torce con ombra %d" % [Dispositivo.livello, _principale.stanza.torce_con_ombra()])
 	await _scatta("inizio")
 
-	await _movimento()
-	await _oggetti()
-	await _scheletro()
-	await _morte()
-	await _nemesi()
-	await _percorso()
-	await _qualita()
-	await _tasti_a_schermo()
-	await _menu_e_aspetto()
-	await _mosse_in_partita()
-	await _ambiente()
-	await _gioco_libero()
-	await _prestazioni()
+	var tutte: Array[Callable] = [_movimento, _oggetti, _scheletro, _morte, _nemesi, _percorso, _qualita, _tasti_a_schermo,
+			_menu_e_aspetto, _mosse_in_partita, _ambiente, _galleria, _trappole, _torre, _enigma_cassa, _enigma_bracieri,
+			_gioco_libero, _prestazioni]
+	for fase: Callable in tutte:
+		if solo_fasi.is_empty() or solo_fasi.has(fase.get_method().trim_prefix("_")):
+			await fase.call()
 	_chiudi_fase()
 	await _concludi("bot")
 
@@ -707,7 +863,8 @@ func _morte() -> void:
 	var sogno: int = _principale.sogno
 	var killer: Nemico = null
 	for n: Nemico in _nemici_vivi("scheletro"):
-		killer = n
+		if n.global_position.x < Stanza.CRIPTA:
+			killer = n
 	if killer == null:
 		_verifica("c'è un nemico per la prova della morte", false)
 		return
@@ -752,7 +909,7 @@ func _nemesi() -> void:
 	var uccisi := Rapporto.contatore("nemici_uccisi")
 	var magie := Rapporto.contatore("magie_lanciate")
 	for giro in 8:
-		var vivi := _nemici_vivi()
+		var vivi := _nemici_cripta()
 		if vivi.is_empty():
 			break
 		# Prima chi è sulla stessa quota, poi il mago sulla sua piattaforma.
@@ -767,8 +924,8 @@ func _nemesi() -> void:
 	var presentata: bool = Rapporto.get("_eventi").any(func(e: Dictionary) -> bool: return e.get("tipo", "") == "nemesi_incontro")
 	_verifica("la nemesi si presenta con la sua frase", presentata)
 	_verifica("il mago lancia", Rapporto.contatore("magie_lanciate") > magie)
-	_verifica("stanza ripulita combattendo", _nemici_vivi().is_empty(),
-			"uccisi %d, rimasti %d" % [Rapporto.contatore("nemici_uccisi") - uccisi, _nemici_vivi().size()])
+	_verifica("cripta ripulita combattendo", _nemici_cripta().is_empty(),
+			"uccisi %d, rimasti %d" % [Rapporto.contatore("nemici_uccisi") - uccisi, _nemici_cripta().size()])
 	_verifica("la nemesi ricorda com'è finita", Memoria.nemesi.is_empty() or Memoria.nemesi.any(
 			func(r: Dictionary) -> bool: return int(r["sconfitte"]) >= 1 or int(r["vittorie"]) >= 2),
 			str(Memoria.descrizione()["nemesi"]))
@@ -1157,24 +1314,271 @@ func _ambiente() -> void:
 	await _vai_a(Vector2(600, Stanza.PAVIMENTO), 10.0)
 
 
+# ------------------------------------------------------------------ galleria
+
+func _m(nome: String) -> Node:
+	return _principale.stanza.meccanismi[nome]
+
+
+func _galleria() -> void:
+	# Dalla terrazza si scende nella galleria; la leva apre la grata dell'alcova (scorciatoia);
+	# il forziere dell'alcova si apre.
+	_nuova_fase("galleria")
+	await _vai_a(Vector2(1440, Stanza.PAVIMENTO), 10.0)
+	_verifica("dalla terrazza si scende nella galleria", _nav.superficie_di(_g().global_position) == "galleria",
+			"%s" % str(_g().global_position))
+	await _scatta("galleria")
+	var leva := _m("leva_alcova") as Leva
+	var grata := _m("porta_alcova") as Porta
+	await _vai_a(leva.global_position + Vector2(14.0, 0.0), 5.0)
+	await _guarda(-1)
+	await _fotogrammi(3)
+	var etichetta := _g().cosa_vicina()
+	await _tocca("afferra")
+	await _fotogrammi(70)
+	_verifica("accanto alla leva il tasto dice «Leva»", etichetta == "Leva", etichetta)
+	_verifica("la leva apre la grata dell'alcova", leva.accesa and grata.del_tutto_aperta())
+	await _scatta("leva")
+	var passati := int(_passaggi.get("passa", 0))
+	var forziere := _m("forziere_alcova") as Forziere
+	var vita_prima := _g().vita
+	var a_portata := await _usa(forziere)
+	await _fotogrammi(30)
+	_verifica("dalla grata aperta si entra nell'alcova", int(_passaggi.get("passa", 0)) > passati
+			and _nav.superficie_di(_g().global_position) == "alcova", str(_passaggi))
+	_verifica("il forziere si apre col tasto, accanto", a_portata and forziere.aperto, str(forziere.contenuto))
+	_verifica("dentro c'è un frammento della storia", forziere.contenuto.has("frammento") and Equipaggiamento.frammenti.size() >= 1)
+	_verifica("il forziere cura chi è ferito", vita_prima >= Giocatore.VITA_MASSIMA or _g().vita > vita_prima,
+			"vita %d -> %d" % [vita_prima, _g().vita])
+	await _scatta("forziere")
+	await _vai_a(Vector2(1500, Stanza.PAVIMENTO), 8.0)
+
+
+func _trappole() -> void:
+	# Spuntoni a tempo e sega a pendolo: si passa al momento giusto. Poi la piastra della balestra.
+	_nuova_fase("trappole")
+	await _vai_a(Vector2(1530, Stanza.PAVIMENTO), 8.0)
+	await _veglia(10)
+	var vita := _g().vita
+	var subite := Rapporto.contatore("trappole_subite")
+	var attese := _attese_trappole
+	await _vai_a(Vector2(1900, Stanza.PAVIMENTO), 8.0)
+	_verifica("passa spuntoni e sega aspettando il momento giusto", _g().global_position.x > 1880.0 and _attese_trappole > attese
+			and Rapporto.contatore("trappole_subite") == subite, "vita %d -> %d, attese %d, ferite %d" % [
+				vita, _g().vita, _attese_trappole - attese, Rapporto.contatore("trappole_subite") - subite])
+	await _scatta("trappole")
+
+	# La piastra davanti alla torre fa scattare la balestra nel muro: la freccia si schiva.
+	var scoccate := Rapporto.contatore("frecce_scoccate")
+	vita = _g().vita
+	var piastra := _m("piastra_freccia") as Piastra
+	await _cammina_verso(piastra.global_position.x, 4.0, 200)
+	await _veglia(70)
+	_verifica("la piastra fa scattare la balestra", Rapporto.contatore("frecce_scoccate") > scoccate)
+	_verifica("la freccia si schiva", _g().vita >= vita, "vita %d -> %d, difese %s" % [vita, _g().vita, str(_difese)])
+
+	# Le trappole fanno male davvero: il bot resta apposta sugli spuntoni.
+	var punte := _m("spuntoni") as Spuntoni
+	await _vai_a(Vector2(1700, Stanza.PAVIMENTO), 6.0)
+	for i in 300:
+		if punte.sicura_per(0.6):
+			break
+		await _fotogrammi(1)
+	vita = _g().vita
+	subite = Rapporto.contatore("trappole_subite")
+	Input.action_press("sinistra")
+	for i in 30:
+		await _fotogrammi(1)
+		if _g().global_position.x <= punte.global_position.x:
+			break
+	_rilascia_tutto()
+	for i in 240:
+		if _g().vita < vita:
+			break
+		await _fotogrammi(1)
+	_verifica("gli spuntoni feriscono chi ci resta sopra", _g().vita < vita and Rapporto.contatore("trappole_subite") > subite,
+			"vita %d -> %d" % [vita, _g().vita])
+	await _fotogrammi(20)
+	await _vai_a(Vector2(1700, Stanza.PAVIMENTO), 6.0)
+
+
+func _torre() -> void:
+	# Ci si aggrappa allo zoccolo; le lastre fragili portano alla torre ovest (forziere) e crollano;
+	# il montacarichi porta al salone.
+	_nuova_fase("torre")
+	await _vai_a(Vector2(2165, 384), 8.0)
+	_verifica("si aggrappa allo zoccolo della torre", _nav.superficie_di(_g().global_position) == "zoccolo",
+			str(_g().global_position))
+	var crolli := Rapporto.contatore("piattaforme_crollate")
+	var forziere := _m("forziere_torre") as Forziere
+	await _usa(forziere)
+	await _scatta("torre_ovest")
+	_verifica("sale per le lastre fragili fino alla torre ovest", _nav.superficie_di(_g().global_position) == "torre_ovest",
+			str(_g().global_position))
+	_verifica("le lastre fragili crollano dopo che ci si è saliti", Rapporto.contatore("piattaforme_crollate") > crolli)
+	_verifica("il forziere della torre si apre", forziere.aperto)
+	await _fotogrammi(260)
+	var tutte := true
+	for f: Node in get_tree().get_nodes_in_group("fragili"):
+		tutte = tutte and (f as PiattaformaFragile).presente
+	_verifica("le lastre crollate tornano al loro posto", tutte)
+	var montacarichi := int(_passaggi.get("ascensore", 0))
+	await _vai_a(Vector2(2420, 120), 10.0)
+	_verifica("prende il montacarichi fino al salone", _nav.superficie_di(_g().global_position) == "salone"
+			and int(_passaggi.get("ascensore", 0)) > montacarichi, "%s %s" % [str(_g().global_position), str(_passaggi)])
+	await _scatta("salone")
+
+
+func _enigma_cassa() -> void:
+	# La cassa sulla balconata va spinta giù, poi sulla piastra: la grata del tesoro resta alzata.
+	_nuova_fase("enigma_cassa")
+	var cassa := _m("cassa_enigma") as RigidBody2D
+	var piastra := _m("piastra_tesoro") as Piastra
+	var grata := _m("porta_tesoro") as Porta
+	# Prima si sistema chi c'è nella sala.
+	for n: Nemico in _nemici_vivi():
+		if n.global_position.x > 2208.0 and n.global_position.y > 300.0:
+			await _combatti_contro(n, 1800)
+	# Sulla balconata, si scavalca la cassa per mettersi dalla parte giusta e la si spinge giù.
+	await _vai_a(Vector2(2510.0, 352.0), 6.0)
+	Input.action_press("destra")
+	Input.action_press("su")
+	for i in 240:
+		await _fotogrammi(1)
+		var g := _g()
+		if g.global_position.x > 2626.0 or (g.is_on_floor() and g.global_position.x > cassa.global_position.x + 26.0
+				and absf(g.global_position.y - 352.0) < 3.0):
+			break
+	_rilascia_tutto()
+	await _fotogrammi(10)
+	await _guarda(-1)
+	Input.action_press("sinistra")
+	for i in 300:
+		await _fotogrammi(1)
+		if cassa.global_position.y > 420.0 or _g().global_position.x < 2490.0:
+			break
+	_rilascia_tutto()
+	await _fotogrammi(60)
+	_verifica("spinge la cassa giù dalla balconata", cassa.global_position.y > 470.0, str(cassa.global_position))
+	await _scatta("cassa_giu")
+	# Si scende dall'altra parte e la si spinge sulla piastra, senza scavalcarla.
+	if _nav.superficie_di(_g().global_position) == "balconata":
+		Input.action_press("destra")
+		for i in 120:
+			await _fotogrammi(1)
+			if not _g().is_on_floor():
+				break
+		_rilascia_tutto()
+		await _atterra()
+	for tentativo in 4:
+		if piastra.da_cassa:
+			break
+		var lato := 1.0 if cassa.global_position.x > piastra.global_position.x else -1.0
+		await _cammina_verso(cassa.global_position.x + 26.0 * lato, 3.0, 600, false)
+		await _guarda(-int(lato))
+		Input.action_press("sinistra" if lato > 0.0 else "destra")
+		for i in 360:
+			await _fotogrammi(1)
+			if piastra.da_cassa or _g().stato != Giocatore.Stato.NORMALE:
+				break
+		_rilascia_tutto()
+		await _fotogrammi(30)
+	await _fotogrammi(60)
+	_verifica("la cassa sulla piastra tiene alzata la grata", piastra.da_cassa and grata.del_tutto_aperta(),
+			"cassa %s, piastra %s" % [str(cassa.global_position), str(piastra.giu)])
+	await _scatta("cassa_piastra")
+	var forziere := _m("forziere_tesoro") as Forziere
+	await _usa(forziere)
+	_verifica("oltre la grata si apre il forziere del tesoro", forziere.aperto and _nav.superficie_di(_g().global_position) == "tesoro")
+
+
+func _accendi_braciere(b: Node2D) -> void:
+	# Ci si mette accanto e lo si colpisce; se qualcosa va storto (un nemico, un colpo a vuoto) si riprova.
+	var enigma := b.get_parent() as EnigmaBracieri
+	for tentativo in 3:
+		var accesi := enigma.accesi.size()
+		var sbagli := Rapporto.contatore("enigmi_sbagliati")
+		var lato := -20.0 if _g().global_position.x < b.global_position.x else 20.0
+		await _vai_a(b.global_position + Vector2(lato, 0.0), 5.0)
+		await _guarda(1 if b.global_position.x > _g().global_position.x else -1)
+		await _tocca("attacca")
+		await _fotogrammi(24)
+		if enigma.accesi.size() != accesi or Rapporto.contatore("enigmi_sbagliati") != sbagli or enigma.soluzione:
+			return
+
+
+func _enigma_bracieri() -> void:
+	# Bracieri da accendere nell'ordine della tavoletta: prima apposta in un ordine sbagliato,
+	# poi in quello giusto. Si alza il gradino verso la nicchia e il forziere d'oro dà un colore nuovo.
+	_nuova_fase("enigma_bracieri")
+	var enigma := _m("bracieri") as EnigmaBracieri
+	var gradino := _m("gradino") as Porta
+	await _vai_a(Vector2(2440, 120), 10.0)
+	for n: Nemico in _nemici_vivi():
+		if n.global_position.y < 200.0 and n.global_position.x > 2340.0:
+			await _combatti_contro(n, 1800)
+	# Combattendo se ne può accendere qualcuno per caso: l'errore voluto tiene conto di quelli già accesi.
+	var sbagli := Rapporto.contatore("enigmi_sbagliati")
+	var sbagliato := -1
+	if not enigma.soluzione:
+		var atteso: int = enigma.ordine[enigma.accesi.size()]
+		for i in enigma.bracieri.size():
+			if i != atteso and not enigma.accesi.has(i):
+				sbagliato = i
+	if sbagliato >= 0:
+		await _accendi_braciere(enigma.bracieri[sbagliato])
+		await _fotogrammi(70)
+		var spenti := enigma.bracieri.all(func(b: Node) -> bool: return not b.get("acceso"))
+		_verifica("ordine sbagliato: i bracieri si spengono", spenti and Rapporto.contatore("enigmi_sbagliati") > sbagli)
+	for i: int in enigma.ordine:
+		if not enigma.accesi.has(i):
+			await _accendi_braciere(enigma.bracieri[i])
+	await _scatta("bracieri")
+	await _fotogrammi(120)
+	_verifica("nell'ordine della tavoletta si alza il gradino segreto", enigma.soluzione and gradino.del_tutto_aperta(),
+			"accesi %s, ordine %s" % [str(enigma.accesi), str(enigma.ordine)])
+	var forziere := _m("forziere_oro") as Forziere
+	var colori := Equipaggiamento.trovati.size()
+	await _usa(forziere)
+	await _scatta("nicchia")
+	_verifica("dal gradino si sale alla nicchia segreta", _nav.superficie_di(_g().global_position) == "nicchia",
+			str(_g().global_position))
+	var colore: String = forziere.contenuto.get("colore", "")
+	_verifica("il forziere d'oro dà un colore nuovo", forziere.aperto and colore != "" and Equipaggiamento.trovati.size() == colori + 1,
+			str(forziere.contenuto))
+	_verifica("il colore trovato si può indossare", Equipaggiamento.disponibile(colore))
+	if colore != "":
+		Equipaggiamento.colora("mantello", colore)
+		await _fotogrammi(3)
+		_verifica("il mantello prende il colore trovato", Equipaggiamento.colori["mantello"] == colore)
+		await _scatta("colore_nuovo")
+		Equipaggiamento.ripristina()
+
+
 func _gioco_libero() -> void:
-	# Gioca da solo, con una logica: va nelle zone dove non è ancora stato (per strada usa tutte le
-	# mosse che servono), rompe i barili che trova, affronta chi incontra, e ogni tanto cambia aspetto.
+	# Gioca da solo, con una logica: va nella zona più vicina dove non è ancora stato (per strada usa
+	# tutte le mosse che servono, aspetta le trappole, prende il montacarichi), rompe i barili che trova,
+	# affronta chi incontra, e ogni tanto cambia aspetto. Le lastre fragili e il gradino segreto non contano.
 	_nuova_fase("gioco_libero")
 	var visitate := {}
 	var fuori := 0
-	var ordine: Array = _nav.superfici.keys()
-	for k in range(ordine.size() - 1, 0, -1):
-		var scambio := _caso.randi() % (k + 1)
-		var tmp = ordine[k]
-		ordine[k] = ordine[scambio]
-		ordine[scambio] = tmp
+	var da_visitare: Array = []
+	for id: String in _nav.superfici:
+		var sup: Dictionary = _nav.superfici[id]
+		if not sup.get("fragile", false) and not sup.has("condizione"):
+			da_visitare.append(id)
 	var rng_aspetto := RandomNumberGenerator.new()
 	rng_aspetto.seed = 11
-	for passo in ordine.size():
-		var id: String = ordine[passo]
-		var s: Dictionary = _nav.superfici[id]
-		var meta := Vector2(lerpf(float(s["x0"]) + 14.0, float(s["x1"]) - 14.0, _caso.randf()), float(s["y"]))
+	var passo := 0
+	var inizio := Time.get_ticks_msec()
+	while not da_visitare.is_empty() and Time.get_ticks_msec() - inizio < 240000:
+		# La più vicina fra quelle ancora da vedere.
+		var qui := _g().global_position
+		da_visitare.sort_custom(func(a: String, b: String) -> bool:
+			return _distanza_superficie(a, qui) < _distanza_superficie(b, qui))
+		var id: String = da_visitare.pop_front()
+		var sup: Dictionary = _nav.superfici[id]
+		var meta := _meta_sicura(sup)
 		await _vai_a(meta, 12.0)
 		if _nav.superficie_di(_g().global_position) == id:
 			visitate[id] = true
@@ -1188,6 +1592,7 @@ func _gioco_libero() -> void:
 				await _guarda(1 if barile.global_position.x > _g().global_position.x else -1)
 				await _tocca("attacca")
 				await _fotogrammi(16)
+		passo += 1
 		if passo % 3 == 2:
 			Equipaggiamento.casuale(rng_aspetto)
 		var p := _g().global_position
@@ -1195,11 +1600,31 @@ func _gioco_libero() -> void:
 			fuori += 1
 	Equipaggiamento.ripristina()
 	await _scatta("fine")
-	_verifica("gioco libero: raggiunge da solo tutte le zone", visitate.size() >= _nav.superfici.size() - 1,
-			"%d/%d: %s" % [visitate.size(), _nav.superfici.size(), ", ".join(visitate.keys())])
+	_verifica("gioco libero: raggiunge da solo tutte le zone", da_visitare.is_empty() and visitate.size() >= passo - 1,
+			"%d su %d: %s" % [visitate.size(), passo, ", ".join(visitate.keys())])
 	_verifica("gioco libero: il giocatore resta nella stanza", fuori == 0, "fuori %d" % fuori)
-	_verifica("per muoversi usa salti, prese, discese, rotoli e scavalchi", _passaggi.size() >= 4
+	_verifica("per muoversi usa salti, prese, discese, rotoli, grate e montacarichi", _passaggi.size() >= 6
 			and Rapporto.contatore("scavalchi") > 0, str(_passaggi))
+
+
+func _distanza_superficie(id: String, da: Vector2) -> float:
+	var s: Dictionary = _nav.superfici[id]
+	var x := clampf(da.x, float(s["x0"]), float(s["x1"]))
+	return da.distance_to(Vector2(x, float(s["y"])))
+
+
+func _meta_sicura(sup: Dictionary) -> Vector2:
+	# Un punto a caso sulla superficie, ma non dentro una trappola.
+	for prova in 8:
+		var meta := Vector2(lerpf(float(sup["x0"]) + 14.0, float(sup["x1"]) - 14.0, _caso.randf()), float(sup["y"]))
+		var libera := true
+		for t: Node in get_tree().get_nodes_in_group("trappole"):
+			var z: Rect2 = t.call("zona")
+			if meta.x > z.position.x - 16.0 and meta.x < z.end.x + 16.0 and absf(meta.y - z.end.y) < 8.0:
+				libera = false
+		if libera:
+			return meta
+	return Vector2((float(sup["x0"]) + float(sup["x1"])) * 0.5, float(sup["y"]))
 
 
 func _prestazioni() -> void:
@@ -1259,6 +1684,7 @@ func _prova_limite_utente() -> void:
 func _concludi(motivo: String) -> void:
 	_rilascia_tutto()
 	_memoria_bot = Memoria.descrizione()
+	_tesori_bot = {"colori": Equipaggiamento.trovati.duplicate(), "frammenti": Equipaggiamento.frammenti.size()}
 	if get_tree().paused and _principale.menu.aperto:
 		_principale.menu.chiudi()
 	# Impostazioni e aspetto tornano come li aveva chi gioca.
@@ -1307,4 +1733,15 @@ func _esito(motivo: String) -> Dictionary:
 		"esperienza": _nav.riassunto() if _nav != null else {},
 		"morti_impreviste": _morti_impreviste,
 		"memoria_nemici": _memoria_bot,
+		"galleria": {
+			"attese_davanti_alle_trappole": _attese_trappole,
+			"colpi_schivati_camminando": _difese_in_cammino,
+			"piastre_saltate": _piastre_saltate,
+			"forzieri_aperti": Rapporto.contatore("forzieri_aperti"),
+			"enigmi_risolti": Rapporto.contatore("enigmi_risolti"),
+			"enigmi_sbagliati": Rapporto.contatore("enigmi_sbagliati"),
+			"trappole_subite": Rapporto.contatore("trappole_subite"),
+			"lastre_crollate": Rapporto.contatore("piattaforme_crollate"),
+			"tesori": _tesori_bot,
+		},
 	}

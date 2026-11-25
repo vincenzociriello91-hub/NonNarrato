@@ -1,0 +1,53 @@
+{
+	"animazioni": {
+		"avviso": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				1
+			]
+		},
+		"dentro": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				0
+			]
+		},
+		"esce": {
+			"ciclo": false,
+			"fps": 30.0,
+			"frame": [
+				2,
+				3,
+				4
+			]
+		},
+		"fuori": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				5
+			]
+		},
+		"rientra": {
+			"ciclo": false,
+			"fps": 16.0,
+			"frame": [
+				6,
+				7,
+				8,
+				9
+			]
+		}
+	},
+	"cella": [
+		94,
+		46
+	],
+	"colonne": 10,
+	"piedi": [
+		47,
+		22
+	]
+}

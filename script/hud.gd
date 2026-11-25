@@ -193,7 +193,7 @@ func _disponi() -> void:
 		"salta": Vector2(bx - 215.0 * k, by - 78.0 * k),
 		"rotola": Vector2(bx - 84.0 * k, by - 212.0 * k),
 		"schiva": Vector2(bx - 200.0 * k, by - 186.0 * k),
-		"afferra": Vector2(bx - 330.0 * k, by - 90.0 * k),  # compare solo accanto a una cassa
+		"afferra": Vector2(bx - 330.0 * k, by - 90.0 * k),  # compare solo accanto a casse, leve e forzieri
 		"pausa": Vector2(bx - 44.0, m[1] + 44.0),
 	}
 	_centri = posti
@@ -229,6 +229,12 @@ func tasto_visibile(azione: String) -> bool:
 	return _touch.visible and _pulsanti.has(azione) and (_pulsanti[azione]["nodo"] as TouchScreenButton).visible
 
 
+func testo_tasto(azione: String) -> String:
+	if not _pulsanti.has(azione):
+		return ""
+	return ((_pulsanti[azione]["nodo"] as TouchScreenButton).get_child(0) as Label).text
+
+
 func tasti_a_schermo_visibili() -> bool:
 	return _touch.visible
 
@@ -261,10 +267,15 @@ func messaggio(testo: String, durata: float) -> void:
 
 
 func _process(delta: float) -> void:
-	# "Afferra" serve solo accanto a una cassa.
+	# "Afferra" serve solo accanto a una cassa, a una leva o a un forziere, e dice cosa fa.
 	if _pulsanti.has("afferra"):
-		var vicino := is_instance_valid(_stanza) and is_instance_valid(_stanza.giocatore) and _stanza.giocatore.vicino_cassa() != null
-		(_pulsanti["afferra"]["nodo"] as TouchScreenButton).visible = vicino
+		var cosa := ""
+		if is_instance_valid(_stanza) and is_instance_valid(_stanza.giocatore):
+			cosa = _stanza.giocatore.cosa_vicina()
+		var tasto := _pulsanti["afferra"]["nodo"] as TouchScreenButton
+		tasto.visible = cosa != ""
+		if cosa != "":
+			(tasto.get_child(0) as Label).text = cosa
 	if not _debug.visible:
 		return
 	_t_debug -= delta

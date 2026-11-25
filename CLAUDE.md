@@ -85,6 +85,18 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Rapporto: sezione `bot` con controlli, falliti, e per ogni fase secondi, FPS medi, fotogramma peggiore, fotogrammi sotto 30 e sotto 20 FPS (le fasi `prestazioni_bassa/media/alta` confrontano le qualità). Motivo `bot` o `bot_fermato`.
 - Pacchetti in più (armature, elmi): solo CC0, da quaternius.com, kenney.nl, opengameart.org, itch.io quando Vincenzo li aggiunge ai domini consentiti.
 
+## Galleria: trappole, enigmi, forzieri
+
+- Decisione di Vincenzo (25/11/2026): "stanza più completa, più oggetti interagibili e su più livelli, più piattaforme, trappole ed enigmi ambientali, più nemici di vario tipo, armi a distanza (magie, dardi, frecce), forzieri". Parte 1 (0.1.12): galleria, meccanismi, trappole, enigmi, forzieri. Parte 2: nemici nuovi e armi a distanza.
+- Stanza larga 2880 (cripta fino a x 1344, poi galleria), alta da y -288 (`Stanza.CIELO`) a 528. Meccanismi in `Stanza.meccanismi[nome]`.
+- Script: `porta.gd` (grate e gradino, AnimatableBody2D, z -11 per scorrere dietro la pietra), `leva.gd`, `piastra.gd` ("tenuta"/"scatto"; la premono giocatore, nemici, casse), `forziere.gd`, `spuntoni.gd`, `pendolo.gd`, `balestra.gd`, `piattaforma_mobile.gd`, `piattaforma_fragile.gd`, `bracieri.gd`.
+- Interagibili (gruppo "interagibili"): `puo_interagire()`, `etichetta()`, `interagisci(g)`. Si usano con "afferra" (`just_pressed`); il tasto a schermo cambia scritta.
+- Trappole (gruppo "trappole"): `zona()`, `sicura_per(s)`, `attraversabile(x, verso, velocita, ritardo)` = simulazione del passaggio (prova il più lento e il più veloce). Feriscono anche i nemici, max una volta ogni 0,8 s per bersaglio (`Spuntoni.ferisci`). Una trappola passa `chi = null` a `subisci`: niente nemesi.
+- Navigatore: `Stanza.superfici()` (flag `isolata`, `fragile`, `condizione`) + `Stanza.passaggi_speciali()` (rotola, passa, ascensore, vietato); condizioni chieste a `Stanza.condizione("porta:x" / "fragile:x")`.
+- Tesori in `Equipaggiamento`: colori rari (`DA_TROVARE`, solo dal forziere d'oro) e `FRAMMENTI` della storia, sezione `[tesori]`. Il bot li azzera all'inizio e rimette quelli di chi gioca.
+- Sprite dei meccanismi: forme semplici in `render_sprite.json` ("pezzi") e pose per nodo ("pose"), forzieri KayKit con il coperchio animato. Colori dei fuochi: solo quelli della palette fissa (niente verde acceso).
+- Bot: `_rilascia_tutto` lascia solo i tasti premuti (lasciare e ripremere nello stesso istante = tocco rapidissimo, salto cortissimo). Prove veloci di poche fasi: `-- --prova --fasi=torre,enigma_cassa`.
+
 ## Regole del codice
 
 - Le scene si costruiscono da codice (`stanza.gd`): niente editor.

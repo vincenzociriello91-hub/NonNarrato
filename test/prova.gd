@@ -5,6 +5,7 @@ extends Node
 #   godot --headless --fixed-fps 60 --path . -- --prova                (solo logica, veloce)
 #   godot --fixed-fps 60 --path . -- --prova --schermate=/cartella     (con le schermate)
 #   ... --solo-foto                                                    (solo qualche schermata)
+#   ... --fasi=torre,enigma_cassa                                      (solo alcune fasi del bot, per correggere)
 #
 # Stampa "PROVA ok/FALLITA ..." per ogni controllo e chiude con "PROVA FINE falliti: N".
 
@@ -93,10 +94,31 @@ func _solo_foto() -> void:
 	await _fotogrammi(6)
 	await _scatta("inizio_senza_palette")
 	Impostazioni.scrivi("grafica/palette", true)
-	for dove: Vector2 in [Vector2(560, Stanza.PAVIMENTO), Vector2(640, 289), Vector2(900, Stanza.PAVIMENTO), Vector2(1180, 383)]:
+	for dove: Vector2 in [Vector2(560, Stanza.PAVIMENTO), Vector2(640, 289), Vector2(900, Stanza.PAVIMENTO), Vector2(1180, 383),
+			Vector2(1450, Stanza.PAVIMENTO), Vector2(1760, Stanza.PAVIMENTO), Vector2(2050, 312), Vector2(2160, 136),
+			Vector2(2440, Stanza.PAVIMENTO), Vector2(2560, 352), Vector2(2520, 120), Vector2(2770, Stanza.PAVIMENTO)]:
+		for n: Node in get_tree().get_nodes_in_group("nemici"):
+			if (n as Node2D).global_position.distance_to(dove) < 260.0:
+				n.queue_free()   # solo per le foto: nessuno disturba
 		await _sposta(dove, 1)
 		await _fotogrammi(50)
-		await _scatta("x%d" % int(dove.x))
+		await _scatta("x%d_y%d" % [int(dove.x), int(dove.y)])
+	# La galleria con i meccanismi in azione: grate aperte, bracieri accesi, gradino alzato.
+	var stanza: Stanza = _principale.stanza
+	(stanza.meccanismi["porta_tesoro"] as Porta).apri()
+	(stanza.meccanismi["porta_alcova"] as Porta).apri()
+	var enigma := stanza.meccanismi["bracieri"] as EnigmaBracieri
+	for i: int in enigma.ordine:
+		enigma.accendi(enigma.bracieri[i])
+	await _sposta(Vector2(2600, 120), 1)
+	await _fotogrammi(150)
+	await _scatta("bracieri_accesi")
+	await _sposta(Vector2(2660, -48), -1)
+	await _fotogrammi(30)
+	await _scatta("nicchia")
+	await _sposta(Vector2(2650, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(60)
+	await _scatta("grata_tesoro_aperta")
 	# Due aspetti a caso, sempre gli stessi.
 	var caso := RandomNumberGenerator.new()
 	for seme in [3, 11]:
@@ -122,6 +144,9 @@ func _esegui() -> void:
 	bot.chiudi_alla_fine = false
 	bot.scritta = false
 	bot.cartella_foto = _cartella
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--fasi="):
+			bot.solo_fasi = arg.trim_prefix("--fasi=").split(",")
 	bot.avvia()
 	var falliti_bot: int = await bot.finito
 	_falliti += falliti_bot

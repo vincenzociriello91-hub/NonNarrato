@@ -1,14 +1,15 @@
 class_name Giocatore
 extends CharacterBody2D
 # Il Non Narrato: corre, salta, attacca (due colpi in fila), rotola e scatta in avanti o
-# all'indietro, scavalca ostacoli bassi e si aggrappa ai bordi, afferra le casse per tirarle.
+# all'indietro, scavalca ostacoli bassi e si aggrappa ai bordi, afferra le casse per tirarle,
+# usa leve e apre forzieri (tasto "afferra" accanto all'oggetto).
 # I tempi sono nel codice e non dipendono dalle animazioni, così il comportamento
 # è lo stesso su ogni dispositivo.
 
 signal vita_cambiata(vita: int, massima: int)
 signal morto
 
-enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA }
+enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA }
 
 const VELOCITA := 150.0
 const ACCELERAZIONE := 1500.0
@@ -40,6 +41,8 @@ const SCAVALCO_DA_TERRA := 40.0     # ostacoli fino a questa altezza si scavalca
 const APPIGLIO_IN_ARIA := 62.0      # in aria ci si aggrappa a bordi fino a questa altezza sopra i piedi
 const PRESA_VELOCITA := 70.0
 const PRESA_DISTANZA := 30.0        # centro cassa - centro giocatore per poterla afferrare
+const USO_DISTANZA := 26.0          # leve e forzieri si usano da qui
+const USO_DURATA := 0.38
 
 const ALTO := Vector2(14, 44)
 const BASSO := Vector2(14, 20)
@@ -190,6 +193,8 @@ func _physics_process(delta: float) -> void:
 			_scavalco(delta)
 		Stato.PRESA:
 			_presa(delta)
+		Stato.USA:
+			_uso(delta)
 
 	_velocita_caduta = velocity.y
 	move_and_slide()
@@ -235,6 +240,12 @@ func _normale(delta: float, a_terra: bool) -> void:
 			arrivo = _appiglio(APPIGLIO_IN_ARIA, 8.0)
 		if arrivo != null:
 			_inizia_scavalco(arrivo)
+			return
+	# Leve e forzieri: basta premere "afferra" accanto.
+	if a_terra and Input.is_action_just_pressed("afferra"):
+		var oggetto := interagibile_vicino()
+		if oggetto != null:
+			_inizia_uso(oggetto)
 			return
 	# Afferrare una cassa vicina: tenendo premuto si spinge o si tira.
 	if a_terra and Input.is_action_pressed("afferra"):
@@ -476,6 +487,61 @@ func vicino_cassa() -> RigidBody2D:
 	return scelta
 
 
+func interagibile_vicino() -> Node2D:
+	# La leva o il forziere a portata di mano (a terra, accanto), se c'è.
+	if stato != Stato.NORMALE or not is_on_floor():
+		return null
+	var scelta: Node2D = null
+	var minima := USO_DISTANZA
+	for n: Node in get_tree().get_nodes_in_group("interagibili"):
+		var o := n as Node2D
+		if o == null or not o.call("puo_interagire"):
+			continue
+		var dx := absf(o.global_position.x - global_position.x)
+		if dx <= minima and absf(o.global_position.y - global_position.y) < 14.0:
+			minima = dx
+			scelta = o
+	return scelta
+
+
+func cosa_vicina() -> String:
+	# Per il tasto a schermo: cosa farebbe "afferra" qui ("" = niente).
+	var oggetto := interagibile_vicino()
+	if oggetto != null:
+		return String(oggetto.call("etichetta"))
+	return "Afferra" if vicino_cassa() != null else ""
+
+
+func _inizia_uso(oggetto: Node2D) -> void:
+	stato = Stato.USA
+	_t_stato = 0.0
+	velocity.x = 0.0
+	if absf(oggetto.global_position.x - global_position.x) > 2.0:
+		verso = 1 if oggetto.global_position.x > global_position.x else -1
+	sprite.riproduci("usa", true)
+	oggetto.call("interagisci", self)
+
+
+func _uso(delta: float) -> void:
+	_t_stato += delta
+	velocity.x = move_toward(velocity.x, 0.0, ATTRITO * delta)
+	_gravita(delta)
+	if _t_stato >= USO_DURATA:
+		stato = Stato.NORMALE
+
+
+func cura(quanta: int) -> int:
+	# Restituisce quanta vita ha davvero recuperato.
+	if stato == Stato.MORTO:
+		return 0
+	var prima := vita
+	vita = mini(VITA_MASSIMA, vita + quanta)
+	if vita != prima:
+		vita_cambiata.emit(vita, VITA_MASSIMA)
+		Effetti.scoppio(get_parent(), global_position + Vector2(0, -24), Color(0.9, 0.3, 0.35), 10, 50.0, 0.6, -60.0)
+	return vita - prima
+
+
 func _inizia_presa(cassa: RigidBody2D) -> void:
 	stato = Stato.PRESA
 	_cassa = cassa
@@ -548,8 +614,7 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 			Rapporto.conta("colpi_evitati")
 		return false
 	vita = maxi(0, vita - danno)
-	if chi != null:
-		_colpito_da = chi
+	_colpito_da = chi   # una trappola (chi = null) non lascia il merito a un nemico di prima
 	vita_cambiata.emit(vita, VITA_MASSIMA)
 	Rapporto.conta("colpi_subiti")
 	Rapporto.evento("colpito", {"vita": vita, "x": roundi(global_position.x), "y": roundi(global_position.y)})

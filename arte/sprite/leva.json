@@ -1,0 +1,49 @@
+{
+	"animazioni": {
+		"accesa": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				6
+			]
+		},
+		"rilascia": {
+			"ciclo": false,
+			"fps": 18.0,
+			"frame": [
+				7,
+				8,
+				9,
+				10,
+				11
+			]
+		},
+		"spenta": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				0
+			]
+		},
+		"tira": {
+			"ciclo": false,
+			"fps": 18.0,
+			"frame": [
+				1,
+				2,
+				3,
+				4,
+				5
+			]
+		}
+	},
+	"cella": [
+		36,
+		39
+	],
+	"colonne": 12,
+	"piedi": [
+		18,
+		37
+	]
+}
