@@ -39,7 +39,7 @@ Odin 2 Portal, 25/11/2026, versione 0.1.4 (prova fatta a distanza col connettore
 - Il rapporto arriva in `/sdcard/Download/NonNarrato_report/`.
 - Android non lascia leggere memoria totale e nome del processore: restano vuoti. Lo schermo si dichiara a 60 Hz.
 
-Pixel 8 Pro: non ancora provato (GPU Mali, notch, solo tocco).
+Pixel 8 Pro, 25/11/2026, versioni 0.1.7 e 0.1.8 (bot completo): Mali-G715, Vulkan Mobile, qualità "alta" da sola, tela 748x336 ×4, 60 FPS fissi in ogni fase, nessun errore, stato termico 0. Con limite 120 lo schermo passava a 120 Hz ma il gioco restava a 60: causa probabile il frame pacing di Android (Swappy), fissato a 60 alla creazione dello schermo; dalla 0.1.9 è spento (`enable_frame_pacing=false`) e la frequenza la gestisce `Dispositivo._richiedi_frequenza`. Da verificare nel prossimo rapporto.
 
 Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il gioco e rispegnere lo schermo):
 `curl` dell'APK in `/data/local/tmp`, `pm install -r`, `am start -n com.vincenzo.nonnarrato/com.godot.game.GodotApp`,

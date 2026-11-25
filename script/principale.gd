@@ -209,6 +209,8 @@ func _riscalda() -> void:
 	barile.subisci(9, dove, 0.0)
 	# Tutte le torce accese con le ombre per qualche fotogramma, poi si torna alla regola normale.
 	stanza.riscalda_luci(0.4)
+	# L'anteprima del menu si prepara ora: aprire la pausa la prima volta non dà più uno scatto.
+	menu.prepara_vetrina()
 	# Tutti i pezzi del manichino per un attimo: i loro shader sono pronti prima di cambiare aspetto.
 	if stanza.giocatore.sprite.has_method("riscalda"):
 		stanza.giocatore.sprite.call("riscalda")

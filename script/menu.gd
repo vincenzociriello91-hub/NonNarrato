@@ -250,6 +250,11 @@ func _tasto_prova(azione: String, etichetta: String) -> void:
 	tasti_prova[azione] = b
 
 
+func prepara_vetrina() -> void:
+	_prepara_vetrina()
+	vetrina.process_mode = Node.PROCESS_MODE_DISABLED if not aperto else Node.PROCESS_MODE_INHERIT
+
+
 func _prepara_vetrina() -> void:
 	if vetrina != null:
 		return

@@ -33,6 +33,7 @@ window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=4
+window/frame_pacing/android/enable_frame_pacing=false
 
 [layer_names]
 

@@ -1,5 +1,10 @@
 # Novità di NonNarrato
 
+## 0.1 — 120 FPS e pausa più fluida
+
+- Con il limite a 90 o 120 FPS il gioco ora prova davvero ad andare oltre i 60 (prima lo schermo cambiava frequenza ma il gioco restava a 60).
+- La prima apertura del menu di pausa non dà più un piccolo scatto: l'anteprima del personaggio si prepara all'avvio.
+
 ## 0.1 — Muoversi nell'ambiente
 
 - **Scavalcare**: contro un ostacolo basso (per esempio una cassa) tieni su + la direzione e ci sali sopra.
