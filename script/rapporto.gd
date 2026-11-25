@@ -137,6 +137,21 @@ func lettura_termica(stato: int, margine: float, carica: int) -> void:
 
 func salva(motivo: String) -> String:
 	var testo := JSON.stringify(_componi(motivo), "\t")
+	_scrivi_nel_gioco(testo)
+	if motivo != "periodico":
+		var esito_prima := esito_download
+		_copia_in_download(testo)
+		if esito_download != esito_prima:
+			# L'esito della copia fa parte del rapporto: lo riscrivo aggiornato.
+			testo = JSON.stringify(_componi(motivo), "\t")
+			_scrivi_nel_gioco(testo)
+			_copia_in_download(testo)
+		_elimina_vecchi()
+	_segna_sessione(motivo)
+	return testo
+
+
+func _scrivi_nel_gioco(testo: String) -> void:
 	var cartella := DirAccess.open("user://")
 	if cartella != null and not cartella.dir_exists("rapporti"):
 		cartella.make_dir_recursive("rapporti")
@@ -146,11 +161,6 @@ func salva(motivo: String) -> String:
 		f.store_string(testo)
 		f.close()
 		ultimo_percorso = ProjectSettings.globalize_path(percorso)
-	if motivo != "periodico":
-		_copia_in_download(testo)
-		_elimina_vecchi()
-	_segna_sessione(motivo)
-	return testo
 
 
 func testo_completo() -> String:

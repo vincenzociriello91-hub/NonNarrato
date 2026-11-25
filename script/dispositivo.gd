@@ -129,6 +129,12 @@ func _leggi_android() -> void:
 			var carica: Variant = gestore_batteria.call("getIntProperty", 4)  # BATTERY_PROPERTY_CAPACITY
 			if typeof(carica) == TYPE_INT:
 				batteria = carica
+		if not info.has("poca_memoria"):
+			# Android dichiara da sé se il dispositivo è "a poca memoria".
+			var gestore_attivita: Variant = attivita.call("getSystemService", "activity")
+			if gestore_attivita != null:
+				var poca: Variant = gestore_attivita.call("isLowRamDevice")
+				info["poca_memoria"] = poca if typeof(poca) == TYPE_BOOL else false
 		var gestore_energia: Variant = attivita.call("getSystemService", "power")
 		if gestore_energia != null and android >= 10:
 			var stato: Variant = gestore_energia.call("getCurrentThermalStatus")
@@ -145,7 +151,7 @@ func _consiglia() -> String:
 	var gpu := String(info.get("gpu", "")).to_lower()
 	var ram: int = info.get("ram_mb", -1)
 	var core: int = info.get("core", 4)
-	if (ram > 0 and ram < 3500) or core <= 4:
+	if (ram > 0 and ram < 3500) or core <= 4 or info.get("poca_memoria", false):
 		return "bassa"
 	for chiave in GPU_FORTI:
 		if gpu.contains(chiave) and (ram < 0 or ram >= 5500):
@@ -258,7 +264,9 @@ func _evento(tipo: String, dati: Dictionary) -> void:
 func righe_debug() -> PackedStringArray:
 	var righe := PackedStringArray()
 	righe.append("%s  %s %s" % [info.get("modello", "?"), info.get("distribuzione", ""), info.get("versione_sistema", "")])
-	righe.append("%s  (%d core, %d MB)" % [info.get("processore", "?"), info.get("core", 0), info.get("ram_mb", -1)])
+	var ram: int = info.get("ram_mb", -1)
+	var testo_ram := ("%d MB" % ram) if ram > 0 else "memoria n.d."
+	righe.append(("%s  (%d core, %s)" % [info.get("processore", ""), info.get("core", 0), testo_ram]).strip_edges())
 	righe.append("%s  [%s/%s]" % [info.get("gpu", "?"), info.get("renderer", "?"), info.get("driver_grafico", "?")])
 	var schermo: Array = info.get("schermo", [0, 0])
 	righe.append("Schermo %dx%d  %s Hz  %d dpi" % [schermo[0], schermo[1], str(info.get("hz", 0)), info.get("dpi", 0)])
