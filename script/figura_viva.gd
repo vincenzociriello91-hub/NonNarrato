@@ -329,7 +329,7 @@ func _aggiungi_scatti(a: Dictionary, durate: Dictionary, fps: float) -> Dictiona
 			indici.append(_scatti.size())
 			_scatti.append({
 				"clip": clip, "t": a.get("tempo", 0.0),
-				"giro": -TAU * float(i) / float(n),
+				"giro": (1.0 if a.get("indietro", false) else -1.0) * TAU * float(i) / float(n),
 				"centro": a.get("centro", 0.8), "giu": a.get("giu", 0.0),
 			})
 	else:

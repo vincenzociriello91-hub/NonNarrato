@@ -33,6 +33,7 @@ func _definisci_azioni() -> void:
 	_azione("attacca", [KEY_J], [JOY_BUTTON_X])
 	_azione("rotola", [KEY_K], [JOY_BUTTON_B])
 	_azione("schiva", [KEY_L], [JOY_BUTTON_Y, JOY_BUTTON_RIGHT_SHOULDER])
+	_azione("afferra", [KEY_E], [JOY_BUTTON_LEFT_SHOULDER])
 	_azione("pausa", [KEY_ESCAPE], [JOY_BUTTON_START])
 	_azione("debug", [KEY_F3], [JOY_BUTTON_BACK])
 

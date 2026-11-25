@@ -28,7 +28,9 @@ quando c'è una versione nuova.
 | Saltare | A | Salto | Spazio |
 | Attaccare (due colpi) | X | Colpo | J |
 | Rotolare | B | Rotola | K |
-| Schivare | Y o RB | Schiva | L |
+| Schivare / scatto (con la direzione: avanti o indietro) | Y o RB | Schiva | L |
+| Afferrare una cassa (tenere premuto) | LB | Afferra (solo vicino a una cassa) | E |
+| Scavalcare un ostacolo basso | su + direzione | leva in diagonale | W + direzione |
 | Scendere da una piattaforma | giù + A | giù + Salto | S + Spazio |
 | Pausa e impostazioni | Start | II | Esc |
 | Schermata di debug | Select | dal menu | F3 |

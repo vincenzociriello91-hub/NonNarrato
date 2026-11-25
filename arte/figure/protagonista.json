@@ -125,6 +125,45 @@
 			"clip": "Death_A",
 			"frame": 9,
 			"fps": 12
+		},
+		{
+			"nome": "rotolata_indietro",
+			"clip": "Sit_Floor_Down",
+			"capriola": true,
+			"tempo": 0.6,
+			"frame": 8,
+			"fps": 20,
+			"centro": 0.75,
+			"indietro": true
+		},
+		{
+			"nome": "scavalco",
+			"clip": "Jump_Full_Long",
+			"da": 0.6,
+			"a": 1.55,
+			"frame": 6,
+			"fps": 18
+		},
+		{
+			"nome": "presa",
+			"clip": "Block",
+			"da": 0.5,
+			"a": 0.5,
+			"frame": 1,
+			"fps": 8,
+			"ciclo": true
+		},
+		{
+			"nome": "spinge",
+			"clip": "Walking_C",
+			"ciclo": true,
+			"fps": 10
+		},
+		{
+			"nome": "tira",
+			"clip": "Walking_Backwards",
+			"ciclo": true,
+			"fps": 10
 		}
 	],
 	"mosse": {

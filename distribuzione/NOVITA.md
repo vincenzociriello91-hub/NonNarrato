@@ -1,5 +1,14 @@
 # Novità di NonNarrato
 
+## 0.1 — Muoversi nell'ambiente
+
+- **Scavalcare**: contro un ostacolo basso (per esempio una cassa) tieni su + la direzione e ci sali sopra.
+- **Aggrapparsi**: saltando verso un bordo o una piattaforma poco più in alto, il personaggio si aggrappa e sale da solo.
+- **Scatto in avanti e all'indietro**: Schiva con la direzione in cui guardi = scatto in avanti; con la direzione opposta = scatto all'indietro senza girarti (anche in aria). Senza direzione resta come prima.
+- **Rotolo in avanti e all'indietro**: Rotola con la direzione opposta = rotolo all'indietro, continuando a guardare avanti.
+- **Afferrare le casse**: accanto a una cassa tieni premuto **Afferra** (compare sullo schermo solo vicino alla cassa; LB sul controller, E sulla tastiera). Muovendoti la spingi o la tiri.
+- Le nuove azioni si possono provare anche nel menu, in "Prova le mosse". Il bot ora prova anche tutte queste.
+
 ## 0.1 — Mosse da provare e bot che gioca da solo
 
 - **Gruppi di mosse**: una mano, affondi, due mani, doppia arma, scudo, magia, a mani nude. Cambiano posa e attacchi del personaggio e si scelgono da soli in base all'arma (spadone = due mani, bastone = magia, scudo in mano sinistra = scudo…). Nel menu Aspetto puoi anche sceglierli a mano. Per ora cambia solo l'aspetto: i tempi dei colpi restano uguali.

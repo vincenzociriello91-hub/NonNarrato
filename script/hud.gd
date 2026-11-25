@@ -27,7 +27,7 @@ class Cuori extends Control:
 
 const PULSANTI := [
 	["attacca", "Colpo", 46.0], ["salta", "Salto", 42.0], ["rotola", "Rotola", 36.0],
-	["schiva", "Schiva", 36.0], ["pausa", "II", 24.0],
+	["schiva", "Schiva", 36.0], ["afferra", "Afferra", 34.0], ["pausa", "II", 24.0],
 ]
 
 var _centri := {}
@@ -190,6 +190,7 @@ func _disponi() -> void:
 		"salta": Vector2(bx - 215.0 * k, by - 78.0 * k),
 		"rotola": Vector2(bx - 84.0 * k, by - 212.0 * k),
 		"schiva": Vector2(bx - 200.0 * k, by - 186.0 * k),
+		"afferra": Vector2(bx - 330.0 * k, by - 90.0 * k),  # compare solo accanto a una cassa
 		"pausa": Vector2(bx - 44.0, m[1] + 44.0),
 	}
 	_centri = posti
@@ -219,6 +220,10 @@ func in_pausa(v: bool) -> void:
 func centro_tasto(azione: String) -> Vector2:
 	# Dove sta il tasto a schermo (in unità dell'interfaccia): serve al bot per "toccarlo".
 	return _centri.get(azione, Vector2.ZERO)
+
+
+func tasto_visibile(azione: String) -> bool:
+	return _touch.visible and _pulsanti.has(azione) and (_pulsanti[azione]["nodo"] as TouchScreenButton).visible
 
 
 func tasti_a_schermo_visibili() -> bool:
@@ -253,6 +258,10 @@ func messaggio(testo: String, durata: float) -> void:
 
 
 func _process(delta: float) -> void:
+	# "Afferra" serve solo accanto a una cassa.
+	if _pulsanti.has("afferra"):
+		var vicino := is_instance_valid(_stanza) and is_instance_valid(_stanza.giocatore) and _stanza.giocatore.vicino_cassa() != null
+		(_pulsanti["afferra"]["nodo"] as TouchScreenButton).visible = vicino
 	if not _debug.visible:
 		return
 	_t_debug -= delta

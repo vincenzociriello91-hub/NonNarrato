@@ -324,6 +324,7 @@ func _esegui() -> void:
 	await _menu_e_aspetto()
 	await _mosse_in_partita()
 	await _morte()
+	await _ambiente()
 	await _comandi_a_caso()
 	await _prestazioni()
 	_chiudi_fase()
@@ -696,6 +697,115 @@ func _morte() -> void:
 	_verifica("dopo la morte si rinasce in un nuovo sogno", _principale.sogno == sogno + 1 and g.vita == Giocatore.VITA_MASSIMA
 			and g.stato == Giocatore.Stato.NORMALE, "sogno %d, vita %d" % [_principale.sogno, g.vita])
 	await _scatta("nuovo_sogno")
+
+
+func _premi_insieme(direzione: String, azione: String) -> void:
+	# Direzione e tasto nello stesso istante (come "indietro + rotola").
+	Input.action_press(direzione)
+	Input.action_press(azione)
+	await _fotogrammi(2)
+	Input.action_release(azione)
+	await _fotogrammi(1)
+
+
+func _cassa_vicina(x: float) -> RigidBody2D:
+	var scelta: RigidBody2D = null
+	for c: RigidBody2D in get_tree().get_nodes_in_group("casse"):
+		if scelta == null or absf(c.position.x - x) < absf(scelta.position.x - x):
+			scelta = c
+	return scelta
+
+
+func _ambiente() -> void:
+	# Mosse per muoversi nell'ambiente: rotoli e scatti avanti/indietro, scavalcare, aggrapparsi, tirare.
+	_nuova_fase("ambiente")
+	await _sposta(Vector2(520, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(10)
+	var x0 := _g().position.x
+	var indietro := Rapporto.contatore("rotolate_indietro")
+	await _premi_insieme("sinistra", "rotola")
+	Input.action_release("sinistra")
+	await _fotogrammi(10)
+	await _scatta("rotolo_indietro")
+	await _fotogrammi(30)
+	_verifica("rotolo all'indietro: si arretra guardando avanti", _g().position.x < x0 - 30.0 and _g().verso == 1
+			and Rapporto.contatore("rotolate_indietro") == indietro + 1, "%.0f -> %.0f verso %d" % [x0, _g().position.x, _g().verso])
+	x0 = _g().position.x
+	await _tocca("rotola")
+	await _fotogrammi(40)
+	_verifica("rotolo in avanti", _g().position.x > x0 + 30.0 and _g().verso == 1, "%.0f -> %.0f" % [x0, _g().position.x])
+
+	x0 = _g().position.x
+	var avanti := Rapporto.contatore("scatti_avanti")
+	await _premi_insieme("destra", "schiva")
+	Input.action_release("destra")
+	await _fotogrammi(45)
+	_verifica("scatto in avanti a terra", _g().position.x > x0 + 20.0 and Rapporto.contatore("scatti_avanti") == avanti + 1,
+			"%.0f -> %.0f" % [x0, _g().position.x])
+	x0 = _g().position.x
+	var dietro := Rapporto.contatore("scatti_indietro")
+	await _premi_insieme("sinistra", "schiva")
+	Input.action_release("sinistra")
+	await _fotogrammi(45)
+	_verifica("scatto all'indietro con la direzione", _g().position.x < x0 - 15.0 and _g().verso == 1
+			and Rapporto.contatore("scatti_indietro") == dietro + 1, "%.0f -> %.0f verso %d" % [x0, _g().position.x, _g().verso])
+	Input.action_press("salta")
+	await _fotogrammi(14)
+	x0 = _g().position.x
+	await _premi_insieme("sinistra", "schiva")
+	Input.action_release("sinistra")
+	await _fotogrammi(10)
+	Input.action_release("salta")
+	_verifica("scatto all'indietro in aria", _g().position.x < x0 - 20.0 and _g().verso == 1, "%.0f -> %.0f" % [x0, _g().position.x])
+	await _fotogrammi(40)
+
+	# Tirare (e spingere) una cassa tenendola afferrata.
+	var cassa := _cassa_vicina(770.0)
+	await _sposta(Vector2(cassa.position.x - 25.0, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(10)
+	var tasto_ok := true
+	if Controlli.touch:
+		tasto_ok = _principale.hud.tasto_visibile("afferra")
+	var cx := cassa.position.x
+	var tirate := Rapporto.contatore("tirate")
+	Input.action_press("afferra")
+	await _fotogrammi(4)
+	var presa := _g().stato == Giocatore.Stato.PRESA
+	await _tieni("sinistra", 45)
+	await _scatta("tirare")
+	_verifica("tirare una cassa", presa and cassa.position.x < cx - 20.0 and Rapporto.contatore("tirate") == tirate + 1 and _g().verso == 1,
+			"presa %s, cassa %.0f -> %.0f" % [presa, cx, cassa.position.x])
+	cx = cassa.position.x
+	await _tieni("destra", 30)
+	_verifica("spingere una cassa afferrata", cassa.position.x > cx + 12.0, "%.0f -> %.0f" % [cx, cassa.position.x])
+	Input.action_release("afferra")
+	await _fotogrammi(5)
+	_verifica("lasciando il tasto si molla la cassa", _g().stato == Giocatore.Stato.NORMALE and tasto_ok)
+
+	# Scavalcare la cassa da terra (su + direzione) e aggrapparsi al ripiano alto saltando.
+	await _sposta(Vector2(cassa.position.x - 30.0, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(5)
+	var scavalchi := Rapporto.contatore("scavalchi")
+	Input.action_press("su")
+	await _tieni("destra", 30)
+	Input.action_release("su")
+	await _fotogrammi(10)
+	await _scatta("scavalco")
+	var g := _g()
+	_verifica("scavalcare un ostacolo basso", Rapporto.contatore("scavalchi") == scavalchi + 1 and g.is_on_floor()
+			and absf(g.position.y - (cassa.position.y - 32.0)) < 3.0, "y %.0f, cassa %.0f" % [g.position.y, cassa.position.y])
+	await _sposta(Vector2(222, Stanza.PAVIMENTO), -1)
+	await _fotogrammi(5)
+	Input.action_press("sinistra")
+	Input.action_press("salta")
+	await _fotogrammi(50)
+	Input.action_release("salta")
+	Input.action_release("sinistra")
+	await _fotogrammi(10)
+	g = _g()
+	_verifica("aggrapparsi a un bordo e salire", Rapporto.contatore("scavalchi") == scavalchi + 2 and g.is_on_floor()
+			and absf(g.position.y - 392.0) < 3.0, "y %.0f" % g.position.y)
+	await _sposta(Vector2(520, Stanza.PAVIMENTO), 1)
 
 
 func _comandi_a_caso() -> void:
