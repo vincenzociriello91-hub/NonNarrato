@@ -1,0 +1,146 @@
+name: Compila APK
+
+# A ogni modifica su main: prova automatica, APK Android firmato e nuova versione di prova
+# nelle Release del repository. Se qualcosa va storto, i registri finiscono nel ramo
+# "log-compilazione", così si possono leggere senza entrare nella pagina delle Actions.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: compila-apk
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    container:
+      image: barichello/godot-ci:4.7.2-stable
+    env:
+      GODOT_VERSION: 4.7.2
+      VERSIONE: 0.1.${{ github.run_number }}
+    steps:
+      - name: Scarica il codice
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v git >/dev/null || (apt-get update -qq && apt-get install -y -qq git)
+          git config --global --add safe.directory "*"
+          git init -q .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth 1 origin "${GITHUB_SHA}"
+          git checkout -q FETCH_HEAD
+          mkdir -p build
+
+      - name: Prepara Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${HOME}" != "/root" ]; then
+            mkdir -p "${HOME}/.local/share/godot/export_templates" "${HOME}/.config"
+            cp -r /root/.config/godot "${HOME}/.config/godot"
+            cp -r "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" "${HOME}/.local/share/godot/export_templates/"
+          fi
+          godot --version | tee build/registro_godot.txt
+          ls "${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.stable" | tee -a build/registro_godot.txt
+
+      - name: Numero di versione
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/" export_presets.cfg
+          sed -i "s/^version\/name=.*/version\/name=\"${VERSIONE}\"/" export_presets.cfg
+          sed -i "s/^config\/version=.*/config\/version=\"${VERSIONE}\"/" project.godot
+          grep -E "^version/|^config/version" export_presets.cfg project.godot
+
+      - name: Importa le risorse
+        shell: bash
+        run: |
+          set -o pipefail
+          # Due passate: la prima crea la cache e l'elenco delle classi, la seconda la completa.
+          godot --headless --path . --import 2>&1 | tee build/registro_import.txt || true
+          godot --headless --path . --import 2>&1 | tee -a build/registro_import.txt
+
+      - name: Prova automatica
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 900 godot --headless --fixed-fps 60 --path . -- --prova 2>&1 | tee build/registro_prova.txt
+
+      - name: Esporta l'APK
+        shell: bash
+        env:
+          CHIAVE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          CHIAVE_ALIAS: ${{ secrets.RELEASE_KEYSTORE_ALIAS }}
+          CHIAVE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+        run: |
+          set -eo pipefail
+          if [ -n "${CHIAVE_BASE64:-}" ]; then
+            echo "${CHIAVE_BASE64}" | base64 -d > /tmp/chiave.keystore
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/tmp/chiave.keystore
+            export GODOT_ANDROID_KEYSTORE_RELEASE_USER="${CHIAVE_ALIAS}"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="${CHIAVE_PASSWORD}"
+            echo "Firma: chiave segreta"
+          else
+            # Chiave del canale di prova: pubblica per scelta (vedi README).
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="${GITHUB_WORKSPACE}/distribuzione/chiave_prova.keystore"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_USER="nonnarrato-prova"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="nonnarrato-prova"
+            echo "Firma: chiave di prova"
+          fi
+          godot --headless --path . --export-release "Android" build/NonNarrato.apk 2>&1 | tee build/registro_export.txt
+          test -s build/NonNarrato.apk
+          ls -la build
+
+      - name: Pubblica la versione di prova
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          command -v curl >/dev/null || (apt-get update -qq && apt-get install -y -qq curl)
+          # Le note sono la prima sezione di distribuzione/NOVITA.md.
+          awk '/^## /{n++} n==1' distribuzione/NOVITA.md > build/note.md
+          note=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' build/note.md | awk '{printf "%s\\n", $0}')
+          dati=$(printf '{"tag_name":"prova-%s","target_commitish":"%s","name":"NonNarrato %s (prova)","body":"%s","make_latest":"true"}' \
+            "${VERSIONE}" "${GITHUB_SHA}" "${VERSIONE}" "${note}")
+          risposta=$(curl -sS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" -d "${dati}")
+          id=$(echo "${risposta}" | sed -n 's/.*"upload_url": *"[^"]*\/releases\/\([0-9]*\)\/assets.*/\1/p' | head -1)
+          if [ -z "${id}" ]; then
+            echo "Creazione della versione non riuscita:" | tee build/registro_pubblica.txt
+            echo "${risposta}" | head -c 2000 | tee -a build/registro_pubblica.txt
+            exit 1
+          fi
+          curl -sS --fail -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @build/NonNarrato.apk \
+            "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${id}/assets?name=NonNarrato.apk" > /dev/null
+          echo "Pubblicata la versione prova-${VERSIONE}"
+
+      - name: Salva i registri se qualcosa è andato storto
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -u
+          mkdir -p /tmp/registri
+          cp build/*.txt /tmp/registri/ 2>/dev/null || true
+          cd /tmp/registri
+          echo "compilazione ${GITHUB_RUN_NUMBER} - commit ${GITHUB_SHA} - $(date -u)" > quando.txt
+          git init -q -b log-compilazione .
+          git config user.name "compilazione"
+          git config user.email "compilazione@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Registri della compilazione ${GITHUB_RUN_NUMBER}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" log-compilazione

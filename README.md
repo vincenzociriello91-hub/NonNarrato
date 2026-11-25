@@ -1,0 +1,92 @@
+# NonNarrato
+
+Roguelike d'azione per Android, a scorrimento laterale: pixel art cupa alla Blasphemous, struttura a "run" alla Hades.
+Sotto il mondo dorme qualcosa di antico; le leggende di ogni popolo sono le maschere che lo tengono addormentato.
+Il protagonista è **il Non Narrato**: l'ultima leggenda, mai finita né raccontata, che prende forma nei sogni del Dormiente
+e rinasce a ogni morte.
+
+Nome del gioco e del repository sono provvisori.
+
+## Stato: prototipo (una stanza di prova)
+
+Serve a capire se lo stile e i comandi rendono come vogliamo, prima di costruire mondi e storia.
+L'elenco di ciò che c'è è in [distribuzione/NOVITA.md](distribuzione/NOVITA.md).
+
+## Scaricare il gioco
+
+L'ultima versione di prova è sempre qui:
+https://github.com/vincenzociriello91-hub/NonNarrato/releases/latest
+
+Si scarica `NonNarrato.apk` e si installa sopra la versione precedente. Dal menu di pausa il gioco stesso avvisa
+quando c'è una versione nuova.
+
+## Comandi
+
+| Azione | Controller | Tasti a schermo | Tastiera |
+|---|---|---|---|
+| Muoversi | leva sinistra o croce | leva a sinistra | A D / frecce |
+| Saltare | A | Salto | Spazio |
+| Attaccare (due colpi) | X | Colpo | J |
+| Rotolare | B | Rotola | K |
+| Schivare | Y o RB | Schiva | L |
+| Scendere da una piattaforma | giù + A | giù + Salto | S + Spazio |
+| Pausa e impostazioni | Start | II | Esc |
+| Schermata di debug | Select | dal menu | F3 |
+
+I tasti a schermo compaiono appena si tocca lo schermo e spariscono appena si usa un controller.
+
+## Come nasce la grafica
+
+Il metodo è quello di Dead Cells: i personaggi sono **modelli 3D animati**, fotografati di lato a bassa risoluzione
+e salvati come fogli di sprite, ciascuno con la sua **mappa delle normali**. Nel gioco sono normali sprite 2D,
+ma le torce li illuminano come se avessero volume. Un ultimo filtro porta i colori verso una palette fissa.
+
+1. `python3 strumenti/genera_arte.py` — texture ricolorate dei modelli, palette, nebbia, icone.
+2. `godot --path . -s res://strumenti/render_sprite.gd -- strumenti/render_sprite.json` — dai modelli in `sorgenti3d/`
+   ai fogli in `arte/sprite/` (serve uno schermo, anche virtuale). Cosa renderizzare è scritto in `strumenti/render_sprite.json`.
+
+I fogli già pronti sono nel repository: questi due passaggi servono solo quando si cambia un personaggio o un oggetto.
+
+## Cartelle
+
+- `script/` — il gioco. `principale.gd` avvia tutto; `stanza.gd` costruisce la stanza; `giocatore.gd`, `nemico.gd`,
+  `rompibile.gd`, `proiettile.gd`; `dispositivo.gd` (riconoscimento e qualità), `controlli.gd`, `impostazioni.gd`,
+  `rapporto.gd`; `hud.gd` e `menu.gd` per l'interfaccia.
+- `shader/` — filtro palette e nebbia.
+- `arte/` — sprite e grafica d'ambiente. `sorgenti3d/` — modelli originali (non entrano nell'APK).
+- `strumenti/` — strumenti di lavoro. `test/` — prova automatica.
+- `distribuzione/` — novità e chiave di firma del canale di prova.
+
+## Prove
+
+```
+godot --headless --path . --import
+godot --headless --fixed-fps 60 --path . -- --prova
+```
+
+Un bot gioca la stanza (corsa, salto, colpi, cassa, barili, nemici, cunicolo, piattaforme, tasti a schermo, menu, morte)
+e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno schermo e `--schermate=/cartella` salva anche le immagini.
+
+## Pubblicazione
+
+Ogni modifica su `main` fa partire `.github/workflows/android.yml`: prova automatica, APK firmato, nuova versione
+`prova-0.1.N` nelle Release. Le note della versione sono la prima sezione di `distribuzione/NOVITA.md`.
+Se la compilazione fallisce, i registri finiscono nel ramo `log-compilazione`.
+
+### Firma
+
+Le versioni di prova sono firmate con `distribuzione/chiave_prova.keystore`, che sta nel repository pubblico
+insieme alla sua password: serve solo a installare ogni versione sopra la precedente durante i test.
+Non va usata per una pubblicazione vera. Se nel repository esistono i segreti `RELEASE_KEYSTORE_BASE64`,
+`RELEASE_KEYSTORE_ALIAS` e `RELEASE_KEYSTORE_PASSWORD`, la compilazione usa quelli al posto della chiave di prova.
+
+## Rapporti
+
+A ogni chiusura (e ogni 30 secondi, per sicurezza) il gioco salva un rapporto completo: dispositivo, qualità scelta,
+FPS secondo per secondo, temperatura, comandi usati, eventi della partita ed errori del motore.
+Su Android una copia va in `Download/NonNarrato_report/`. Dal menu si può anche copiare negli appunti.
+I rapporti non contengono dati personali.
+
+## Crediti
+
+Vedi [CREDITS.md](CREDITS.md).

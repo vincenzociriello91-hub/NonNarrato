@@ -1,0 +1,164 @@
+{
+	"animazioni": {
+		"aria": {
+			"ciclo": true,
+			"fps": 6.0,
+			"frame": [
+				22,
+				23,
+				24,
+				25
+			]
+		},
+		"attacco1": {
+			"ciclo": false,
+			"fps": 24.0,
+			"frame": [
+				30,
+				31,
+				32,
+				33,
+				34,
+				35,
+				36,
+				37,
+				38
+			]
+		},
+		"attacco2": {
+			"ciclo": false,
+			"fps": 24.0,
+			"frame": [
+				39,
+				40,
+				41,
+				42,
+				43,
+				44,
+				45,
+				46,
+				47
+			]
+		},
+		"atterra": {
+			"ciclo": false,
+			"fps": 16.0,
+			"frame": [
+				26,
+				27,
+				28,
+				29
+			]
+		},
+		"colpito": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				66,
+				67,
+				68,
+				69
+			]
+		},
+		"corsa": {
+			"ciclo": true,
+			"fps": 15.0,
+			"frame": [
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18
+			]
+		},
+		"fermo": {
+			"ciclo": true,
+			"fps": 8.0,
+			"frame": [
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8
+			]
+		},
+		"morte": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				70,
+				71,
+				72,
+				73,
+				74,
+				75,
+				76,
+				77,
+				78
+			]
+		},
+		"rotolata": {
+			"ciclo": false,
+			"fps": 20.0,
+			"frame": [
+				58,
+				59,
+				60,
+				61,
+				62,
+				63,
+				64,
+				65
+			]
+		},
+		"salto": {
+			"ciclo": false,
+			"fps": 14.0,
+			"frame": [
+				19,
+				20,
+				21
+			]
+		},
+		"scatto": {
+			"ciclo": false,
+			"fps": 20.0,
+			"frame": [
+				53,
+				54,
+				55,
+				56,
+				57
+			]
+		},
+		"schivata": {
+			"ciclo": false,
+			"fps": 20.0,
+			"frame": [
+				48,
+				49,
+				50,
+				51,
+				52
+			]
+		}
+	},
+	"cella": [
+		96,
+		96
+	],
+	"colonne": 12,
+	"piedi": [
+		48,
+		76
+	]
+}

@@ -1,0 +1,105 @@
+{
+	"uscita": "res://arte/sprite",
+	"voci": [
+		{
+			"nome": "protagonista",
+			"glb": "res://sorgenti3d/personaggi/Rogue_Hooded.glb",
+			"texture": "res://sorgenti3d/oggetti/protagonista_texture.png",
+			"cella": [96, 96],
+			"px_per_unita": 24,
+			"piedi_da_sotto": 20,
+			"rotazione_y": 68,
+			"scala": [0.95, 1.05, 0.95],
+			"ossa": [
+				{"osso": "head", "scala": [0.8, 0.8, 0.8]},
+				{"osso": "upperleg.l", "scala": [1, 1.3, 1]},
+				{"osso": "upperleg.r", "scala": [1, 1.3, 1]}
+			],
+			"nascondi": ["1H_Crossbow", "2H_Crossbow", "Throwable", "Knife_Offhand", "Knife"],
+			"attacca": [{"osso": "handslot.r", "gltf": "res://sorgenti3d/oggetti/sword_1handed.gltf"}],
+			"animazioni": [
+				{"nome": "fermo", "clip": "Idle", "ciclo": true, "fps": 8},
+				{"nome": "corsa", "clip": "Running_A", "ciclo": true, "frame": 10, "fps": 15},
+				{"nome": "salto", "clip": "Jump_Start", "da": 0.3, "a": 0.6, "frame": 3, "fps": 14},
+				{"nome": "aria", "clip": "Jump_Idle", "ciclo": true, "frame": 4, "fps": 6},
+				{"nome": "atterra", "clip": "Jump_Land", "da": 0.0, "a": 0.35, "frame": 4, "fps": 16},
+				{"nome": "attacco1", "clip": "1H_Melee_Attack_Chop", "da": 0.10, "a": 0.85, "frame": 9, "fps": 24},
+				{"nome": "attacco2", "clip": "1H_Melee_Attack_Slice_Diagonal", "da": 0.10, "a": 0.85, "frame": 9, "fps": 24},
+				{"nome": "schivata", "clip": "Dodge_Backward", "frame": 5, "fps": 20},
+				{"nome": "scatto", "clip": "Dodge_Forward", "frame": 5, "fps": 20},
+				{"nome": "rotolata", "clip": "Sit_Floor_Down", "capriola": true, "tempo": 0.6, "frame": 8, "fps": 20, "centro": 0.75},
+				{"nome": "colpito", "clip": "Hit_A", "da": 0.0, "a": 0.45, "frame": 4, "fps": 12},
+				{"nome": "morte", "clip": "Death_A", "frame": 9, "fps": 12}
+			]
+		},
+		{
+			"nome": "scheletro",
+			"glb": "res://sorgenti3d/personaggi/Skeleton_Warrior.glb",
+			"texture": "res://sorgenti3d/oggetti/scheletro_texture.png",
+			"cella": [96, 96],
+			"px_per_unita": 24,
+			"piedi_da_sotto": 20,
+			"rotazione_y": 68,
+			"scala": [0.95, 1.05, 0.95],
+			"ossa": [
+				{"osso": "head", "scala": [0.85, 0.85, 0.85]},
+				{"osso": "upperleg.l", "scala": [1, 1.3, 1]},
+				{"osso": "upperleg.r", "scala": [1, 1.3, 1]}
+			],
+			"attacca": [{"osso": "handslot.r", "gltf": "res://sorgenti3d/oggetti/Skeleton_Blade.gltf"}],
+			"colori": [{"mesh": "*Eyes*", "senza_tex": true, "tinta": "#ff5a3c"}],
+			"animazioni": [
+				{"nome": "dorme", "clip": "Skeletons_Inactive_Floor_Pose", "frame": 1},
+				{"nome": "risveglio", "clip": "Skeletons_Awaken_Floor", "frame": 14, "fps": 10},
+				{"nome": "fermo", "clip": "Idle", "ciclo": true, "fps": 8},
+				{"nome": "cammina", "clip": "Walking_D_Skeletons", "ciclo": true, "frame": 12, "fps": 10},
+				{"nome": "attacco", "clip": "1H_Melee_Attack_Chop", "frame": 12, "fps": 14},
+				{"nome": "colpito", "clip": "Hit_A", "da": 0.0, "a": 0.45, "frame": 4, "fps": 12},
+				{"nome": "morte", "clip": "Death_C_Skeletons", "frame": 12, "fps": 12}
+			]
+		},
+		{
+			"nome": "mago",
+			"glb": "res://sorgenti3d/personaggi/Skeleton_Mage.glb",
+			"texture": "res://sorgenti3d/oggetti/scheletro_texture.png",
+			"cella": [96, 96],
+			"px_per_unita": 24,
+			"piedi_da_sotto": 20,
+			"rotazione_y": 68,
+			"scala": [0.95, 1.05, 0.95],
+			"ossa": [
+				{"osso": "head", "scala": [0.85, 0.85, 0.85]},
+				{"osso": "upperleg.l", "scala": [1, 1.3, 1]},
+				{"osso": "upperleg.r", "scala": [1, 1.3, 1]}
+			],
+			"attacca": [{"osso": "handslot.r", "gltf": "res://sorgenti3d/oggetti/Skeleton_Staff.gltf"}],
+			"colori": [{"mesh": "*Eyes*", "senza_tex": true, "tinta": "#6be0ff"}],
+			"animazioni": [
+				{"nome": "fermo", "clip": "Idle", "ciclo": true, "fps": 8},
+				{"nome": "cammina", "clip": "Walking_A", "ciclo": true, "frame": 10, "fps": 10},
+				{"nome": "lancia", "clip": "Spellcast_Shoot", "frame": 10, "fps": 12},
+				{"nome": "colpito", "clip": "Hit_A", "da": 0.0, "a": 0.45, "frame": 4, "fps": 12},
+				{"nome": "morte", "clip": "Death_C_Skeletons", "frame": 12, "fps": 12}
+			]
+		},
+		{"nome": "cassa", "glb": "res://sorgenti3d/oggetti/box_large.gltf.glb", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "barile", "glb": "res://sorgenti3d/oggetti/barrel_small.gltf.glb", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "barile_grande", "glb": "res://sorgenti3d/oggetti/barrel_large.gltf.glb", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "forziere", "glb": "res://sorgenti3d/oggetti/chest.glb", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "torcia", "glb": "res://sorgenti3d/oggetti/torch_mounted.gltf.glb", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "candele", "glb": "res://sorgenti3d/oggetti/candle_triple.gltf.glb", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "pilastro", "glb": "res://sorgenti3d/oggetti/pillar.gltf.glb", "cella": [160, 160], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "stendardo", "glb": "res://sorgenti3d/oggetti/banner_thin_red.gltf.glb", "cella": [160, 160], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 0, "ritaglia": true, "colori": [{"mesh": "*", "saturazione": 0.75, "luminosita": 0.7}]},
+		{"nome": "stendardo_scudo", "glb": "res://sorgenti3d/oggetti/banner_shield_red.gltf.glb", "cella": [160, 160], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 0, "ritaglia": true, "colori": [{"mesh": "*", "saturazione": 0.75, "luminosita": 0.7}]},
+		{"nome": "lastra", "glb": "res://sorgenti3d/oggetti/floor_tile_large.gltf.glb", "cella": [160, 80], "px_per_unita": 24, "piedi_da_sotto": 20, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true},
+		{"nome": "fondamenta", "glb": "res://sorgenti3d/oggetti/floor_foundation_front.gltf.glb", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 0, "ritaglia": true, "contorno": false},
+		{"nome": "muro", "glb": "res://sorgenti3d/oggetti/wall.gltf.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false},
+		{"nome": "muro_crepe", "glb": "res://sorgenti3d/oggetti/wall_cracked.gltf.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false},
+		{"nome": "muro_arco", "glb": "res://sorgenti3d/oggetti/wall_arched.gltf.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false},
+		{"nome": "muro_grata", "glb": "res://sorgenti3d/oggetti/wall_archedwindow_gated.gltf.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false},
+		{"nome": "muro_rotto", "glb": "res://sorgenti3d/oggetti/wall_broken.gltf.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false},
+		{"nome": "muro_cancello", "glb": "res://sorgenti3d/oggetti/wall_gated.gltf.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false},
+		{"nome": "muro_porta", "glb": "res://sorgenti3d/oggetti/wall_doorway.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false},
+		{"nome": "muro_colonna", "glb": "res://sorgenti3d/oggetti/wall_pillar.gltf.glb", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 0, "rotazione_y": 0, "contorno": false}
+	]
+}

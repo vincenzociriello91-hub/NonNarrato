@@ -1,0 +1,54 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="NonNarrato"
+config/version="0.1.0"
+run/main_scene="res://scene/principale.tscn"
+config/features=PackedStringArray("4.7", "Mobile")
+boot_splash/bg_color=Color(0.027, 0.024, 0.043, 1)
+boot_splash/show_image=false
+config/icon="res://icon.png"
+
+[autoload]
+
+Impostazioni="*res://script/impostazioni.gd"
+Rapporto="*res://script/rapporto.gd"
+Dispositivo="*res://script/dispositivo.gd"
+Controlli="*res://script/controlli.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[layer_names]
+
+2d_physics/layer_1="mondo"
+2d_physics/layer_2="piattaforme"
+2d_physics/layer_3="giocatore"
+2d_physics/layer_4="nemici"
+2d_physics/layer_5="oggetti"
+2d_physics/layer_6="colpi_giocatore"
+2d_physics/layer_7="colpi_nemici"
+2d_physics/layer_8="bersagli"
+2d_physics/layer_9="bersaglio_giocatore"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+textures/canvas_textures/default_texture_filter=0
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.027, 0.024, 0.043, 1)

@@ -1,0 +1,11 @@
+# Cache di Godot (si rigenera con: godot --headless --path . --import)
+.godot/
+# Risultati della compilazione
+build/
+*.apk
+*.aab
+# Cache degli strumenti
+.ruff_cache/
+__pycache__/
+# Credenziali di esportazione: mai nel repository
+export_credentials.cfg
