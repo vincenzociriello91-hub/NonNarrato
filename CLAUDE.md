@@ -29,6 +29,23 @@ Scrivi a Vincenzo in italiano, poche righe, senza gergo. Tutto quello che puoi f
 6. Push su `main`, mai `--force`. La compilazione pubblica `prova-0.1.N` nelle Release. I registri dell'ultima compilazione sono nel ramo `log-compilazione`: leggili se fallisce.
 7. Di' a Vincenzo quale versione è uscita, in poche righe.
 
+## Fatti verificati sui dispositivi
+
+Odin 2 Portal, 25/11/2026, versione 0.1.4 (prova fatta a distanza col connettore Odin):
+- Parte con Vulkan (renderer Mobile) su Adreno 740: 60 FPS fissi, nessuno scatto, qualità "alta" scelta da sola, tela 640x360 ×3.
+- Il controller integrato è visto come "Xbox Series X Controller". Tasti fisici veri non ancora premuti: provati solo tastiera simulata e tocco.
+- Tocco: leva, tasti a schermo e tasto indietro (apre la pausa) funzionano.
+- Letture Android (batteria, stato termico) funzionano; il margine termico non è disponibile (-1).
+- Il rapporto arriva in `/sdcard/Download/NonNarrato_report/`.
+- Android non lascia leggere memoria totale e nome del processore: restano vuoti. Lo schermo si dichiara a 60 Hz.
+
+Pixel 8 Pro: non ancora provato (GPU Mali, notch, solo tocco).
+
+Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il gioco e rispegnere lo schermo):
+`curl` dell'APK in `/data/local/tmp`, `pm install -r`, `am start -n com.vincenzo.nonnarrato/com.godot.game.GodotApp`,
+`input keyevent`/`input tap`/`input swipe` per i comandi, foto con `odin_schermo`, rapporto in Download,
+`am force-stop com.vincenzo.nonnarrato`, `input keyevent 223`.
+
 ## Grafica dai modelli 3D
 
 - Modelli in `sorgenti3d/` (CC0, KayKit). Mai modelli Mixamo o con licenze che vietano la ridistribuzione: il repository è pubblico.
