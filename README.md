@@ -28,7 +28,9 @@ quando c'è una versione nuova.
 | Saltare | A | Salto | Spazio |
 | Attaccare (due colpi) | X | Colpo | J |
 | Rotolare | B | Rotola | K |
-| Schivare / scatto (con la direzione: avanti o indietro) | Y o RB | Schiva | L |
+| Schivare / scatto (con la direzione: avanti o indietro) | Y | Schiva | L |
+| Tirare (magia, dardi, frecce; con su in alto) | RB o RT | Tira | I |
+| Cambiare arma a distanza | LT | Arma | Q |
 | Afferrare una cassa (tenere premuto) | LB | Afferra (solo vicino a una cassa) | E |
 | Tirare una leva, aprire un forziere | LB | Leva / Apri (solo accanto) | E |
 | Scavalcare un ostacolo basso | su + direzione | leva in diagonale | W + direzione |
@@ -64,7 +66,7 @@ si scelgono dal menu di pausa, sezione Aspetto.
 
 - `script/` — il gioco. `principale.gd` avvia tutto; `stanza.gd` costruisce la stanza; `giocatore.gd`, `figura_viva.gd`,
   `equipaggiamento.gd`, `bot.gd`, `navigatore.gd`, `nemico.gd`, `memoria.gd`,
-  `rompibile.gd`, `proiettile.gd`; meccanismi e trappole della galleria: `porta.gd`, `leva.gd`, `piastra.gd`,
+  `rompibile.gd`, `proiettile.gd` (colpi dei nemici e tiri di chi gioca), `raccoglibile.gd` (munizioni a terra); meccanismi e trappole della galleria: `porta.gd`, `leva.gd`, `piastra.gd`,
   `forziere.gd`, `spuntoni.gd`, `pendolo.gd`, `balestra.gd`, `piattaforma_mobile.gd`, `piattaforma_fragile.gd`,
   `bracieri.gd`; `dispositivo.gd` (riconoscimento e qualità), `controlli.gd`, `impostazioni.gd`,
   `rapporto.gd`; `hud.gd` e `menu.gd` per l'interfaccia.
@@ -89,6 +91,14 @@ sono salvati in `user://equipaggiamento.cfg` (sezione `tesori`).
 torna più forte con nome e titolo; chi batti può tornare sfregiato), le **abitudini** di chi gioca e le **tattiche**
 che funzionano contro di lui. `script/nemico.gd` usa questi ricordi: vista bloccata dai muri, udito, ricerca
 dell'ultima posizione vista, tattiche scelte secondo i risultati (osserva, decide, agisce, verifica, ricorda).
+Sei tipi: scheletro, mago, arciere (dardi di balestra), pipistrello (dorme appeso, scende in picchiata), saltatore
+(balza da una piattaforma all'altra) e bestione (corazzato: da davanti para la spada, si gira lentamente).
+
+## Armi a distanza
+
+Magia (energia che si ricarica), dardi e frecce (munizioni da forzieri e barili), in `script/giocatore.gd`
+(`ARMI_DISTANZA`). Tasto Tira, con su in alto; tasto Arma per cambiare. Un aiuto alla mira raddrizza il tiro sul
+nemico più vicino entro circa 30 gradi (`bersaglio_tiro`).
 
 ## Bot di prova
 

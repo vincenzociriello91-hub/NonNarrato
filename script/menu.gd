@@ -42,7 +42,8 @@ const AZIONI_DI_GIOCO := [
 	["fermo", "Fermo"], ["corsa", "Corsa"], ["salto", "Salto"], ["aria", "In aria"], ["atterra", "Atterraggio"],
 	["attacco1", "Attacco 1"], ["attacco2", "Attacco 2"], ["schivata", "Scatto indietro"], ["scatto", "Scatto avanti"],
 	["rotolata", "Rotolata"], ["rotolata_indietro", "Rotolo indietro"], ["scavalco", "Scavalcare"],
-	["presa", "Afferrare"], ["spinge", "Spingere"], ["tira", "Tirare"], ["usa", "Usare"], ["colpito", "Colpito"], ["morte", "Morte"],
+	["presa", "Afferrare"], ["spinge", "Spingere"], ["tira", "Tirare"], ["usa", "Usare"], ["tiro_magia", "Magia"],
+	["tiro_dardo", "Dardo"], ["tiro_freccia", "Freccia"], ["colpito", "Colpito"], ["morte", "Morte"],
 ]
 var _collegamento := ""
 var _in_caricamento := false

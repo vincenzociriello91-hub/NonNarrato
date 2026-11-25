@@ -1,6 +1,6 @@
 # Novità di NonNarrato
 
-## 0.1 — La galleria: trappole, enigmi e forzieri
+## 0.1 — La galleria: trappole, enigmi, forzieri, armi a distanza e nemici nuovi
 
 - **Una galleria nuova oltre la terrazza**, su tre piani: si scende dalla passerella, si sale su una torre e si arriva fino a un salone in alto.
 - **Leve e grate**: una leva sotto la passerella apre la grata dell'alcova, una scorciatoia per tornare nella cripta.
@@ -8,8 +8,18 @@
 - **Piattaforme nuove**: un montacarichi che sale e scende da solo e lastre crepate che crollano poco dopo che ci sali, e poi tornano al loro posto.
 - **Due enigmi**: spingi la cassa giù dalla balconata e mettila sulla piastra, così la grata del tesoro resta alzata; nel salone accendi i tre bracieri (colpendoli) nell'ordine della tavoletta incisa per far salire un gradino segreto. L'ordine cambia a ogni sogno.
 - **Forzieri**: accanto a un forziere (o a una leva) premi **Afferra**; il tasto a schermo dice cosa fa ("Apri", "Leva"). I forzieri di legno ridanno vita e contengono frammenti della storia del Dormiente; il forziere d'oro nella nicchia segreta regala un **colore nuovo** per l'aspetto (in tutto ce ne sono tre, si trovano uno alla volta e restano per sempre).
-- **Nuovi nemici in galleria**: uno scheletro che dorme sotto la passerella, uno nella sala e un mago nel salone.
-- **Il bot prova tutto**: aspetta le trappole e passa al momento giusto, salta le piastre che non deve calpestare, schiva le frecce, prende il montacarichi, risolve i due enigmi (sbagliando apposta una volta) e apre i forzieri. Alla fine rimette anche i tuoi tesori.
+- **Tre armi a distanza**: magia (consuma energia, che torna da sola; passa anche le corazze), dardi (veloci) e frecce (lente ma fanno più male). Si tira con **RB** o **RT** sul controller, **I** sulla tastiera, **Tira** sullo schermo. Con **su** si tira in alto.
+- **Cambiare arma**: **LT** sul controller, **Q** sulla tastiera, **Arma** sullo schermo. In alto a sinistra vedi l'arma scelta e i colpi rimasti; se è scarica la scritta lampeggia in rosso.
+- **Aiuto alla mira**: se un nemico è più o meno nella direzione del tiro, il colpo va dritto su di lui.
+- **Munizioni**: i forzieri ridanno dardi e frecce; a volte un barile rotto ne lascia un po' a terra (ci passi sopra e le prendi). I tiri rompono anche i barili e accendono i bracieri.
+- **Nemici nuovi in galleria** (oltre a due scheletri e un mago):
+  - l'**arciere** sulla balconata, che tira dardi di balestra (dritti, dove andrai o due di fila);
+  - i **pipistrelli**, che dormono appesi e poi scendono in picchiata (basta un colpo);
+  - il **saltatore**, piccolo e veloce, che ti balza addosso;
+  - il **bestione**, lento e corazzato: da davanti para la spada, quindi colpiscilo alle spalle (ci mette un attimo a girarsi), subito dopo un suo colpo, o con la magia. Colpisce forte e carica.
+- Anche i nemici nuovi imparano da te: chi capisce che tiri spesso da lontano impara a schivare i tuoi colpi.
+- **Schiva** ora è solo su **Y** (RB serve per tirare).
+- **Il bot prova tutto**: aspetta le trappole e passa al momento giusto, salta le piastre che non deve calpestare, schiva le frecce, prende il montacarichi, risolve i due enigmi (sbagliando apposta una volta), apre i forzieri, scorre le armi, rompe un barile con una freccia, tira in alto, svuota la faretra e affronta ogni nemico nuovo. Alla fine rimette i tuoi tesori.
 - Corretto un difetto del bot: a volte faceva un salto cortissimo invece di uno normale.
 
 ## 0.1 — Nemici che cambiano idea

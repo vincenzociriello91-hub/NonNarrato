@@ -72,6 +72,7 @@ static var _mat_sprite: ShaderMaterial
 static var _mat_sprite_piatto: ShaderMaterial
 
 var disegni := 0                 # quante foto ha scattato (per le prove e il rapporto)
+var _in_mano: Array = []         # pezzi tenuti in mano per un attimo (vedi mostra_in_mano)
 var mosse := "una_mano"          # gruppo di mosse in uso (cambia le clip, non i tempi di gioco)
 var usa_normali := true          # l'anteprima del menu non ne ha bisogno
 var _figura := {}
@@ -372,13 +373,26 @@ func _prepara_pezzi() -> void:
 		_pezzi[String(mi.name)] = [mi, n]
 
 
+func mostra_in_mano(pezzi: Array) -> void:
+	# Per un attimo in mano qualcosa che non fa parte dell'equipaggiamento (la balestra per le frecce,
+	# un dardo da lanciare); l'arma di solito in mano sparisce. Lista vuota = di nuovo come prima.
+	if pezzi == _in_mano:
+		return
+	_in_mano = pezzi.duplicate()
+	_applica_aspetto()
+
+
 func _applica_aspetto() -> void:
 	if _pezzi.is_empty():
 		return
 	var accesi := {}
 	for posto in Equipaggiamento.POSTI:
+		if posto == "arma" and not _in_mano.is_empty():
+			continue
 		for p: String in Equipaggiamento.pezzi(Equipaggiamento.indossati[posto]):
 			accesi[p] = true
+	for p: String in _in_mano:
+		accesi[p] = true
 	for nome: String in _pezzi:
 		var visibile := accesi.has(nome)
 		var coppia: Array = _pezzi[nome]

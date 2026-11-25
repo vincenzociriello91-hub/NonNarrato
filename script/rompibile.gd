@@ -1,7 +1,7 @@
 class_name Rompibile
 extends Area2D
-# Oggetto che si rompe a colpi di spada (barili). Rompendosi va in pezzi veri,
-# che cadono e rimbalzano, e solleva polvere.
+# Oggetto che si rompe a colpi di spada o da lontano (barili). Rompendosi va in pezzi veri,
+# che cadono e rimbalzano, e solleva polvere; a volte lascia munizioni.
 
 var foglio := "barile"
 var vita := 1
@@ -33,6 +33,8 @@ func _ready() -> void:
 
 
 func subisci(danno: int, da: Vector2, _spinta: float) -> bool:
+	if vita <= 0:
+		return false   # già in pezzi (si rompe al passo dopo)
 	vita -= danno
 	if vita > 0:
 		Effetti.lampo(sprite)
@@ -40,7 +42,8 @@ func subisci(danno: int, da: Vector2, _spinta: float) -> bool:
 		tw.tween_property(sprite, "rotation", 0.12 * signf(global_position.x - da.x), 0.05)
 		tw.tween_property(sprite, "rotation", 0.0, 0.12)
 		return true
-	_rompi(da)
+	set_deferred("monitorable", false)
+	_rompi.call_deferred(da)   # i pezzi nascono fuori dal passo della fisica (un tiro lo rompe dentro)
 	return true
 
 
@@ -88,4 +91,16 @@ func _rompi(da: Vector2) -> void:
 			14, 90.0, 0.5, 220.0, false)
 	if not silenzioso:
 		Controlli.vibra(0.5, 0.1)
+		_lascia_munizioni()
 	queue_free()
+
+
+func _lascia_munizioni() -> void:
+	# Un barile su tre lascia qualche dardo o qualche freccia.
+	if randf() > 0.35:
+		return
+	var r := Raccoglibile.new()
+	r.cosa = "dardi" if randf() < 0.55 else "frecce"
+	r.quante = 3 if r.cosa == "dardi" else 2
+	r.position = global_position
+	get_parent().add_child.call_deferred(r)

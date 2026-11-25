@@ -27,7 +27,8 @@ class Cuori extends Control:
 
 const PULSANTI := [
 	["attacca", "Colpo", 46.0], ["salta", "Salto", 42.0], ["rotola", "Rotola", 36.0],
-	["schiva", "Schiva", 36.0], ["afferra", "Afferra", 34.0], ["pausa", "II", 24.0],
+	["schiva", "Schiva", 36.0], ["afferra", "Afferra", 34.0], ["tira", "Tira", 34.0],
+	["cambia_arma", "Arma", 26.0], ["pausa", "II", 24.0],
 ]
 
 var _centri := {}
@@ -36,6 +37,7 @@ var _sogno := 1
 var _radice: Control
 var _cuori: Cuori
 var _etichetta_sogno: Label
+var _armi: Label
 var _debug: Label
 var _messaggio: Label
 var _touch: Control
@@ -63,6 +65,8 @@ func _ready() -> void:
 
 	_etichetta_sogno = _etichetta(15, Color(0.72, 0.7, 0.84))
 	_radice.add_child(_etichetta_sogno)
+	_armi = _etichetta(16, Color(0.86, 0.82, 0.95))
+	_radice.add_child(_armi)
 
 	_debug = _etichetta(14, Color(0.86, 0.9, 0.86))
 	var sfondo := StyleBoxFlat.new()
@@ -173,7 +177,8 @@ func _disponi() -> void:
 	var m := _margini()
 	_cuori.position = Vector2(m[0] + 16.0, m[1] + 14.0)
 	_etichetta_sogno.position = Vector2(m[0] + 20.0, m[1] + 46.0)
-	_debug.position = Vector2(m[0] + 16.0, m[1] + 78.0)
+	_armi.position = Vector2(m[0] + 20.0, m[1] + 68.0)
+	_debug.position = Vector2(m[0] + 16.0, m[1] + 100.0)
 	_debug.visible = Impostazioni.leggi("gioco/debug")
 	# Le frasi lunghe (per esempio quelle delle nemesi) vanno a capo restando al centro.
 	_messaggio.position = Vector2(area.x * 0.12, area.y * 0.26)
@@ -194,6 +199,8 @@ func _disponi() -> void:
 		"rotola": Vector2(bx - 84.0 * k, by - 212.0 * k),
 		"schiva": Vector2(bx - 200.0 * k, by - 186.0 * k),
 		"afferra": Vector2(bx - 330.0 * k, by - 90.0 * k),  # compare solo accanto a casse, leve e forzieri
+		"tira": Vector2(bx - 318.0 * k, by - 212.0 * k),
+		"cambia_arma": Vector2(bx - 112.0 * k, by - 306.0 * k),
 		"pausa": Vector2(bx - 44.0, m[1] + 44.0),
 	}
 	_centri = posti
@@ -229,6 +236,10 @@ func tasto_visibile(azione: String) -> bool:
 	return _touch.visible and _pulsanti.has(azione) and (_pulsanti[azione]["nodo"] as TouchScreenButton).visible
 
 
+func testo_armi() -> String:
+	return _armi.text
+
+
 func testo_tasto(azione: String) -> String:
 	if not _pulsanti.has(azione):
 		return ""
@@ -247,7 +258,28 @@ func collega(stanza: Stanza, sogno: int) -> void:
 	var g := stanza.giocatore
 	g.vita_cambiata.connect(_su_vita)
 	_su_vita(g.vita, Giocatore.VITA_MASSIMA)
+	g.armi_cambiate.connect(_su_armi)
+	_su_armi()
 	_etichetta_sogno.text = "Sogno %d" % sogno
+
+
+func _su_armi() -> void:
+	# Armi a distanza: quella scelta tra parentesi, con i colpi rimasti; rossa per un attimo se è scarica.
+	if not is_instance_valid(_stanza) or not is_instance_valid(_stanza.giocatore):
+		return
+	var g := _stanza.giocatore
+	var parti := PackedStringArray()
+	for arma: String in Giocatore.ORDINE_ARMI:
+		var testo := "%s %d" % [Giocatore.ARMI_DISTANZA[arma]["nome"], g.colpi_rimasti(arma)]
+		parti.append("[%s]" % testo if arma == g.arma_distanza else testo)
+	_armi.text = "   ".join(parti)
+	if _pulsanti.has("cambia_arma"):
+		var nome: String = Giocatore.ARMI_DISTANZA[g.arma_distanza]["nome"]
+		((_pulsanti["cambia_arma"]["nodo"] as TouchScreenButton).get_child(0) as Label).text = nome.left(5)
+	if not g.puo_tirare():
+		_armi.modulate = Color(1.0, 0.45, 0.45)
+		var tw := create_tween()
+		tw.tween_property(_armi, "modulate", Color.WHITE, 0.5)
 
 
 func _su_vita(vita: int, massima: int) -> void:

@@ -2,14 +2,16 @@ class_name Giocatore
 extends CharacterBody2D
 # Il Non Narrato: corre, salta, attacca (due colpi in fila), rotola e scatta in avanti o
 # all'indietro, scavalca ostacoli bassi e si aggrappa ai bordi, afferra le casse per tirarle,
-# usa leve e apre forzieri (tasto "afferra" accanto all'oggetto).
+# usa leve e apre forzieri (tasto "afferra" accanto all'oggetto), colpisce da lontano con magia,
+# dardi e frecce (tasto "tira"; con su si mira in alto; "cambia_arma" sceglie quale).
 # I tempi sono nel codice e non dipendono dalle animazioni, così il comportamento
 # è lo stesso su ogni dispositivo.
 
 signal vita_cambiata(vita: int, massima: int)
+signal armi_cambiate
 signal morto
 
-enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA }
+enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO }
 
 const VELOCITA := 150.0
 const ACCELERAZIONE := 1500.0
@@ -43,6 +45,22 @@ const PRESA_VELOCITA := 70.0
 const PRESA_DISTANZA := 30.0        # centro cassa - centro giocatore per poterla afferrare
 const USO_DISTANZA := 26.0          # leve e forzieri si usano da qui
 const USO_DURATA := 0.38
+# Armi a distanza: animazione, durata, quando parte il colpo, velocità, danno.
+const ARMI_DISTANZA := {
+	"magia": {"nome": "Magia", "anim": "tiro_magia", "durata": 0.42, "momento": 0.2, "velocita": 230.0, "danno": 2},
+	"dardi": {"nome": "Dardi", "anim": "tiro_dardo", "durata": 0.3, "momento": 0.12, "velocita": 380.0, "danno": 1},
+	"frecce": {"nome": "Frecce", "anim": "tiro_freccia", "durata": 0.5, "momento": 0.3, "velocita": 320.0, "danno": 2},
+}
+const ORDINE_ARMI: Array[String] = ["magia", "dardi", "frecce"]
+const MIRA_CONO := 0.55            # aiuto alla mira: angolo (in radianti) entro cui il tiro si raddrizza
+const MIRA_PORTATA := 260.0
+const ENERGIA_MASSIMA := 100.0
+const COSTO_MAGIA := 34.0
+const RICARICA_ENERGIA := 14.0        # al secondo
+const MUNIZIONI_MASSIME := {"dardi": 12, "frecce": 10}
+const MUNIZIONI_INIZIALI := {"dardi": 8, "frecce": 5}
+# Cosa tiene in mano mentre tira (pezzi del manichino).
+const IN_MANO := {"magia": [], "dardi": ["Viandante__Knife"], "frecce": ["Viandante__1H_Crossbow"]}
 
 const ALTO := Vector2(14, 44)
 const BASSO := Vector2(14, 20)
@@ -50,6 +68,9 @@ const BASSO := Vector2(14, 20)
 var stato := Stato.NORMALE
 var verso := 1
 var vita := VITA_MASSIMA
+var arma_distanza := "magia"
+var energia := ENERGIA_MASSIMA
+var munizioni := MUNIZIONI_INIZIALI.duplicate()
 
 var sprite: SpriteAnimato
 var camera: Camera2D
@@ -82,6 +103,8 @@ var _cassa: RigidBody2D
 var _scarto_cassa := 0.0
 var _tirata_contata := false
 var _colpito_da: Node
+var _tiro_partito := false
+var _mira_in_alto := false
 
 var _forma: CollisionShape2D
 var _rett: RectangleShape2D
@@ -195,6 +218,8 @@ func _physics_process(delta: float) -> void:
 			_presa(delta)
 		Stato.USA:
 			_uso(delta)
+		Stato.TIRO:
+			_tiro(delta, a_terra)
 
 	_velocita_caduta = velocity.y
 	move_and_slide()
@@ -205,6 +230,13 @@ func _physics_process(delta: float) -> void:
 
 
 func _scorri_tempi(delta: float) -> void:
+	if energia < ENERGIA_MASSIMA:
+		var prima := int(energia / COSTO_MAGIA)
+		energia = minf(ENERGIA_MASSIMA, energia + RICARICA_ENERGIA * delta)
+		if int(energia / COSTO_MAGIA) != prima:
+			armi_cambiate.emit()
+	if Input.is_action_just_pressed("cambia_arma") and stato != Stato.MORTO:
+		cambia_arma()
 	_t_coyote = maxf(0.0, _t_coyote - delta)
 	_t_memoria_salto = maxf(0.0, _t_memoria_salto - delta)
 	_t_pausa_rotolata = maxf(0.0, _t_pausa_rotolata - delta)
@@ -275,6 +307,8 @@ func _normale(delta: float, a_terra: bool) -> void:
 		_inizia_schivata(a_terra, direzione)
 	elif Input.is_action_just_pressed("attacca"):
 		_inizia_attacco(1, a_terra)
+	elif Input.is_action_just_pressed("tira"):
+		_inizia_tiro()
 
 
 func _inizia_attacco(numero: int, a_terra: bool) -> void:
@@ -530,6 +564,121 @@ func _uso(delta: float) -> void:
 		stato = Stato.NORMALE
 
 
+# ------------------------------------------------------------------ armi a distanza
+
+func bocca() -> Vector2:
+	# Da dove parte un tiro.
+	return global_position + Vector2(verso * 14.0, -22.0)
+
+
+func bersaglio_tiro(in_alto: bool) -> Nemico:
+	# Aiuto alla mira (come nei giochi per telefono): il nemico più vicino dentro un cono di circa
+	# 30 gradi attorno alla direzione del tiro, entro la portata e non dietro un muro.
+	var base := Vector2(verso, -0.85).normalized() if in_alto else Vector2(verso, 0.0)
+	var da := bocca()
+	var migliore: Nemico = null
+	var distanza := MIRA_PORTATA
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var nemico := n as Nemico
+		if nemico == null or not nemico.bersagliabile():
+			continue
+		var d := nemico.centro() - da
+		var lunghezza := d.length()
+		if lunghezza > distanza or lunghezza < 1.0 or absf(base.angle_to(d)) > MIRA_CONO:
+			continue
+		var raggio := PhysicsRayQueryParameters2D.create(da, nemico.centro(), Effetti.S_MONDO)
+		if not get_world_2d().direct_space_state.intersect_ray(raggio).is_empty():
+			continue
+		migliore = nemico
+		distanza = lunghezza
+	return migliore
+
+
+func direzione_tiro(in_alto: bool) -> Vector2:
+	var n := bersaglio_tiro(in_alto)
+	if n != null:
+		return (n.centro() - bocca()).normalized()
+	return Vector2(verso, -0.85).normalized() if in_alto else Vector2(verso, 0.0)
+
+
+func cambia_arma() -> void:
+	arma_distanza = ORDINE_ARMI[(ORDINE_ARMI.find(arma_distanza) + 1) % ORDINE_ARMI.size()]
+	Rapporto.conta("cambi_arma")
+	armi_cambiate.emit()
+
+
+func puo_tirare(arma: String = "") -> bool:
+	var a := arma if arma != "" else arma_distanza
+	if a == "magia":
+		return energia >= COSTO_MAGIA
+	return int(munizioni.get(a, 0)) > 0
+
+
+func colpi_rimasti(arma: String = "") -> int:
+	var a := arma if arma != "" else arma_distanza
+	if a == "magia":
+		return int(energia / COSTO_MAGIA)
+	return int(munizioni.get(a, 0))
+
+
+func raccogli(cosa: String, quante: int) -> int:
+	# Munizioni trovate (forzieri, barili): restituisce quante ne ha davvero prese.
+	if not MUNIZIONI_MASSIME.has(cosa):
+		return 0
+	var prima: int = munizioni[cosa]
+	munizioni[cosa] = mini(int(MUNIZIONI_MASSIME[cosa]), prima + quante)
+	if munizioni[cosa] != prima:
+		armi_cambiate.emit()
+	return int(munizioni[cosa]) - prima
+
+
+func _inizia_tiro() -> void:
+	if not puo_tirare():
+		Rapporto.conta("tiri_a_vuoto")
+		armi_cambiate.emit()   # l'indicatore lampeggia
+		return
+	stato = Stato.TIRO
+	_t_stato = 0.0
+	_tiro_partito = false
+	# Con su si mira in alto (per chi vola o sta sulle piattaforme). La direzione esatta si decide
+	# quando il colpo parte, con l'aiuto alla mira.
+	_mira_in_alto = Input.is_action_pressed("su")
+	var dati: Dictionary = ARMI_DISTANZA[arma_distanza]
+	if sprite.has_method("mostra_in_mano"):
+		sprite.call("mostra_in_mano", IN_MANO[arma_distanza])
+	sprite.riproduci(String(dati["anim"]), true)
+	if arma_distanza == "magia":
+		energia -= COSTO_MAGIA
+	else:
+		munizioni[arma_distanza] = int(munizioni[arma_distanza]) - 1
+	armi_cambiate.emit()
+	_conta("tiri")
+	Rapporto.conta("tiri_" + arma_distanza)
+
+
+func _tiro(delta: float, a_terra: bool) -> void:
+	_t_stato += delta
+	var dati: Dictionary = ARMI_DISTANZA[arma_distanza]
+	if a_terra:
+		velocity.x = move_toward(velocity.x, 0.0, ATTRITO * delta)
+	else:
+		_muovi(delta, false, Input.get_axis("sinistra", "destra"))
+	_gravita(delta)
+	if not _tiro_partito and _t_stato >= float(dati["momento"]):
+		_tiro_partito = true
+		var colpo := Proiettile.new()
+		colpo.tipo = {"magia": "magia_eroe", "dardi": "dardo", "frecce": "freccia_eroe"}[arma_distanza]
+		colpo.danno = int(dati["danno"])
+		colpo.velocita = direzione_tiro(_mira_in_alto) * float(dati["velocita"])
+		colpo.position = bocca()
+		colpo.autore = self
+		get_parent().add_child(colpo)
+	if _t_stato >= float(dati["durata"]):
+		if sprite.has_method("mostra_in_mano"):
+			sprite.call("mostra_in_mano", [])
+		stato = Stato.NORMALE
+
+
 func cura(quanta: int) -> int:
 	# Restituisce quanta vita ha davvero recuperato.
 	if stato == Stato.MORTO:
@@ -723,7 +872,9 @@ func _spingi_oggetti(delta: float) -> void:
 		if corpo != null and absf(urto.get_normal().x) > 0.8:
 			var lato := -signf(urto.get_normal().x)
 			corpo.sleeping = false
-			corpo.linear_velocity.x = move_toward(corpo.linear_velocity.x, lato * SPINTA_CASSE, 900.0 * delta)
+			# Velocità piena subito: con l'accelerazione l'attrito di una cassa ferma a volte la teneva inchiodata.
+			if corpo.linear_velocity.x * lato < SPINTA_CASSE:
+				corpo.linear_velocity.x = lato * SPINTA_CASSE
 
 
 func _atterrato() -> void:
@@ -736,6 +887,8 @@ func _atterrato() -> void:
 # ------------------------------------------------------------------ aspetto
 
 func _aggiorna_aspetto() -> void:
+	if stato != Stato.TIRO and sprite.has_method("mostra_in_mano"):
+		sprite.call("mostra_in_mano", [])   # interrotto (colpito, morto...): via la balestra dalla mano
 	sprite.flip_h = verso < 0
 	var lampeggia := _t_protetto > 0.0 and stato != Stato.MORTO and int(_t_protetto * 14.0) % 2 == 0
 	sprite.modulate.a = 0.35 if lampeggia else 1.0

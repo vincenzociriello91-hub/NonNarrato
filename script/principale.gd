@@ -199,6 +199,17 @@ func _riscalda() -> void:
 	sfera.position = dove
 	sfera.set("_vita", 0.25)
 	stanza.add_child(sfera)
+	# Anche i tiri di chi gioca, la freccia dei nemici e le munizioni a terra.
+	for i in 4:
+		var tiro := Proiettile.new()
+		tiro.tipo = ["magia_eroe", "dardo", "freccia_eroe", "freccia"][i]
+		tiro.position = dove + Vector2(20.0 + 14.0 * i, 0.0)
+		stanza.add_child(tiro)
+		tiro.set("_vita", 0.25)   # dopo add_child: _ready dà a ogni tipo la sua durata
+	var pacco := Raccoglibile.new()
+	pacco.position = dove + Vector2(-30.0, 0.0)
+	stanza.add_child(pacco)
+	pacco.set("_t", Raccoglibile.DURATA - 0.3)
 	# Lampo bianco del colpo ricevuto, scia della spada e frammenti dei barili.
 	Effetti.lampo(stanza.giocatore.sprite, 0.3)
 	stanza.giocatore.call("_fendente")

@@ -26,24 +26,33 @@ const NOMI_B := ["di Fossa", "Spenta", "del Pozzo", "senza Nome", "di Cripta", "
 const TATTICHE := {
 	"scheletro": ["diretto", "attesa", "affondo", "finta"],
 	"mago": ["dritto", "anticipo", "raffica"],
+	"arciere": ["dritto", "anticipo", "doppio"],
+	"pipistrello": ["picchiata", "aggira", "attesa"],
+	"bestione": ["diretto", "carica", "attesa"],
+	"saltatore": ["balzo", "zig", "agguato"],
 }
 # Abitudine di chi gioca -> cosa impara il nemico.
 const LEZIONI := {
 	"rotolate": "aspetta", "scatti_indietro": "affondo", "salti": "anticipa",
-	"attacchi": "arretra", "scatti_avanti": "arretra",
+	"attacchi": "arretra", "scatti_avanti": "arretra", "tiri": "schiva_tiri",
 }
 const LEZIONE_TATTICA := {
-	"scheletro": {"aspetta": "attesa", "affondo": "affondo", "anticipa": "attesa", "arretra": "finta"},
-	"mago": {"aspetta": "anticipo", "affondo": "raffica", "anticipa": "anticipo", "arretra": "raffica"},
+	"scheletro": {"aspetta": "attesa", "affondo": "affondo", "anticipa": "attesa", "arretra": "finta", "schiva_tiri": "affondo"},
+	"mago": {"aspetta": "anticipo", "affondo": "raffica", "anticipa": "anticipo", "arretra": "raffica", "schiva_tiri": "raffica"},
+	"arciere": {"aspetta": "anticipo", "affondo": "doppio", "anticipa": "anticipo", "arretra": "doppio", "schiva_tiri": "dritto"},
+	"pipistrello": {"aspetta": "attesa", "affondo": "picchiata", "anticipa": "aggira", "arretra": "aggira", "schiva_tiri": "aggira"},
+	"bestione": {"aspetta": "attesa", "affondo": "carica", "anticipa": "attesa", "arretra": "carica", "schiva_tiri": "carica"},
+	"saltatore": {"aspetta": "agguato", "affondo": "balzo", "anticipa": "zig", "arretra": "zig", "schiva_tiri": "zig"},
 }
 const SPIEGA_LEZIONE := {
 	"aspetta": "Ha imparato che rotoli spesso: aspetterà che tu finisca.",
 	"affondo": "Ha imparato che scatti all'indietro: ti raggiungerà più lontano.",
 	"anticipa": "Ha imparato che salti spesso: mirerà dove atterrerai.",
 	"arretra": "Ha imparato che attacchi per primo: farà un passo indietro e risponderà.",
+	"schiva_tiri": "Ha imparato che colpisci da lontano: schiverà i tuoi tiri.",
 }
 # Pesi: gli attacchi sono sempre tanti, contano meno nel capire "che tipo di giocatore sei".
-const PESI := {"attacchi": 0.3, "rotolate": 1.0, "scatti_indietro": 1.2, "scatti_avanti": 0.8, "salti": 0.5}
+const PESI := {"attacchi": 0.3, "rotolate": 1.0, "scatti_indietro": 1.2, "scatti_avanti": 0.8, "salti": 0.5, "tiri": 0.7}
 
 const FRASI := {
 	"vittoria": {
@@ -51,12 +60,28 @@ const FRASI := {
 			"Ti ho già spezzato una volta. Il sogno lo ricorda.", "Torni a cadere, Non Narrato?"],
 		"mago": ["La mia luce ti ha già spento una volta.", "Il Dormiente sogna la tua fine, e io la scrivo.",
 			"Sei tornato a farti bruciare."],
+		"arciere": ["Il mio dardo ti ha già trovato una volta.", "Da lontano, come sempre. Come l'ultima volta.",
+			"Ti vedo anche nel buio, Non Narrato."],
+		"pipistrello": ["Squittii nel buio: si ricorda del tuo sangue.", "Ali sopra di te, come quando sei caduto.",
+			"Torna dall'alto, e ti ricorda."],
+		"bestione": ["Ti ho schiacciato una volta. Il sogno ne ha voglia ancora.", "Il ferro non dimentica.",
+			"Pesante come la tua ultima caduta."],
+		"saltatore": ["Ricordi il mio balzo? È l'ultima cosa che hai visto.", "Più in alto di te, più veloce di te.",
+			"Ti sono già piombato addosso."],
 	},
 	"sconfitta": {
 		"scheletro": ["Mi hai lasciato questa crepa nelle ossa. Oggi te la restituisco.",
 			"Dalla polvere si torna. Io sono tornato per te.", "Il sogno mi ha ricomposto per la vendetta."],
 		"mago": ["Mi hai spento una volta. Il buio mi ha insegnato.", "Ricordo la tua lama. Ricordo tutto.",
 			"Sono tornato dal fondo del sogno, per te."],
+		"arciere": ["Mi hai spezzato l'arco. Ne ho trovato un altro.", "Questa volta non mancherò.",
+			"Il sogno mi ha ridato la mira."],
+		"pipistrello": ["Ali strappate, ricucite dal sogno.", "Torna a cercarti, più affamato.",
+			"Il buio l'ha rimandato indietro."],
+		"bestione": ["Mi hai aperto la corazza. L'ho chiusa con il rancore.", "Ricordo dove mi hai colpito.",
+			"Il ferro torna, più spesso."],
+		"saltatore": ["Mi hai fermato a metà balzo. Non succederà più.", "Ho imparato ad atterrarti addosso.",
+			"Il sogno mi ha dato gambe nuove."],
 	},
 }
 

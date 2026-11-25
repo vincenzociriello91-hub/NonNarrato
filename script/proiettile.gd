@@ -1,11 +1,15 @@
 class_name Proiettile
 extends Area2D
-# Colpi che volano: la sfera di luce del mago, la freccia delle balestre nei muri.
-# Si spengono contro i muri, feriscono chi gioca e si possono spezzare con un colpo di spada.
+# Colpi che volano. Dei nemici: la sfera di luce del mago, la freccia delle balestre e dell'arciere
+# (feriscono chi gioca e si spezzano con un colpo di spada). Di chi gioca: magia, dardo e freccia
+# (feriscono nemici, rompono barili, accendono bracieri, spengono i colpi nemici).
+# Tutti si spengono contro i muri.
 
 const COLORE := Color(0.42, 0.86, 1.0)
+const COLORE_MAGIA := Color(0.74, 0.52, 1.0)
+const AMICI := ["magia_eroe", "dardo", "freccia_eroe"]
 
-var tipo := "sfera"               # "sfera" o "freccia"
+var tipo := "sfera"               # "sfera", "freccia", oppure di chi gioca: "magia_eroe", "dardo", "freccia_eroe"
 var velocita := Vector2.ZERO
 var danno := 1
 var autore: Node                  # chi l'ha lanciata: saprà se è andata a segno
@@ -16,29 +20,48 @@ var _colpito := false
 
 
 func _ready() -> void:
-	collision_layer = Effetti.S_BERSAGLI
-	collision_mask = Effetti.S_MONDO | Effetti.S_BERSAGLIO_GIOCATORE
-	set_meta("bersaglio", self)
-	add_to_group("sfere")  # il bot le guarda arrivare
 	z_index = 12
-	if tipo == "freccia":
-		_aspetto_freccia()
+	if amico():
+		collision_layer = Effetti.S_COLPI_GIOCATORE
+		collision_mask = Effetti.S_MONDO | Effetti.S_BERSAGLI
+		add_to_group("tiri_eroe")  # i nemici che hanno imparato a schivarli li guardano arrivare
+		match tipo:
+			"magia_eroe":
+				_vita = 1.6
+				_aspetto_sfera(COLORE_MAGIA, 5.0)
+			"dardo":
+				_vita = 0.9
+				_aspetto_lungo("dardo", Vector2(12, 4))
+			_:
+				_vita = 1.4
+				_aspetto_lungo("freccia", Vector2(16, 4))
 	else:
-		_aspetto_sfera()
+		collision_layer = Effetti.S_BERSAGLI
+		collision_mask = Effetti.S_MONDO | Effetti.S_BERSAGLIO_GIOCATORE
+		set_meta("bersaglio", self)
+		add_to_group("sfere")  # il bot le guarda arrivare
+		if tipo == "freccia":
+			_aspetto_freccia()
+		else:
+			_aspetto_sfera(COLORE, 4.0)
 	body_entered.connect(func(_corpo: Node2D) -> void: _svanisci())
 	area_entered.connect(_su_area)
 
 
-func _aspetto_sfera() -> void:
+func amico() -> bool:
+	return AMICI.has(tipo)
+
+
+func _aspetto_sfera(colore: Color, raggio: float) -> void:
 	var cerchio := CircleShape2D.new()
-	cerchio.radius = 4.0
+	cerchio.radius = raggio
 	var forma := CollisionShape2D.new()
 	forma.shape = cerchio
 	add_child(forma)
 
 	var alone := Polygon2D.new()
-	alone.polygon = PackedVector2Array([Vector2(-4, 0), Vector2(0, -4), Vector2(4, 0), Vector2(0, 4)])
-	alone.color = COLORE
+	alone.polygon = PackedVector2Array([Vector2(-raggio, 0), Vector2(0, -raggio), Vector2(raggio, 0), Vector2(0, raggio)])
+	alone.color = colore
 	alone.material = Effetti.materiale_luminoso()
 	alone.light_mask = 0
 	add_child(alone)
@@ -57,18 +80,19 @@ func _aspetto_sfera() -> void:
 	scia.initial_velocity_min = 2.0
 	scia.initial_velocity_max = 10.0
 	scia.gravity = Vector2.ZERO
-	scia.color = COLORE
+	scia.color = colore
 	scia.color_ramp = Effetti.sfumatura()
 	scia.material = Effetti.materiale_luminoso()
 	scia.light_mask = 0
 	add_child(scia)
 
 	if Dispositivo.livello != "bassa":
-		add_child(Effetti.luce(COLORE, 62.0, 0.9, 20.0))
+		add_child(Effetti.luce(colore, 62.0, 0.9, 20.0))
 
 
 func _aspetto_freccia() -> void:
-	_vita = 0.75   # una freccia di balestra arriva poco oltre la piastra, non attraversa tutta la galleria
+	# Una freccia di balestra murata arriva poco oltre la piastra; quella dell'arciere va più lontano.
+	_vita = 1.6 if autore != null else 0.75
 	var rett := RectangleShape2D.new()
 	rett.size = Vector2(16, 4)
 	var forma := CollisionShape2D.new()
@@ -82,6 +106,21 @@ func _aspetto_freccia() -> void:
 	add_child(s)
 
 
+func _aspetto_lungo(foglio: String, misura: Vector2) -> void:
+	# Dardo o freccia di chi gioca: sprite che guarda a sinistra, girato verso dove vola.
+	var rett := RectangleShape2D.new()
+	rett.size = misura
+	var forma := CollisionShape2D.new()
+	forma.shape = rett
+	add_child(forma)
+	var s := SpriteAnimato.new()
+	s.carica(foglio)
+	s.light_mask = Effetti.L_DAVANTI
+	s.set_process(false)
+	add_child(s)
+	rotation = (-velocita).angle()   # lo sprite punta a sinistra: lo giro nella direzione del volo
+
+
 func _physics_process(delta: float) -> void:
 	position += velocita * delta
 	_vita -= delta
@@ -91,12 +130,34 @@ func _physics_process(delta: float) -> void:
 
 func _su_area(area: Area2D) -> void:
 	var chi: Variant = area.get_meta("bersaglio", null)
+	if amico():
+		_colpisci_nemico(chi)
+		return
 	if chi is Giocatore and (chi as Giocatore).subisci(danno, global_position, 150.0, autore):
 		_colpito = true
-		if tipo == "freccia":
+		if tipo == "freccia" and autore == null:
 			Rapporto.conta("trappole_subite")
 			Rapporto.evento("trappola", {"cosa": "freccia", "x": roundi(global_position.x)})
 		_svanisci()
+
+
+func _colpisci_nemico(chi: Variant) -> void:
+	# Tiro di chi gioca: nemici, barili, bracieri, colpi nemici (che si spengono insieme al tiro).
+	if chi == null or not is_instance_valid(chi) or chi is Giocatore or (chi is Proiettile and (chi as Proiettile).amico()):
+		return
+	if not chi.has_method("subisci"):
+		return
+	var a_segno := false
+	if chi is Nemico:
+		a_segno = (chi as Nemico).subisci(danno, global_position - velocita.normalized() * 10.0, 110.0,
+				"magia" if tipo == "magia_eroe" else "tiro")
+		if a_segno:
+			Rapporto.conta("tiri_a_segno")
+	else:
+		a_segno = chi.subisci(danno, global_position, 110.0)
+	if a_segno and is_instance_valid(autore) and autore.has_method("scuoti"):
+		autore.call("scuoti", 1.5)
+	_svanisci()
 
 
 func subisci(_danno: int, _da: Vector2, _spinta: float) -> bool:
@@ -111,8 +172,11 @@ func _svanisci() -> void:
 	_spenta = true
 	if is_instance_valid(autore) and autore.has_method("esito_sfera"):
 		autore.esito_sfera(tattica, _colpito)
-	if tipo == "freccia":
-		Effetti.scoppio(get_parent(), global_position, Color(0.6, 0.5, 0.4, 0.8), 6, 60.0, 0.3, 200.0, false)
-	else:
-		Effetti.scoppio(get_parent(), global_position, COLORE, 8, 70.0, 0.3, 0.0)
+	match tipo:
+		"freccia", "freccia_eroe", "dardo":
+			Effetti.scoppio(get_parent(), global_position, Color(0.6, 0.5, 0.4, 0.8), 6, 60.0, 0.3, 200.0, false)
+		"magia_eroe":
+			Effetti.scoppio(get_parent(), global_position, COLORE_MAGIA, 10, 80.0, 0.35, 0.0)
+		_:
+			Effetti.scoppio(get_parent(), global_position, COLORE, 8, 70.0, 0.3, 0.0)
 	queue_free()

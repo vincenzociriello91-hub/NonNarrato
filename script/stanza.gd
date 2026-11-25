@@ -5,7 +5,8 @@ extends Node2D
 #    e un cunicolo in cui si passa solo rotolando.
 #  - La galleria, oltre la terrazza: trappole (spuntoni a tempo, sega a pendolo, balestra con piastra),
 #    una torre con un montacarichi e lastre che crollano, una sala con l'enigma della cassa sulla piastra,
-#    un salone con l'enigma dei bracieri, forzieri e una grata che si apre con una leva.
+#    un salone con l'enigma dei bracieri, forzieri, una grata che si apre con una leva, e i nemici nuovi
+#    (pipistrelli, saltatore, bestione, arciere).
 # Tutto è costruito da codice, così ogni misura sta in un posto solo.
 
 const LARGHEZZA := 2880
@@ -532,13 +533,21 @@ func _forziere(nome: String, dove: Vector2, oro: bool) -> Forziere:
 func _nemici() -> void:
 	# Le nemesi che il sogno ricorda prendono il posto dei nemici dello stesso tipo
 	# (prima quelli svegli, che s'incontrano a viso aperto).
-	var da_mettere := {"scheletro": Memoria.nemesi_per("scheletro"), "mago": Memoria.nemesi_per("mago")}
+	var da_mettere := {}
+	for tipo: String in Nemico.TIPI:
+		da_mettere[tipo] = Memoria.nemesi_per(tipo)
 	_nemico("scheletro", Vector2(940, PAVIMENTO), false, -1, da_mettere)
 	_nemico("scheletro", Vector2(640, PAVIMENTO), true, -1, da_mettere)
 	_nemico("mago", Vector2(700, 290), false, -1, da_mettere)
-	# Galleria.
+	# Galleria: uno scheletro e un pipistrello addormentati sotto la terrazza, un saltatore sullo scalino
+	# della torre, un bestione nella sala, un arciere sulla balconata e un pipistrello appeso sotto di lei,
+	# un mago nel salone.
 	_nemico("scheletro", Vector2(1480, PAVIMENTO), true, -1, da_mettere)
-	_nemico("scheletro", Vector2(2540, PAVIMENTO), false, -1, da_mettere)
+	_nemico("pipistrello", Vector2(1420, 434), true, -1, da_mettere)
+	_nemico("saltatore", Vector2(2048, 312), false, -1, da_mettere)
+	_nemico("bestione", Vector2(2500, PAVIMENTO), false, -1, da_mettere)
+	_nemico("arciere", Vector2(2622, 352), false, -1, da_mettere)
+	_nemico("pipistrello", Vector2(2590, 398), true, -1, da_mettere)
 	_nemico("mago", Vector2(2610, 120), false, -1, da_mettere)
 
 

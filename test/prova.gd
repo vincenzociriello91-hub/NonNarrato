@@ -9,7 +9,7 @@ extends Node
 #
 # Stampa "PROVA ok/FALLITA ..." per ogni controllo e chiude con "PROVA FINE falliti: N".
 
-const AZIONI: Array[String] = ["sinistra", "destra", "su", "giu", "salta", "attacca", "rotola", "schiva"]
+const AZIONI: Array[String] = ["sinistra", "destra", "su", "giu", "salta", "attacca", "rotola", "schiva", "tira", "cambia_arma"]
 
 var _falliti := 0
 var _cartella := ""
@@ -94,6 +94,34 @@ func _solo_foto() -> void:
 	await _fotogrammi(6)
 	await _scatta("inizio_senza_palette")
 	Impostazioni.scrivi("grafica/palette", true)
+	# I nemici nuovi, fermi per la foto, e i tiri in volo.
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		n.set_physics_process(false)
+		if (n as Nemico).tipo == "pipistrello" and (n as Node2D).global_position.x > 2400.0:
+			(n as Nemico).sprite.riproduci("vola")
+			(n as Node2D).position += Vector2(-40.0, -30.0)
+	await _sposta(Vector2(2420, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(40)
+	await _scatta("sala_nemici_nuovi")
+	_g().arma_distanza = "frecce"
+	Input.action_press("su")
+	await _tocca("tira")
+	Input.action_release("su")
+	await _fotogrammi(22)
+	await _scatta("freccia_in_alto")
+	await _sposta(Vector2(1950, Stanza.PAVIMENTO), 1)
+	_g().arma_distanza = "magia"
+	await _fotogrammi(30)
+	await _tocca("tira")
+	await _fotogrammi(18)
+	await _scatta("magia_e_saltatore")
+	var pacco := Raccoglibile.new()
+	pacco.cosa = "frecce"
+	pacco.position = Vector2(620, Stanza.PAVIMENTO)
+	_principale.stanza.add_child(pacco)
+	await _sposta(Vector2(560, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(30)
+	await _scatta("munizioni_a_terra")
 	for dove: Vector2 in [Vector2(560, Stanza.PAVIMENTO), Vector2(640, 289), Vector2(900, Stanza.PAVIMENTO), Vector2(1180, 383),
 			Vector2(1450, Stanza.PAVIMENTO), Vector2(1760, Stanza.PAVIMENTO), Vector2(2050, 312), Vector2(2160, 136),
 			Vector2(2440, Stanza.PAVIMENTO), Vector2(2560, 352), Vector2(2520, 120), Vector2(2770, Stanza.PAVIMENTO)]:
@@ -163,11 +191,75 @@ func _esegui() -> void:
 	_verifica("il bot rimette impostazioni e aspetto di prima", not FileAccess.file_exists(Bot.SEGNO) and dopo == prima,
 			str(dopo) if dopo != prima else "")
 	_prova_lezione_fallita()
-	_verifica("il bot prova anche il limite FPS di chi gioca", bot.fasi.any(func(f: Dictionary) -> bool: return f["nome"] == "prestazioni_120fps"))
+	await _prova_armi_e_bestione()
+	if bot.solo_fasi.is_empty() or bot.solo_fasi.has("prestazioni"):
+		_verifica("il bot prova anche il limite FPS di chi gioca", bot.fasi.any(func(f: Dictionary) -> bool: return f["nome"] == "prestazioni_120fps"))
 	print("PROVA bot: %d controlli, fasi %s" % [bot.controlli.size(), JSON.stringify(bot.fasi.map(func(f: Dictionary) -> String: return "%s %.0fs" % [f["nome"], f["secondi"]]))])
 	Impostazioni.ripristina()
 	print("PROVA FINE falliti: %d" % _falliti)
 	get_tree().quit(1 if _falliti > 0 else 0)
+
+
+func _prova_armi_e_bestione() -> void:
+	# Munizioni raccolte passandoci sopra, aiuto alla mira, corazza del bestione.
+	var g := _g()
+	if g.stato == Giocatore.Stato.MORTO:
+		await _fotogrammi(200)
+		g = _g()
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	var salvate: Dictionary = g.munizioni.duplicate()
+	g.munizioni["dardi"] = 2
+	var pacco := Raccoglibile.new()
+	pacco.cosa = "dardi"
+	pacco.quante = 3
+	pacco.position = g.global_position
+	_principale.stanza.add_child(pacco)
+	await _fotogrammi(6)
+	_verifica("passando sopra le munizioni si raccolgono", int(g.munizioni["dardi"]) == 5 and not is_instance_valid(pacco),
+			"dardi %d" % g.munizioni["dardi"])
+	g.munizioni = salvate
+
+	# Aiuto alla mira: un nemico poco sopra, davanti, viene preso anche tirando dritto; dietro no.
+	# (Gli altri nemici, se ce ne sono ancora, per un attimo non contano.)
+	var altri := get_tree().get_nodes_in_group("nemici")
+	for n: Node in altri:
+		n.remove_from_group("nemici")
+	var bersaglio := Nemico.new()
+	bersaglio.tipo = "arciere"
+	bersaglio.position = g.global_position + Vector2(150.0, -40.0)
+	bersaglio.set_physics_process(false)
+	bersaglio.add_to_group("nemici")
+	_principale.stanza.add_child(bersaglio)
+	await _fotogrammi(2)
+	var dritto := g.bersaglio_tiro(false)
+	var direzione := g.direzione_tiro(false)
+	bersaglio.position = g.global_position + Vector2(-150.0, -40.0)
+	await _fotogrammi(2)
+	var dietro := g.bersaglio_tiro(false)
+	_verifica("aiuto alla mira: prende il nemico nel cono davanti, non quello alle spalle", dritto == bersaglio and dietro == null
+			and direzione.y < -0.05, "direzione %s" % str(direzione))
+	bersaglio.queue_free()
+	for n: Node in altri:
+		if is_instance_valid(n):
+			n.add_to_group("nemici")
+
+	# Corazza del bestione: da davanti para la spada, la magia passa; alle spalle la spada passa.
+	var bestione := Nemico.new()
+	bestione.tipo = "bestione"
+	bestione.position = g.global_position + Vector2(80.0, 0.0)
+	bestione.set_physics_process(false)
+	_principale.stanza.add_child(bestione)
+	await _fotogrammi(2)
+	bestione.verso = -1
+	var parate := Rapporto.contatore("parate_bestione")
+	var davanti := bestione.subisci(1, bestione.global_position + Vector2(-30.0, -20.0), 100.0)
+	var magia := bestione.subisci(1, bestione.global_position + Vector2(-30.0, -20.0), 100.0, "magia")
+	bestione.stato = Nemico.Stato.PATTUGLIA
+	var spalle := bestione.subisci(1, bestione.global_position + Vector2(30.0, -20.0), 100.0)
+	_verifica("il bestione para da davanti, non la magia né i colpi alle spalle", not davanti and magia and spalle
+			and Rapporto.contatore("parate_bestione") == parate + 1, "davanti %s, magia %s, spalle %s" % [davanti, magia, spalle])
+	bestione.queue_free()
+	await _fotogrammi(2)
 
 
 func _prova_lezione_fallita() -> void:

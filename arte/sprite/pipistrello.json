@@ -1,0 +1,53 @@
+{
+	"animazioni": {
+		"colpito": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				8
+			]
+		},
+		"dorme": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				7
+			]
+		},
+		"morte": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				9
+			]
+		},
+		"picchiata": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				6
+			]
+		},
+		"vola": {
+			"ciclo": true,
+			"fps": 14.0,
+			"frame": [
+				0,
+				1,
+				2,
+				3,
+				4,
+				5
+			]
+		}
+	},
+	"cella": [
+		54,
+		45
+	],
+	"colonne": 10,
+	"piedi": [
+		27,
+		24
+	]
+}

@@ -171,6 +171,8 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 				var k := 0.0 if n <= 1 else float(i) / float(n - 1)
 				if p.get("ciclo", false) and n > 1:
 					k = float(i) / float(n)
+				if p.get("andata_ritorno", false) and n > 1:
+					k = 1.0 - absf(1.0 - 2.0 * float(i) / float(n))   # 0 -> 1 -> 0 (ali che battono)
 				scatti.append({"clip": "", "t": 0.0, "giro": 0.0, "giu": 0.0, "nodi": p.get("nodi", []), "k": k})
 			animazioni[p["nome"]] = {"fps": p.get("fps", fps), "ciclo": p.get("ciclo", false), "frame": indici}
 	elif lista.is_empty() or lettore == null:

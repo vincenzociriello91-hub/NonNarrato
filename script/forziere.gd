@@ -1,8 +1,8 @@
 class_name Forziere
 extends Node2D
 # Un forziere: col tasto "afferra" (accanto) si apre. Dentro:
-#  - forziere di legno: due cuori di vita e un frammento della storia del Dormiente;
-#  - forziere d'oro: un colore nuovo per l'aspetto (resta per sempre) e un frammento.
+#  - forziere di legno: due cuori di vita, dardi e frecce, un frammento della storia del Dormiente;
+#  - forziere d'oro: un colore nuovo per l'aspetto (resta per sempre), dardi e frecce, un frammento.
 # Si apre una volta per sogno.
 
 signal aperto_ora(contenuto: Dictionary)
@@ -52,6 +52,12 @@ func interagisci(g: Node) -> void:
 	var righe: Array = []
 	if contenuto.has("vita"):
 		righe.append("+%d vita" % int(contenuto["vita"]))
+	var munizioni := PackedStringArray()
+	for cosa: String in ["dardi", "frecce"]:
+		if contenuto.has(cosa):
+			munizioni.append("+%d %s" % [int(contenuto[cosa]), cosa])
+	if not munizioni.is_empty():
+		righe.append(", ".join(munizioni))
 	if contenuto.has("colore"):
 		righe.append("Nuovo colore: %s" % Equipaggiamento.COLORI[contenuto["colore"]][0])
 	if contenuto.has("frammento"):
@@ -73,6 +79,13 @@ func _premio(g: Node) -> Dictionary:
 		var curati: int = g.cura(2)
 		if curati > 0:
 			dati["vita"] = curati
+	if g != null and g.has_method("raccogli"):
+		var dardi: int = g.raccogli("dardi", 4)
+		var frecce: int = g.raccogli("frecce", 3)
+		if dardi > 0:
+			dati["dardi"] = dardi
+		if frecce > 0:
+			dati["frecce"] = frecce
 	var frammento := Equipaggiamento.trova_frammento()
 	if frammento != "":
 		dati["frammento"] = frammento

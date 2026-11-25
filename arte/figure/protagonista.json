@@ -172,6 +172,30 @@
 			"a": 0.9,
 			"frame": 6,
 			"fps": 16
+		},
+		{
+			"nome": "tiro_magia",
+			"clip": "Spellcast_Shoot",
+			"da": 0.1,
+			"a": 0.75,
+			"frame": 6,
+			"fps": 14
+		},
+		{
+			"nome": "tiro_dardo",
+			"clip": "Throw",
+			"da": 0.35,
+			"a": 0.95,
+			"frame": 5,
+			"fps": 16
+		},
+		{
+			"nome": "tiro_freccia",
+			"clip": "1H_Ranged_Shoot",
+			"da": 0.0,
+			"a": 0.75,
+			"frame": 7,
+			"fps": 14
 		}
 	],
 	"mosse": {

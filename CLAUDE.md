@@ -87,7 +87,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 ## Galleria: trappole, enigmi, forzieri
 
-- Decisione di Vincenzo (25/11/2026): "stanza più completa, più oggetti interagibili e su più livelli, più piattaforme, trappole ed enigmi ambientali, più nemici di vario tipo, armi a distanza (magie, dardi, frecce), forzieri". Parte 1 (0.1.12): galleria, meccanismi, trappole, enigmi, forzieri. Parte 2: nemici nuovi e armi a distanza.
+- Decisione di Vincenzo (25/11/2026): "stanza più completa, più oggetti interagibili e su più livelli, più piattaforme, trappole ed enigmi ambientali, più nemici di vario tipo, armi a distanza (magie, dardi, frecce), forzieri". Parte 1 (0.1.12): galleria, meccanismi, trappole, enigmi, forzieri. Parte 2 (0.1.13): nemici nuovi e armi a distanza.
 - Stanza larga 2880 (cripta fino a x 1344, poi galleria), alta da y -288 (`Stanza.CIELO`) a 528. Meccanismi in `Stanza.meccanismi[nome]`.
 - Script: `porta.gd` (grate e gradino, AnimatableBody2D, z -11 per scorrere dietro la pietra), `leva.gd`, `piastra.gd` ("tenuta"/"scatto"; la premono giocatore, nemici, casse), `forziere.gd`, `spuntoni.gd`, `pendolo.gd`, `balestra.gd`, `piattaforma_mobile.gd`, `piattaforma_fragile.gd`, `bracieri.gd`.
 - Interagibili (gruppo "interagibili"): `puo_interagire()`, `etichetta()`, `interagisci(g)`. Si usano con "afferra" (`just_pressed`); il tasto a schermo cambia scritta.
@@ -96,6 +96,19 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Tesori in `Equipaggiamento`: colori rari (`DA_TROVARE`, solo dal forziere d'oro) e `FRAMMENTI` della storia, sezione `[tesori]`. Il bot li azzera all'inizio e rimette quelli di chi gioca.
 - Sprite dei meccanismi: forme semplici in `render_sprite.json` ("pezzi") e pose per nodo ("pose"), forzieri KayKit con il coperchio animato. Colori dei fuochi: solo quelli della palette fissa (niente verde acceso).
 - Bot: `_rilascia_tutto` lascia solo i tasti premuti (lasciare e ripremere nello stesso istante = tocco rapidissimo, salto cortissimo). Prove veloci di poche fasi: `-- --prova --fasi=torre,enigma_cassa`.
+
+## Armi a distanza e nemici nuovi (parte 2, 0.1.13)
+
+- Armi in `Giocatore.ARMI_DISTANZA` (magia = energia che si ricarica, dardi e frecce = munizioni). Azioni `tira` (I, RB, RT, "Tira") e `cambia_arma` (Q, LT, "Arma"); `schiva` ora è solo L / Y. Con su si tira in alto.
+- Aiuto alla mira: `Giocatore.bersaglio_tiro(in_alto)` = nemico più vicino entro `MIRA_CONO` (circa 30 gradi) e `MIRA_PORTATA`, senza muri; la direzione si decide quando il colpo parte. Il bot usa la stessa geometria (`_a_tiro`).
+- Tiri di chi gioca: `Proiettile` con tipo in `AMICI`, gruppo "tiri_eroe" (non "sfere": il bot non li schiva). Colpiscono nemici (`subisci(..., "magia"/"tiro")`), barili, bracieri, colpi nemici. Un barile rotto da un tiro si rompe al passo dopo (`call_deferred`), altrimenti errori "flushing queries".
+- Munizioni: forzieri (`g.raccogli`), barili (35%, `Raccoglibile`).
+- Nemici nuovi in `nemico.gd`: arciere (dardi), pipistrello (vola, `MOTION_MODE_FLOATING`, posizione = centro; si sveglia solo se ti vede), saltatore (balzi), bestione (para da davanti se non `esposto()`, si gira in `GIRO_BESTIONE` s, la magia passa). `Nemico.centro()` e `bersagliabile()` per mirare; `tempi_attacco()` per il bot.
+- Bot: la prima volta colpisce il bestione da davanti apposta (`_armatura_provata`), poi magia o alle spalle; nella fase `nemesi` niente tiri (`_usa_tiri = false`) per provare il corpo a corpo col mago. Fasi nuove `armi_a_distanza` e `nemici_nuovi`. Un pipistrello dietro un muro si lascia perdere.
+- In Godot 4 un oggetto liberato confrontato con `null` risulta null: salvare subito l'esito (vedi `sfera_partita`).
+- Le casse si spingono a velocità piena (`_spingi_oggetti`): con l'accelerazione l'attrito di una cassa ferma la teneva inchiodata (la cassa della balconata non si muoveva).
+- Se il bot muore a metà di una fase della galleria la stanza ricomincia: `_interrotta(stanza_fase)` dopo ogni attesa ferma la fase con un controllo fallito, senza toccare oggetti spariti.
+- `user://bot_esperienza.cfg` resta fra una prova e l'altra e cambia i percorsi del bot; la compilazione su GitHub parte senza. Prima del push conviene una prova con la cartella dei dati di Godot spostata da parte.
 
 ## Regole del codice
 
