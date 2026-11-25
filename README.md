@@ -71,7 +71,7 @@ e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno schermo e `--schermate=/
 
 Ogni modifica su `main` fa partire `.github/workflows/android.yml`: prova automatica, APK firmato, nuova versione
 `prova-0.1.N` nelle Release. Le note della versione sono la prima sezione di `distribuzione/NOVITA.md`.
-Se la compilazione fallisce, i registri finiscono nel ramo `log-compilazione`.
+I registri dell'ultima compilazione sono nel ramo `log-compilazione`.
 
 ### Firma
 

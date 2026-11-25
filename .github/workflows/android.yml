@@ -1,7 +1,7 @@
 name: Compila APK
 
 # A ogni modifica su main: prova automatica, APK Android firmato e nuova versione di prova
-# nelle Release del repository. Se qualcosa va storto, i registri finiscono nel ramo
+# nelle Release del repository. I registri dell'ultima compilazione finiscono sempre nel ramo
 # "log-compilazione", così si possono leggere senza entrare nella pagina delle Actions.
 #
 # Usa solo ciò che è già sulla macchina di GitHub (git, Java 17, Android SDK, gh) più Godot,
@@ -93,6 +93,7 @@ jobs:
         run: |
           set -o pipefail
           timeout 900 godot --headless --fixed-fps 60 --path . -- --prova 2>&1 | tee build/registro_prova.txt
+          grep -q "PROVA FINE falliti: 0" build/registro_prova.txt
 
       - name: Esporta l'APK
         shell: bash
@@ -133,8 +134,8 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" \
             --title "NonNarrato ${VERSIONE} (prova)" --notes-file build/note.md --latest 2>&1 | tee build/registro_pubblica.txt
 
-      - name: Salva i registri se qualcosa è andato storto
-        if: failure()
+      - name: Salva i registri nel ramo log-compilazione
+        if: always()
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -26,7 +26,7 @@ Scrivi a Vincenzo in italiano, poche righe, senza gergo. Tutto quello che puoi f
 4. Prova con immagini: `DISPLAY=:77 godot --rendering-driver opengl3 --fixed-fps 60 --resolution 1280x720 --path . -- --prova --schermate=/cartella`.
    Solo qualche schermata: aggiungi `--solo-foto`. Guarda sempre le immagini prima di dire che va bene.
 5. Prima del push: voci per chi gioca in testa a `distribuzione/NOVITA.md` (la prima sezione `## …` diventa la nota della versione). Aggiorna il README se cambia qualcosa di importante.
-6. Push su `main`, mai `--force`. La compilazione pubblica `prova-0.1.N` nelle Release. Se fallisce, leggi il ramo `log-compilazione`.
+6. Push su `main`, mai `--force`. La compilazione pubblica `prova-0.1.N` nelle Release. I registri dell'ultima compilazione sono nel ramo `log-compilazione`: leggili se fallisce.
 7. Di' a Vincenzo quale versione è uscita, in poche righe.
 
 ## Grafica dai modelli 3D
