@@ -1220,8 +1220,38 @@ func _prestazioni() -> void:
 				await _fotogrammi(20)
 		_rilascia_tutto()
 	_chiudi_fase()
+	await _prova_limite_utente()
 	Impostazioni.scrivi("grafica/qualita", "auto")
 	await _fotogrammi(10)
+
+
+func _prova_limite_utente() -> void:
+	# Se chi gioca ha scelto più di 60 FPS, il bot gioca anche con quel limite e controlla che li raggiunga.
+	var limite := int((_stato_utente.get("impostazioni", {}) as Dictionary).get("grafica/limite_fps", 0))
+	if limite <= 60:
+		return
+	Impostazioni.scrivi("grafica/limite_fps", limite)
+	await get_tree().create_timer(3.5).timeout   # la richiesta della frequenza allo schermo dura 2,5 s
+	_nuova_fase("prestazioni_%dfps" % limite)
+	for giro in 3:
+		for verso in ["destra", "sinistra"]:
+			Input.action_press(verso)
+			for i in 5:
+				await _tocca("attacca")
+				await _fotogrammi(9)
+			Input.action_release(verso)
+			await _tocca("rotola")
+			await _fotogrammi(20)
+	_rilascia_tutto()
+	var t: float = _fase["tempo"]
+	var fps := float(_fase["fotogrammi"]) / t if t > 0.0 else 0.0
+	_chiudi_fase()
+	var hz := float(Dispositivo.info.get("hz", 60.0))
+	# Sul computer di prova il limite non si applica: il controllo vale solo sul telefono.
+	if Dispositivo.letture_android and hz > 61.0:
+		_verifica("con limite %d il gioco supera i 60 FPS" % limite, fps > 66.0,
+				"%.1f FPS, schermo %.0f Hz" % [fps, hz])
+	Impostazioni.scrivi("grafica/limite_fps", 0)
 
 
 # ------------------------------------------------------------------ fine

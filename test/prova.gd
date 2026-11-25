@@ -116,6 +116,7 @@ func _esegui() -> void:
 		await _solo_foto()
 		return
 	await _fotogrammi(10)
+	Impostazioni.scrivi("grafica/limite_fps", 120)   # così il bot prova anche la fase col limite di chi gioca
 	var prima := {"impostazioni": Impostazioni.tutte(), "aspetto": Equipaggiamento.stato()}
 	var bot: Bot = _principale.avvia_bot()
 	bot.chiudi_alla_fine = false
@@ -136,7 +137,24 @@ func _esegui() -> void:
 	var dopo := {"impostazioni": Impostazioni.tutte(), "aspetto": Equipaggiamento.stato()}
 	_verifica("il bot rimette impostazioni e aspetto di prima", not FileAccess.file_exists(Bot.SEGNO) and dopo == prima,
 			str(dopo) if dopo != prima else "")
+	_prova_lezione_fallita()
+	_verifica("il bot prova anche il limite FPS di chi gioca", bot.fasi.any(func(f: Dictionary) -> bool: return f["nome"] == "prestazioni_120fps"))
 	print("PROVA bot: %d controlli, fasi %s" % [bot.controlli.size(), JSON.stringify(bot.fasi.map(func(f: Dictionary) -> String: return "%s %.0fs" % [f["nome"], f["secondi"]]))])
 	Impostazioni.ripristina()
 	print("PROVA FINE falliti: %d" % _falliti)
 	get_tree().quit(1 if _falliti > 0 else 0)
+
+
+func _prova_lezione_fallita() -> void:
+	# Una lezione che non funziona mai viene messa da parte: il mago non insiste con la raffica.
+	var salvata := Memoria.stato()
+	Memoria.ripristina_stato({})
+	Memoria.tattiche["mago"] = {"raffica": [9, 0], "anticipo": [3, 1], "dritto": [1, 0]}
+	var caso := RandomNumberGenerator.new()
+	caso.seed = 7
+	var raffiche := 0
+	for i in 200:
+		if Memoria.scegli_tattica("mago", "arretra", caso) == "raffica":
+			raffiche += 1
+	_verifica("la lezione che fallisce sempre viene lasciata", raffiche < 30, "raffica %d su 200" % raffiche)
+	Memoria.ripristina_stato(salvata)

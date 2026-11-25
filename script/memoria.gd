@@ -116,7 +116,10 @@ func scegli_tattica(tipo: String, lezione: String, caso: RandomNumberGenerator) 
 	# Osserva (cosa ha funzionato finora), decide (la migliore, a volte una nuova), agisce.
 	var elenco: Array = TATTICHE.get(tipo, ["diretto"])
 	var da_lezione: String = (LEZIONE_TATTICA.get(tipo, {}) as Dictionary).get(lezione, "")
-	if da_lezione != "" and caso.randf() < 0.5:
+	var conti_lezione: Array = (tattiche.get(tipo, {}) as Dictionary).get(da_lezione, [0, 0])
+	# Una lezione che non funziona mai (almeno 4 prove, meno di 1 su 6 riuscite) viene messa da parte.
+	var lezione_fallita := int(conti_lezione[0]) >= 4 and float(conti_lezione[1]) / float(conti_lezione[0]) < 0.17
+	if da_lezione != "" and not lezione_fallita and caso.randf() < 0.5:
 		return da_lezione
 	if caso.randf() < ESPLORAZIONE:
 		return elenco[caso.randi() % elenco.size()]

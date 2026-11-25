@@ -1,5 +1,10 @@
 # Novità di NonNarrato
 
+## 0.1 — Nemici che cambiano idea
+
+- **Il mago non insiste più con quello che non funziona**: se una tattica imparata fallisce sempre (per esempio la raffica, schivata 9 volte su 9), la mette da parte e prova altro.
+- **Il bot prova anche i tuoi FPS**: se hai scelto un limite sopra 60, alla fine il bot gioca anche con quel limite e controlla che il telefono li raggiunga davvero.
+
 ## 0.1 — Il sogno ricorda: nemici che imparano e un bot che gioca davvero
 
 - **Nemesi**: il nemico che ti uccide torna nel sogno successivo più forte, con un nome, un titolo ("il Trionfante", "il Tiranno"…), occhi rossi e una frase che ricorda com'è finita. Se lo batti può tornare "lo Sfregiato", in cerca di vendetta; dopo tre sconfitte riposa per sempre. Anche un nemico normale battuto, a volte, giura vendetta.
