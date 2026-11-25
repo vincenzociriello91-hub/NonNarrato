@@ -126,5 +126,238 @@
 			"frame": 9,
 			"fps": 12
 		}
+	],
+	"mosse": {
+		"una_mano": {
+			"animazioni": {}
+		},
+		"affondi": {
+			"animazioni": {
+				"attacco1": {
+					"clip": "1H_Melee_Attack_Stab",
+					"da": 0.15,
+					"a": 0.85
+				},
+				"attacco2": {
+					"clip": "1H_Melee_Attack_Slice_Horizontal",
+					"da": 0.2,
+					"a": 0.9
+				}
+			}
+		},
+		"due_mani": {
+			"animazioni": {
+				"fermo": {
+					"clip": "2H_Melee_Idle"
+				},
+				"corsa": {
+					"clip": "Running_B"
+				},
+				"attacco1": {
+					"clip": "2H_Melee_Attack_Chop",
+					"da": 0.35,
+					"a": 1.2
+				},
+				"attacco2": {
+					"clip": "2H_Melee_Attack_Slice",
+					"da": 0.15,
+					"a": 0.85
+				}
+			}
+		},
+		"doppia": {
+			"animazioni": {
+				"attacco1": {
+					"clip": "Dualwield_Melee_Attack_Chop",
+					"da": 0.15,
+					"a": 0.9
+				},
+				"attacco2": {
+					"clip": "Dualwield_Melee_Attack_Slice",
+					"da": 0.25,
+					"a": 1.0
+				}
+			}
+		},
+		"scudo": {
+			"animazioni": {
+				"fermo": {
+					"clip": "Blocking"
+				},
+				"attacco2": {
+					"clip": "Block_Attack",
+					"da": 0.1,
+					"a": 0.8
+				}
+			}
+		},
+		"magia": {
+			"animazioni": {
+				"attacco1": {
+					"clip": "Spellcast_Shoot",
+					"da": 0.05,
+					"a": 0.8
+				},
+				"attacco2": {
+					"clip": "Spellcast_Raise",
+					"da": 0.1,
+					"a": 0.9
+				}
+			}
+		},
+		"mani_nude": {
+			"animazioni": {
+				"fermo": {
+					"clip": "Unarmed_Idle"
+				},
+				"attacco1": {
+					"clip": "Unarmed_Melee_Attack_Punch_A",
+					"da": 0.25,
+					"a": 0.95
+				},
+				"attacco2": {
+					"clip": "Unarmed_Melee_Attack_Kick",
+					"da": 0.1,
+					"a": 0.8
+				}
+			}
+		}
+	},
+	"prove": [
+		{
+			"nome": "parata",
+			"etichetta": "Parata",
+			"clip": "Blocking",
+			"fps": 8,
+			"ciclo": true
+		},
+		{
+			"nome": "colpo_scudo",
+			"etichetta": "Colpo di scudo",
+			"clip": "Block_Attack",
+			"fps": 12
+		},
+		{
+			"nome": "affondo",
+			"etichetta": "Affondo",
+			"clip": "1H_Melee_Attack_Stab",
+			"fps": 12
+		},
+		{
+			"nome": "fendente_largo",
+			"etichetta": "Fendente largo",
+			"clip": "1H_Melee_Attack_Slice_Horizontal",
+			"fps": 12
+		},
+		{
+			"nome": "colpo_rotante",
+			"etichetta": "Colpo rotante",
+			"clip": "2H_Melee_Attack_Spin",
+			"fps": 12
+		},
+		{
+			"nome": "affondo_due_mani",
+			"etichetta": "Affondo a due mani",
+			"clip": "2H_Melee_Attack_Stab",
+			"fps": 12
+		},
+		{
+			"nome": "affondo_doppio",
+			"etichetta": "Affondo doppio",
+			"clip": "Dualwield_Melee_Attack_Stab",
+			"fps": 12
+		},
+		{
+			"nome": "magia",
+			"etichetta": "Magia",
+			"clip": "Spellcast_Shoot",
+			"fps": 12
+		},
+		{
+			"nome": "incantesimo",
+			"etichetta": "Incantesimo lungo",
+			"clip": "Spellcast_Long",
+			"fps": 12
+		},
+		{
+			"nome": "concentrazione",
+			"etichetta": "Concentrazione",
+			"clip": "Spellcasting",
+			"fps": 12,
+			"ciclo": true
+		},
+		{
+			"nome": "pugno",
+			"etichetta": "Pugno",
+			"clip": "Unarmed_Melee_Attack_Punch_A",
+			"fps": 12
+		},
+		{
+			"nome": "montante",
+			"etichetta": "Montante",
+			"clip": "Unarmed_Melee_Attack_Punch_B",
+			"fps": 12
+		},
+		{
+			"nome": "calcio",
+			"etichetta": "Calcio",
+			"clip": "Unarmed_Melee_Attack_Kick",
+			"fps": 12
+		},
+		{
+			"nome": "lancio",
+			"etichetta": "Lancio",
+			"clip": "Throw",
+			"fps": 12
+		},
+		{
+			"nome": "saluto",
+			"etichetta": "Saluto",
+			"clip": "Cheer",
+			"fps": 12
+		},
+		{
+			"nome": "raccogli",
+			"etichetta": "Raccogli",
+			"clip": "PickUp",
+			"fps": 12
+		},
+		{
+			"nome": "interagisci",
+			"etichetta": "Interagisci",
+			"clip": "Interact",
+			"fps": 12
+		},
+		{
+			"nome": "usa_oggetto",
+			"etichetta": "Usa un oggetto",
+			"clip": "Use_Item",
+			"fps": 12
+		},
+		{
+			"nome": "camminata",
+			"etichetta": "Camminata",
+			"clip": "Walking_B",
+			"fps": 12,
+			"ciclo": true
+		},
+		{
+			"nome": "salto_completo",
+			"etichetta": "Salto completo",
+			"clip": "Jump_Full_Short",
+			"fps": 12
+		},
+		{
+			"nome": "colpito_forte",
+			"etichetta": "Colpito forte",
+			"clip": "Hit_B",
+			"fps": 12
+		},
+		{
+			"nome": "caduta",
+			"etichetta": "Caduta all'indietro",
+			"clip": "Death_B",
+			"fps": 12
+		}
 	]
 }

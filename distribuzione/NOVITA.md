@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Mosse da provare e bot che gioca da solo
+
+- **Gruppi di mosse**: una mano, affondi, due mani, doppia arma, scudo, magia, a mani nude. Cambiano posa e attacchi del personaggio e si scelgono da soli in base all'arma (spadone = due mani, bastone = magia, scudo in mano sinistra = scudo…). Nel menu Aspetto puoi anche sceglierli a mano. Per ora cambia solo l'aspetto: i tempi dei colpi restano uguali.
+- **Prova le mosse**: nel menu di pausa, l'anteprima del personaggio ora si muove. Con i tasti puoi provare tutte le azioni di gioco e 22 azioni extra (parata, colpo di scudo, colpo rotante, magia, calcio, lancio, saluto, raccogli…). L'anteprima resta sempre visibile a sinistra mentre scorri il menu.
+- Nuova arma: "A mani nude".
+- **Bot di prova**: nel menu di pausa, "Fai giocare il bot". Per circa 3-4 minuti gioca da solo tutta la stanza, prova ogni mossa, molti aspetti e le tre qualità, e misura la fluidità di ogni parte. Alla fine rimette le tue scelte, salva il rapporto (che arriva su Drive come gli altri) e chiude il gioco. Premi pausa per fermarlo prima.
+- Corretto un errore interno del motore che compariva sul telefono quando il personaggio rinasce.
+
 ## 0.1 — L'aspetto del Non Narrato
 
 - Nuova sezione **Aspetto** nel menu di pausa: per testa, copricapo, busto, braccia, gambe, mantello, arma e mano sinistra scegli cosa indossare (elmi, corazze, pellicce, vesti, mantelli, spade, asce, bastoni, scudi, grimorio…) e un colore (Cenere, Ossidiana, Sangue, Notte, Oro antico, Muschio, Ossa).

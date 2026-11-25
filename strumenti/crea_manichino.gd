@@ -44,9 +44,14 @@ func _avvia() -> void:
 		printerr("Manca ", FIGURA)
 		quit(1)
 		return
+	# Le clip delle animazioni di gioco, dei gruppi di mosse e delle azioni di prova.
 	var clip_usate := {}
-	for a: Dictionary in figura.get("animazioni", []):
+	for a: Dictionary in figura.get("animazioni", []) + figura.get("prove", []):
 		clip_usate[a["clip"]] = true
+	for gruppo: Dictionary in (figura.get("mosse", {}) as Dictionary).values():
+		for cambio: Dictionary in (gruppo.get("animazioni", {}) as Dictionary).values():
+			if cambio.has("clip"):
+				clip_usate[cambio["clip"]] = true
 
 	var base := _carica(SCHELETRO_BASE)
 	var scheletro_base: Skeleton3D = base.find_children("*", "Skeleton3D", true, false)[0]

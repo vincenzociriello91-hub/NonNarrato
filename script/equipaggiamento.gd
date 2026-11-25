@@ -62,6 +62,7 @@ const OGGETTI := {
 	"lama_sepolti": ["arma", "Lama dei sepolti", ["Sepolto__Lama"]],
 	"ascia_sepolti": ["arma", "Ascia dei sepolti", ["Sepolto__Ascia"]],
 	"bastone_sepolti": ["arma", "Bastone dei sepolti", ["Sepolto__Bastone"]],
+	"mani_nude": ["arma", "A mani nude", []],
 
 	"mano_vuota": ["mano_sinistra", "Nulla", []],
 	"scudo_tondo": ["mano_sinistra", "Scudo tondo", ["Cavaliere__Round_Shield"]],
@@ -87,6 +88,22 @@ const COLORI := {
 	"ossa": ["Ossa", Color(1.0, 0.95, 0.82), 0.5, 1.25],
 }
 
+# Gruppi di mosse: cambiano le animazioni (per ora solo l'aspetto, i tempi di gioco restano uguali).
+const MOSSE := {
+	"una_mano": "Una mano", "affondi": "Affondi", "due_mani": "Due mani", "doppia": "Doppia arma",
+	"scudo": "Scudo", "magia": "Magia", "mani_nude": "A mani nude",
+}
+# Con "automatiche" decide l'arma; per armi normali conta anche la mano sinistra.
+const MOSSE_ARMA := {
+	"spadone": "due_mani", "bipenne": "due_mani", "bastone": "magia", "bacchetta": "magia",
+	"bastone_sepolti": "magia", "mani_nude": "mani_nude",
+}
+const MOSSE_MANO := {
+	"scudo_tondo": "scudo", "scudo_stemma": "scudo", "scudo_torre": "scudo", "scudo_chiodato": "scudo",
+	"scudo_barbaro": "scudo", "seconda_spada": "doppia", "seconda_ascia": "doppia", "secondo_pugnale": "doppia",
+}
+const MOSSE_ARMA_LEGGERA := {"pugnale": "affondi"}
+
 const PREDEFINITO := {
 	"testa": "cappuccio_viandante", "copricapo": "nessun_copricapo", "busto": "giubba_viandante",
 	"braccia": "maniche_viandante", "gambe": "brache_viandante", "mantello": "mantello_viandante",
@@ -95,6 +112,7 @@ const PREDEFINITO := {
 
 var indossati := {}
 var colori := {}
+var mosse_scelte := "auto"       # "auto" oppure un gruppo di MOSSE
 
 
 func _ready() -> void:
@@ -109,10 +127,14 @@ func _ready() -> void:
 		var colore: String = str(cfg.get_value("colori", posto, ""))
 		if COLORI.has(colore):
 			colori[posto] = colore
+	var scelta: String = str(cfg.get_value("mosse", "scelta", "auto"))
+	if scelta == "auto" or MOSSE.has(scelta):
+		mosse_scelte = scelta
 
 
 func _predefiniti() -> void:
 	indossati = PREDEFINITO.duplicate()
+	mosse_scelte = "auto"
 	colori = {}
 	for posto in POSTI:
 		colori[posto] = "naturale"
@@ -155,6 +177,46 @@ func colora(posto: String, colore: String) -> void:
 	_dopo_cambio()
 
 
+func mosse_automatiche() -> String:
+	var arma: String = indossati.get("arma", "")
+	if MOSSE_ARMA.has(arma):
+		return MOSSE_ARMA[arma]
+	var mano: String = indossati.get("mano_sinistra", "")
+	if MOSSE_MANO.has(mano):
+		return MOSSE_MANO[mano]
+	return MOSSE_ARMA_LEGGERA.get(arma, "una_mano")
+
+
+func mosse_attive() -> String:
+	return mosse_automatiche() if mosse_scelte == "auto" else mosse_scelte
+
+
+func scegli_mosse(id: String) -> void:
+	if (id != "auto" and not MOSSE.has(id)) or id == mosse_scelte:
+		return
+	mosse_scelte = id
+	_dopo_cambio()
+
+
+func stato() -> Dictionary:
+	return {"indossati": indossati.duplicate(), "colori": colori.duplicate(), "mosse": mosse_scelte}
+
+
+func ripristina_stato(s: Dictionary) -> void:
+	# Per il bot: rimette l'aspetto che aveva chi gioca.
+	_predefiniti()
+	for posto in POSTI:
+		var id: String = str((s.get("indossati", {}) as Dictionary).get(posto, ""))
+		if OGGETTI.has(id) and OGGETTI[id][0] == posto:
+			indossati[posto] = id
+		var c: String = str((s.get("colori", {}) as Dictionary).get(posto, ""))
+		if COLORI.has(c):
+			colori[posto] = c
+	var m: String = str(s.get("mosse", "auto"))
+	mosse_scelte = m if m == "auto" or MOSSE.has(m) else "auto"
+	_dopo_cambio()
+
+
 func casuale(generatore: RandomNumberGenerator = null) -> void:
 	var g := generatore
 	if g == null:
@@ -177,6 +239,7 @@ func descrizione() -> Dictionary:
 	var d := {}
 	for posto in POSTI:
 		d[posto] = "%s (%s)" % [indossati[posto], colori[posto]]
+	d["mosse"] = "%s (%s)" % [mosse_attive(), mosse_scelte]
 	return d
 
 
@@ -191,4 +254,5 @@ func _salva() -> void:
 	for posto in POSTI:
 		cfg.set_value("oggetti", posto, indossati[posto])
 		cfg.set_value("colori", posto, colori[posto])
+	cfg.set_value("mosse", "scelta", mosse_scelte)
 	cfg.save(PERCORSO)

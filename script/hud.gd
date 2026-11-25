@@ -30,6 +30,7 @@ const PULSANTI := [
 	["schiva", "Schiva", 36.0], ["pausa", "II", 24.0],
 ]
 
+var _centri := {}
 var _stanza: Stanza
 var _sogno := 1
 var _radice: Control
@@ -191,6 +192,7 @@ func _disponi() -> void:
 		"schiva": Vector2(bx - 200.0 * k, by - 186.0 * k),
 		"pausa": Vector2(bx - 44.0, m[1] + 44.0),
 	}
+	_centri = posti
 	for azione: String in _pulsanti:
 		var voce: Dictionary = _pulsanti[azione]
 		var nodo: TouchScreenButton = voce["nodo"]
@@ -212,6 +214,11 @@ func misure(tela: Vector2i, scala: int) -> void:
 func in_pausa(v: bool) -> void:
 	_pausa = v
 	_aggiorna_touch()
+
+
+func centro_tasto(azione: String) -> Vector2:
+	# Dove sta il tasto a schermo (in unità dell'interfaccia): serve al bot per "toccarlo".
+	return _centri.get(azione, Vector2.ZERO)
 
 
 func tasti_a_schermo_visibili() -> bool:

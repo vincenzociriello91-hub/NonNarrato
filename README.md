@@ -47,7 +47,10 @@ ma le torce li illuminano come se avessero volume. Un ultimo filtro porta i colo
 
 I fogli già pronti sono nel repository: questi due passaggi servono solo quando si cambia un personaggio o un oggetto.
 
-Il protagonista è diverso: cambia aspetto con l'equipaggiamento, quindi non ha un foglio già pronto.
+Il protagonista è diverso: cambia aspetto con l'equipaggiamento e ha più **gruppi di mosse** (una mano, affondi,
+due mani, doppia arma, scudo, magia, a mani nude) scelti dall'arma o a mano. Le clip di ogni gruppo e le azioni da
+provare nel menu sono in `arte/figure/protagonista.json`; i tempi di gioco restano nel codice.
+Il resto funziona così: cambia aspetto con l'equipaggiamento, quindi non ha un foglio già pronto.
 Tutti i personaggi KayKit hanno lo stesso scheletro, così teste, busti, braccia, gambe, mantelli, copricapi e armi
 si possono scambiare. `strumenti/crea_manichino.gd` li mette tutti su un unico **manichino** (`modelli/manichino.scn`)
 e nel gioco `script/figura_viva.gd` lo fotografa in tempo reale, nello stesso stile dei fogli (colore, normali, contorno),
@@ -57,7 +60,7 @@ si scelgono dal menu di pausa, sezione Aspetto.
 ## Cartelle
 
 - `script/` — il gioco. `principale.gd` avvia tutto; `stanza.gd` costruisce la stanza; `giocatore.gd`, `figura_viva.gd`,
-  `equipaggiamento.gd`, `nemico.gd`,
+  `equipaggiamento.gd`, `bot.gd`, `nemico.gd`,
   `rompibile.gd`, `proiettile.gd`; `dispositivo.gd` (riconoscimento e qualità), `controlli.gd`, `impostazioni.gd`,
   `rapporto.gd`; `hud.gd` e `menu.gd` per l'interfaccia.
 - `shader/` — filtro palette e nebbia.
@@ -66,6 +69,12 @@ si scelgono dal menu di pausa, sezione Aspetto.
 - `strumenti/` — strumenti di lavoro. `test/` — prova automatica.
 - `distribuzione/` — novità e chiave di firma del canale di prova.
 
+## Bot di prova
+
+Dal menu di pausa, "Fai giocare il bot" (oppure `godot --path . -- --bot` sul computer). `script/bot.gd` gioca da solo
+la stanza, prova mosse, aspetti e qualità, misura la fluidità di ogni fase, rimette le scelte di chi gioca, salva il
+rapporto con la sezione `bot` e chiude il gioco. Se il gioco si chiude a metà, al riavvio le scelte vengono rimesse.
+
 ## Prove
 
 ```
@@ -73,8 +82,8 @@ godot --headless --path . --import
 godot --headless --fixed-fps 60 --path . -- --prova
 ```
 
-Un bot gioca la stanza (corsa, salto, colpi, cassa, barili, nemici, cunicolo, piattaforme, tasti a schermo, menu, aspetto, morte)
-e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno schermo e `--schermate=/cartella` salva anche le immagini.
+La prova fa giocare lo stesso bot (corsa, salto, colpi, cassa, barili, nemici, cunicolo, piattaforme, tasti a schermo,
+menu, aspetto, mosse, morte, comandi a caso, qualità) e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno schermo e `--schermate=/cartella` salva anche le immagini.
 
 ## Pubblicazione
 

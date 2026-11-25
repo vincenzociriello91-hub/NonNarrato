@@ -62,6 +62,16 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Oggetti, posti e colori: `script/equipaggiamento.gd` (autoload `Equipaggiamento`, salvato in `user://equipaggiamento.cfg`). Un oggetto nuovo = pezzi nel manichino + riga in `OGGETTI`; la prova controlla che ogni pezzo esista.
 - Le ossa non mosse da un'animazione tornano a riposo (`deterministic = true`): prima restavano nella posa dell'animazione precedente.
 - Profilo "bassa": niente foto delle normali (`figura_normali`).
+- Gruppi di mosse (decisione di Vincenzo 25/11/2026: "altri move set per provare posizioni e azioni"): `mosse` in `arte/figure/protagonista.json` cambia solo le clip, mai il numero di fotogrammi delle azioni di gioco (= durata). Scelta automatica in `Equipaggiamento.mosse_automatiche()` (arma, poi mano sinistra), oppure a mano. `prove` = azioni extra solo per l'anteprima del menu.
+- Con Vulkan una CanvasTexture che punta a un viewport va sganciata prima di liberarla (vedi `FiguraViva._notification`), altrimenti "Attempted to free invalid ID". Vulkan in locale: `apt-get install mesa-vulkan-drivers`, poi `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json godot --rendering-driver vulkan --rendering-method mobile ...`.
+
+## Bot di prova
+
+- Decisione di Vincenzo (25/11/2026): un bot che gioca in locale, fa tutto e alla chiusura manda il rapporto.
+- `script/bot.gd` contiene tutto lo scenario: lo usano il tasto "Fai giocare il bot" del menu, `-- --bot` e la prova automatica (`test/prova.gd` lo avvia senza chiudere e aggiunge solo controlli da computer). Nuove funzioni = nuovi controlli nel bot.
+- Prima di partire salva impostazioni e aspetto di chi gioca in `user://bot_in_corso.txt` (var_to_str, non JSON: i tipi devono restare); alla fine li rimette. Se il gioco muore a metà, `Bot.ripara_se_interrotto()` all'avvio.
+- Durante il bot: vibrazione spenta, adattamento automatico della qualità fermo (`Dispositivo.bot_attivo`), pausa di chi gioca = stop del bot.
+- Rapporto: sezione `bot` con controlli, falliti, e per ogni fase secondi, FPS medi, fotogramma peggiore, fotogrammi sotto 30 e sotto 20 FPS (le fasi `prestazioni_bassa/media/alta` confrontano le qualità). Motivo `bot` o `bot_fermato`.
 - Pacchetti in più (armature, elmi): solo CC0, da quaternius.com, kenney.nl, opengameart.org, itch.io quando Vincenzo li aggiunge ai domini consentiti.
 
 ## Regole del codice

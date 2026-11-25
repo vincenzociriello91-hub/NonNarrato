@@ -4,6 +4,7 @@ extends CanvasLayer
 # qui si può cambiare tutto a mano e tornare ai valori consigliati con un tasto.
 
 signal chiuso
+signal bot_richiesto
 
 const INDIRIZZO_VERSIONI := "https://api.github.com/repos/vincenzociriello91-hub/NonNarrato/releases/latest"
 const PAGINA_VERSIONI := "https://github.com/vincenzociriello91-hub/NonNarrato/releases/latest"
@@ -12,7 +13,6 @@ const LIMITI_FPS := [0, 30, 60, 90, 120]
 
 var aperto := false
 var versione_nuova := ""
-var figura := Callable()          # restituisce lo sprite del protagonista (per l'anteprima)
 
 var _fondo: ColorRect
 var _riprendi: Button
@@ -31,6 +31,18 @@ var _richiesta: HTTPRequest
 var _anteprima: TextureRect
 var _scelte_oggetto := {}         # posto -> OptionButton
 var _scelte_colore := {}          # posto -> OptionButton
+var _scelta_mosse: OptionButton
+var _griglia_prove: GridContainer
+var _azione_in_prova: Label
+var tasti_prova := {}             # azione -> Button (li usa anche il bot)
+var vetrina: FiguraViva           # figura animata dell'anteprima, anche a gioco in pausa
+var _prova_corrente := "fermo"
+
+const AZIONI_DI_GIOCO := [
+	["fermo", "Fermo"], ["corsa", "Corsa"], ["salto", "Salto"], ["aria", "In aria"], ["atterra", "Atterraggio"],
+	["attacco1", "Attacco 1"], ["attacco2", "Attacco 2"], ["schivata", "Schivata"], ["scatto", "Scatto"],
+	["rotolata", "Rotolata"], ["colpito", "Colpito"], ["morte", "Morte"],
+]
 var _collegamento := ""
 var _in_caricamento := false
 
@@ -65,7 +77,7 @@ func _costruisci() -> void:
 	centro.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fondo.add_child(centro)
 	var pannello := PanelContainer.new()
-	pannello.custom_minimum_size = Vector2(640, 0)
+	pannello.custom_minimum_size = Vector2(1120, 0)
 	var stile := StyleBoxFlat.new()
 	stile.bg_color = Color(0.07, 0.06, 0.11, 0.97)
 	stile.border_color = Color(0.33, 0.3, 0.45)
@@ -75,24 +87,35 @@ func _costruisci() -> void:
 	pannello.add_theme_stylebox_override("panel", stile)
 	centro.add_child(pannello)
 
+	var corpo := VBoxContainer.new()
+	corpo.add_theme_constant_override("separation", 10)
+	pannello.add_child(corpo)
+	var titolo := Label.new()
+	titolo.text = "NonNarrato — pausa"
+	titolo.add_theme_font_size_override("font_size", 30)
+	titolo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	corpo.add_child(titolo)
+	var riga := HBoxContainer.new()
+	riga.add_theme_constant_override("separation", 22)
+	corpo.add_child(riga)
+
+	# A sinistra, sempre visibili: Riprendi e l'anteprima animata del personaggio.
+	var sinistra := VBoxContainer.new()
+	sinistra.custom_minimum_size = Vector2(300, 0)
+	sinistra.add_theme_constant_override("separation", 10)
+	riga.add_child(sinistra)
+	_riprendi = _pulsante(sinistra, "Riprendi", chiudi)
+
 	var scorri := ScrollContainer.new()
-	scorri.custom_minimum_size = Vector2(600, 600)
+	scorri.custom_minimum_size = Vector2(770, 560)
 	scorri.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	pannello.add_child(scorri)
+	riga.add_child(scorri)
 	var colonna := VBoxContainer.new()
 	colonna.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	colonna.add_theme_constant_override("separation", 10)
 	scorri.add_child(colonna)
 
-	var titolo := Label.new()
-	titolo.text = "NonNarrato — pausa"
-	titolo.add_theme_font_size_override("font_size", 30)
-	titolo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	colonna.add_child(titolo)
-
-	_riprendi = _pulsante(colonna, "Riprendi", chiudi)
-
-	_costruisci_aspetto(colonna)
+	_costruisci_aspetto(sinistra, colonna)
 
 	_sezione(colonna, "Grafica")
 	_qualita = OptionButton.new()
@@ -124,6 +147,15 @@ func _costruisci() -> void:
 	_esito.add_theme_font_size_override("font_size", 17)
 	_esito.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
 	colonna.add_child(_esito)
+	_pulsante(colonna, "Fai giocare il bot", func() -> void:
+		chiudi()
+		bot_richiesto.emit())
+	var spiega := Label.new()
+	spiega.text = "Il bot gioca da solo per qualche minuto e prova tutto (mosse, aspetti, qualità). Alla fine rimette le tue scelte, salva il rapporto e chiude il gioco. Premi pausa per fermarlo."
+	spiega.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	spiega.add_theme_font_size_override("font_size", 17)
+	spiega.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+	colonna.add_child(spiega)
 	_aggiorna = _pulsante(colonna, "Cerca aggiornamenti", _su_aggiorna)
 	_novita = Label.new()
 	_novita.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -132,9 +164,8 @@ func _costruisci() -> void:
 	colonna.add_child(_novita)
 
 
-func _costruisci_aspetto(colonna: VBoxContainer) -> void:
+func _costruisci_aspetto(sinistra: VBoxContainer, colonna: VBoxContainer) -> void:
 	# Cosa indossa il Non Narrato: per ogni posto un oggetto e un colore. Per ora cambia solo l'aspetto.
-	_sezione(colonna, "Aspetto")
 	_anteprima = TextureRect.new()
 	_anteprima.custom_minimum_size = Vector2(288, 288)
 	_anteprima.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -142,7 +173,23 @@ func _costruisci_aspetto(colonna: VBoxContainer) -> void:
 	_anteprima.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_anteprima.material = FiguraViva.materiale_anteprima()
 	_anteprima.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	colonna.add_child(_anteprima)
+	sinistra.add_child(_anteprima)
+	_azione_in_prova = Label.new()
+	_azione_in_prova.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_azione_in_prova.add_theme_font_size_override("font_size", 17)
+	_azione_in_prova.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
+	_azione_in_prova.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sinistra.add_child(_azione_in_prova)
+	_sezione(colonna, "Aspetto")
+	_scelta_mosse = OptionButton.new()
+	_scelta_mosse.add_item("Automatiche")
+	_scelta_mosse.set_item_metadata(0, "auto")
+	for id: String in Equipaggiamento.MOSSE:
+		_scelta_mosse.add_item(String(Equipaggiamento.MOSSE[id]))
+		_scelta_mosse.set_item_metadata(_scelta_mosse.item_count - 1, id)
+	_scelta_mosse.item_selected.connect(func(i: int) -> void:
+		Equipaggiamento.scegli_mosse(String(_scelta_mosse.get_item_metadata(i))))
+	_riga(colonna, "Mosse", _scelta_mosse)
 	for posto in Equipaggiamento.POSTI:
 		var riga := HBoxContainer.new()
 		riga.add_theme_constant_override("separation", 8)
@@ -178,6 +225,58 @@ func _costruisci_aspetto(colonna: VBoxContainer) -> void:
 	for coppia: Array in [["Casuale", func() -> void: Equipaggiamento.casuale()], ["Ripristina aspetto", Equipaggiamento.ripristina]]:
 		var b := _pulsante(tasti, coppia[0], coppia[1])
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	_sezione(colonna, "Prova le mosse")
+	_griglia_prove = GridContainer.new()
+	_griglia_prove.columns = 4
+	_griglia_prove.add_theme_constant_override("h_separation", 6)
+	_griglia_prove.add_theme_constant_override("v_separation", 6)
+	colonna.add_child(_griglia_prove)
+	for coppia: Array in AZIONI_DI_GIOCO:
+		_tasto_prova(coppia[0], coppia[1])
+	# Le azioni extra arrivano dal file della figura, quando la vetrina è pronta (_prepara_vetrina).
+
+
+func _tasto_prova(azione: String, etichetta: String) -> void:
+	var b := Button.new()
+	b.text = etichetta
+	b.clip_text = true
+	b.custom_minimum_size = Vector2(0, 46)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size", 17)
+	b.pressed.connect(prova_azione.bind(azione))
+	_griglia_prove.add_child(b)
+	tasti_prova[azione] = b
+
+
+func _prepara_vetrina() -> void:
+	if vetrina != null:
+		return
+	vetrina = FiguraViva.new()
+	vetrina.usa_normali = false
+	vetrina.visible = false         # si vede solo nell'anteprima del menu
+	add_child(vetrina)
+	vetrina.carica("protagonista")
+	vetrina.finita.connect(_dopo_prova)
+	for coppia: Array in vetrina.prove():
+		_tasto_prova(coppia[0], coppia[1])
+
+
+func prova_azione(azione: String) -> void:
+	# L'anteprima ripete l'azione scelta finché non se ne sceglie un'altra.
+	if vetrina == null:
+		return
+	_prova_corrente = azione
+	vetrina.riproduci(azione, true)
+	var etichetta: String = tasti_prova[azione].text if tasti_prova.has(azione) else azione
+	_azione_in_prova.text = "%s · mosse: %s" % [etichetta, Equipaggiamento.MOSSE.get(vetrina.mosse, vetrina.mosse)]
+	Rapporto.conta("mosse_provate")
+
+
+func _dopo_prova(azione: String) -> void:
+	await get_tree().create_timer(0.6).timeout
+	if aperto and vetrina != null and azione == _prova_corrente and not vetrina.in_corso:
+		vetrina.riproduci(azione, true)
 
 
 func _sezione(dove: Node, testo: String) -> void:
@@ -232,9 +331,10 @@ func _cursore(dove: Node, testo: String, minimo: float, massimo: float, chiave: 
 
 func apri() -> void:
 	aperto = true
-	var sprite: Variant = figura.call() if figura.is_valid() else null
-	_anteprima.texture = sprite.call("anteprima") if sprite != null and sprite.has_method("anteprima") else null
-	_anteprima.visible = _anteprima.texture != null
+	_prepara_vetrina()
+	vetrina.process_mode = Node.PROCESS_MODE_INHERIT
+	_anteprima.texture = vetrina.anteprima()
+	prova_azione("fermo")
 	_carica_valori()
 	_fondo.visible = true
 	_riprendi.grab_focus()
@@ -245,6 +345,8 @@ func chiudi() -> void:
 		return
 	aperto = false
 	_fondo.visible = false
+	if vetrina != null:
+		vetrina.process_mode = Node.PROCESS_MODE_DISABLED  # a menu chiuso non si muove e non disegna
 	chiuso.emit()
 
 
@@ -261,6 +363,13 @@ func _carica_valori() -> void:
 	_opacita.set_value_no_signal(Impostazioni.leggi("controlli/opacita_touch"))
 	_vibrazione.set_pressed_no_signal(Impostazioni.leggi("controlli/vibrazione"))
 	_debug.set_pressed_no_signal(Impostazioni.leggi("gioco/debug"))
+	for i in _scelta_mosse.item_count:
+		if _scelta_mosse.get_item_metadata(i) == Equipaggiamento.mosse_scelte:
+			_scelta_mosse.select(i)
+	_scelta_mosse.set_item_text(0, "Automatiche (%s)" % Equipaggiamento.MOSSE[Equipaggiamento.mosse_automatiche()])
+	if vetrina != null and _azione_in_prova != null:
+		var etichetta: String = tasti_prova[_prova_corrente].text if tasti_prova.has(_prova_corrente) else _prova_corrente
+		_azione_in_prova.text = "%s · mosse: %s" % [etichetta, Equipaggiamento.MOSSE.get(Equipaggiamento.mosse_attive(), "")]
 	for posto: String in _scelte_oggetto:
 		var oggetto: OptionButton = _scelte_oggetto[posto]
 		for i in oggetto.item_count:

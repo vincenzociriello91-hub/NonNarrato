@@ -33,6 +33,7 @@ var riduzione_scatti := 0
 var letture_android := false
 var forzato := ""                # livello imposto da riga di comando (prove)
 var in_prova := false
+var bot_attivo := false          # mentre gioca il bot la qualità non si adatta da sola (misure pulite)
 var sdk := 0                     # livello delle API di Android (0 = non Android)
 
 var _frequenza_chiesta := 0
@@ -314,7 +315,7 @@ func _process(delta: float) -> void:
 	if _attesa_iniziale > 0.0:
 		_attesa_iniziale -= delta
 		return
-	if in_prova or _adattamento_fermo or get_tree().paused:
+	if in_prova or bot_attivo or _adattamento_fermo or get_tree().paused:
 		return
 	_tempo += delta
 	_fotogrammi += 1

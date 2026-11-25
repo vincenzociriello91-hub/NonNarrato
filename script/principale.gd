@@ -8,6 +8,7 @@ var stanza: Stanza
 var hud: Hud
 var menu: Menu
 var sogno := 1
+var bot: Bot
 
 var _vista: TextureRect
 var _filtro: ColorRect
@@ -19,6 +20,7 @@ var _in_transizione := false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().quit_on_go_back = false
+	Bot.ripara_se_interrotto()  # se l'ultima volta il bot non ha finito, rimette le scelte di chi gioca
 
 	var fondo := ColorRect.new()
 	fondo.color = Color(0.027, 0.024, 0.043)
@@ -56,7 +58,7 @@ func _ready() -> void:
 	strato.add_child(_filtro)
 
 	hud = Hud.new()
-	hud.pausa_richiesta.connect(_alterna_pausa)
+	hud.pausa_richiesta.connect(_pausa_da_utente)
 	add_child(hud)
 
 	var strato_velo := CanvasLayer.new()
@@ -70,7 +72,7 @@ func _ready() -> void:
 
 	menu = Menu.new()
 	menu.chiuso.connect(_riprendi)
-	menu.figura = func() -> Node: return stanza.giocatore.sprite if is_instance_valid(stanza) else null
+	menu.bot_richiesto.connect(avvia_bot)
 	add_child(menu)
 
 	get_window().size_changed.connect(_ridimensiona)
@@ -85,6 +87,8 @@ func _ready() -> void:
 	if Dispositivo.in_prova:
 		var prova: Node = (load("res://test/prova.gd") as GDScript).new()
 		add_child(prova)
+	elif OS.get_cmdline_user_args().has("--bot"):
+		get_tree().create_timer(1.5).timeout.connect(avvia_bot)
 
 	var tw := create_tween()
 	tw.tween_interval(0.35)
@@ -94,19 +98,46 @@ func _ready() -> void:
 
 func _notification(cosa: int) -> void:
 	if cosa == NOTIFICATION_WM_GO_BACK_REQUEST:
-		_alterna_pausa()
+		_pausa_da_utente()
 	elif cosa == NOTIFICATION_APPLICATION_PAUSED:
-		# Il gioco va in secondo piano: al ritorno lo si trova in pausa.
-		if is_node_ready() and not menu.aperto and not Dispositivo.in_prova:
+		# Il gioco va in secondo piano: al ritorno lo si trova in pausa (e il bot si ferma).
+		if bot != null and bot.in_corso:
+			bot.ferma()
+		elif is_node_ready() and not menu.aperto and not Dispositivo.in_prova:
 			_alterna_pausa()
 
 
 func _unhandled_input(evento: InputEvent) -> void:
 	if evento.is_action_pressed("pausa"):
-		_alterna_pausa()
+		_pausa_da_utente()
 		get_viewport().set_input_as_handled()
 	elif evento.is_action_pressed("debug"):
 		Impostazioni.scrivi("gioco/debug", not Impostazioni.leggi("gioco/debug"))
+
+
+func _pausa_da_utente() -> void:
+	# Mentre gioca il bot, la pausa di chi tiene in mano il telefono lo ferma.
+	if bot != null and bot.in_corso:
+		bot.ferma()
+		return
+	_alterna_pausa()
+
+
+func avvia_bot() -> Bot:
+	if bot != null and bot.in_corso:
+		return bot
+	if bot != null:
+		bot.queue_free()
+	bot = Bot.new()
+	add_child(bot)
+	if not Dispositivo.in_prova:
+		bot.avvia()
+	return bot
+
+
+func ricomincia_stanza() -> void:
+	# Stessa stanza da capo (per il bot), senza contare un nuovo sogno.
+	_nuova_stanza()
 
 
 func _alterna_pausa() -> void:
@@ -196,6 +227,7 @@ func _contesto() -> Dictionary:
 		"nemici": get_tree().get_nodes_in_group("nemici").size(),
 		"menu": menu.aperto,
 		"foto_figura": int(g.sprite.get("disegni")) if "disegni" in g.sprite else 0,
+		"bot": bot.fase_nome if bot != null and bot.in_corso else "",
 	}
 
 

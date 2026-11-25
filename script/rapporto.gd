@@ -55,6 +55,7 @@ var _eventi: Array = []
 var _eventi_scartati := 0
 var _contatori := {}
 var _grafica := {}
+var _sezioni := {}
 var _letture_termiche: Array = []
 var _termico_massimo := -1
 
@@ -158,6 +159,11 @@ func contatore(chiave: String) -> int:
 	return int(_contatori.get(chiave, 0))
 
 
+func sezione(nome: String, dati: Variant) -> void:
+	# Una parte in più del rapporto (per esempio l'esito del bot).
+	_sezioni[nome] = dati
+
+
 func grafica(chiave: String, valore: Variant) -> void:
 	_grafica[chiave] = valore
 
@@ -238,6 +244,7 @@ func _componi(motivo: String) -> Dictionary:
 			"letture": _letture_termiche,
 		}
 	dati["grafica"] = grafica_ora
+	dati.merge(_sezioni)
 	var equipaggiamento := get_node_or_null("/root/Equipaggiamento")
 	if equipaggiamento != null:
 		dati["aspetto"] = equipaggiamento.descrizione()

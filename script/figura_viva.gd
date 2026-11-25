@@ -72,6 +72,8 @@ static var _mat_sprite: ShaderMaterial
 static var _mat_sprite_piatto: ShaderMaterial
 
 var disegni := 0                 # quante foto ha scattato (per le prove e il rapporto)
+var mosse := "una_mano"          # gruppo di mosse in uso (cambia le clip, non i tempi di gioco)
+var usa_normali := true          # l'anteprima del menu non ne ha bisogno
 var _figura := {}
 var _scatti: Array = []
 var _ultimo := -1
@@ -86,6 +88,8 @@ var _pezzi := {}                 # nome -> [colore, normali]
 var _colore_di := {}             # nome -> posto (per la tinta)
 var _con_normali := true
 var _lampo_fino := 0.0
+var _insiemi := {}               # gruppo di mosse -> animazioni
+var _proporzionato := false
 
 
 func carica(nome: String) -> void:
@@ -120,9 +124,9 @@ func carica(nome: String) -> void:
 	# dell'animazione precedente: ogni fotogramma è uguale a ogni giro.
 	_lettore.deterministic = true
 	_scatti = []
-	var animazioni := _elenco_scatti()
+	_prepara_animazioni()
 	@warning_ignore("integer_division")
-	_dati = {"cella": [cella.x, cella.y], "piedi": [cella.x / 2, cella.y - piedi_da_sotto], "colonne": 1, "animazioni": animazioni}
+	_dati = {"cella": [cella.x, cella.y], "piedi": [cella.x / 2, cella.y - piedi_da_sotto], "colonne": 1, "animazioni": _insiemi["una_mano"]}
 	_cella = cella
 	_colonne = 1
 	_prepara_pezzi()
@@ -140,8 +144,19 @@ func carica(nome: String) -> void:
 		Dispositivo.profilo_cambiato.connect(_applica_profilo)
 	if not Equipaggiamento.cambiato.is_connected(_applica_aspetto):
 		Equipaggiamento.cambiato.connect(_applica_aspetto)
-	_ultimo = -1
-	_mostra(0)
+	if is_inside_tree():
+		_avvia_in_albero()
+
+
+func _notification(cosa: int) -> void:
+	# Con Vulkan, una CanvasTexture che punta a un viewport già sparito fa liberare al motore
+	# una risorsa non più valida ("Attempted to free invalid ID"). La sgancio finché i viewport ci sono.
+	if cosa == NOTIFICATION_PREDELETE:
+		var tex := texture as CanvasTexture
+		if tex != null:
+			tex.diffuse_texture = null
+			tex.normal_texture = null
+		texture = null
 
 
 func lampo(durata: float) -> void:
@@ -183,9 +198,17 @@ func immagine_normali() -> Image:
 
 
 func _ready() -> void:
-	_proporzioni()
-	if _ultimo < 0:
-		_mostra(int(_anim["frame"][fotogramma]) if not _anim.is_empty() else 0)
+	if _manichino != null:
+		_avvia_in_albero()
+
+
+func _avvia_in_albero() -> void:
+	# Va bene sia "carica poi aggiungi" sia "aggiungi poi carica".
+	if not _proporzionato:
+		_proporzionato = true
+		_proporzioni()
+	_ultimo = -1
+	_mostra(int(_anim["frame"][fotogramma]) if not _anim.is_empty() else 0)
 
 
 func _mostra(i: int) -> void:
@@ -237,39 +260,87 @@ func _proporzioni() -> void:
 	_base.position = _sposta
 
 
-func _elenco_scatti() -> Dictionary:
-	# Stessa scaletta di render_sprite.gd, ma invece di un foglio produce pose da applicare.
-	var fps: float = _figura.get("fps", 12.0)
-	var animazioni := {}
+func gruppi_di_mosse() -> Array:
+	return _insiemi.keys()
+
+
+func prove() -> Array:
+	# Azioni da provare nel menu: [nome, etichetta]
+	var elenco: Array = []
+	for a: Dictionary in _figura.get("prove", []):
+		elenco.append([a["nome"], a.get("etichetta", a["nome"])])
+	return elenco
+
+
+func imposta_mosse(id: String) -> void:
+	if not _insiemi.has(id):
+		id = "una_mano"
+	if _insiemi.is_empty() or (id == mosse and _dati.get("animazioni") == _insiemi[id]):
+		return
+	mosse = id
+	_dati["animazioni"] = _insiemi[id]
+	if animazione != "" and (_insiemi[id] as Dictionary).has(animazione):
+		# Stessa azione, clip del nuovo gruppo, senza ricominciarla.
+		_anim = _insiemi[id][animazione]
+		fotogramma = mini(fotogramma, (_anim["frame"] as Array).size() - 1)
+		_mostra(int(_anim["frame"][fotogramma]))
+
+
+func _prepara_animazioni() -> void:
+	# Ogni gruppo di mosse cambia solo alcune clip: il resto (e il numero di fotogrammi
+	# delle azioni di gioco, cioè la loro durata) viene dalle animazioni di base.
 	var durate := {}
 	for nome in _lettore.get_animation_list():
 		durate[nome] = _lettore.get_animation(nome).length
+	var fps: float = _figura.get("fps", 12.0)
+	var specifiche := {}
+	var base := {}
 	for a: Dictionary in _figura.get("animazioni", []):
-		var clip: String = a["clip"]
-		var durata: float = durate.get(clip, 1.0)
-		var da: float = a.get("da", 0.0)
-		var fino: float = a.get("a", durata)
-		var fps_a: float = a.get("fps", fps)
-		var indici: Array = []
-		if a.get("capriola", false):
-			var n: int = int(a.get("frame", 8))
-			for i in n:
-				indici.append(_scatti.size())
-				_scatti.append({
-					"clip": clip, "t": a.get("tempo", 0.0),
-					"giro": -TAU * float(i) / float(n),
-					"centro": a.get("centro", 0.8), "giu": a.get("giu", 0.0),
-				})
-		else:
-			var n: int = int(a.get("frame", maxi(1, roundi((fino - da) * fps_a))))
-			for i in n:
-				indici.append(_scatti.size())
-				var t := da + (fino - da) * float(i) / float(n)
-				if not a.get("ciclo", false) and n > 1:
-					t = da + (fino - da) * float(i) / float(n - 1)
-				_scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0})
-		animazioni[a["nome"]] = {"fps": fps_a, "ciclo": a.get("ciclo", false), "frame": indici}
-	return animazioni
+		specifiche[a["nome"]] = a
+		base[a["nome"]] = _aggiungi_scatti(a, durate, fps)
+	for a: Dictionary in _figura.get("prove", []):
+		base[a["nome"]] = _aggiungi_scatti(a, durate, fps)
+	_insiemi = {"una_mano": base}
+	var gruppi: Dictionary = _figura.get("mosse", {})
+	for id: String in gruppi:
+		var anims := base.duplicate()
+		var cambi: Dictionary = (gruppi[id] as Dictionary).get("animazioni", {})
+		for nome: String in cambi:
+			var spec: Dictionary = (specifiche.get(nome, {}) as Dictionary).duplicate()
+			if (cambi[nome] as Dictionary).has("clip"):
+				for k in ["da", "a", "tempo"]:
+					spec.erase(k)  # un'altra clip non eredita la finestra di tempo della vecchia
+			spec.merge(cambi[nome], true)
+			anims[nome] = _aggiungi_scatti(spec, durate, fps)
+		_insiemi[id] = anims
+
+
+func _aggiungi_scatti(a: Dictionary, durate: Dictionary, fps: float) -> Dictionary:
+	# Stessa scaletta di render_sprite.gd, ma invece di un foglio produce pose da applicare.
+	var clip: String = a["clip"]
+	var durata: float = durate.get(clip, 1.0)
+	var da: float = a.get("da", 0.0)
+	var fino: float = a.get("a", durata)
+	var fps_a: float = a.get("fps", fps)
+	var indici: Array = []
+	if a.get("capriola", false):
+		var n: int = int(a.get("frame", 8))
+		for i in n:
+			indici.append(_scatti.size())
+			_scatti.append({
+				"clip": clip, "t": a.get("tempo", 0.0),
+				"giro": -TAU * float(i) / float(n),
+				"centro": a.get("centro", 0.8), "giu": a.get("giu", 0.0),
+			})
+	else:
+		var n: int = int(a.get("frame", maxi(1, roundi((fino - da) * fps_a))))
+		for i in n:
+			indici.append(_scatti.size())
+			var t := da + (fino - da) * float(i) / float(n)
+			if not a.get("ciclo", false) and n > 1:
+				t = da + (fino - da) * float(i) / float(n - 1)
+			_scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0})
+	return {"fps": fps_a, "ciclo": a.get("ciclo", false), "frame": indici}
 
 
 func _prepara_pezzi() -> void:
@@ -320,12 +391,13 @@ func _applica_aspetto() -> void:
 			mat.set_shader_parameter("tinta", c[1])
 			mat.set_shader_parameter("saturazione", c[2])
 			mat.set_shader_parameter("luminosita", c[3])
+	imposta_mosse(Equipaggiamento.mosse_attive())
 	_ridisegna()
 
 
 func _applica_profilo() -> void:
 	# Sui dispositivi più deboli niente foto delle normali: lo sprite usa una normale piatta.
-	_con_normali = bool(Dispositivo.profilo.get("figura_normali", true))
+	_con_normali = usa_normali and bool(Dispositivo.profilo.get("figura_normali", true))
 	var tex := texture as CanvasTexture
 	if tex != null:
 		tex.normal_texture = _vp_normali.get_texture() if _con_normali else null
