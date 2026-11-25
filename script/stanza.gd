@@ -119,6 +119,21 @@ func _solidi() -> void:
 		_piattaforma(p[0], p[1], p[2])
 
 
+static func superfici() -> Array:
+	# Dove si può stare in piedi (per il bot): pavimento, alcova dietro il cunicolo, ripiano alto,
+	# terrazza e piattaforme attraversabili. Le misure vengono dagli stessi blocchi di _solidi().
+	var elenco: Array = [
+		{"id": "pavimento", "x0": 200.0, "x1": 1104.0, "y": float(PAVIMENTO), "passante": false},
+		{"id": "alcova", "x0": 1200.0, "x1": float(LARGHEZZA - 48), "y": float(PAVIMENTO), "passante": false},
+		{"id": "ripiano", "x0": 48.0, "x1": 200.0, "y": 392.0, "passante": false},
+		{"id": "terrazza", "x0": 1104.0, "x1": float(LARGHEZZA - 48), "y": 384.0, "passante": false},
+	]
+	for i in PIATTAFORME.size():
+		var p: Array = PIATTAFORME[i]
+		elenco.append({"id": "p%d" % i, "x0": float(p[0]), "x1": float(p[0] + p[2]), "y": float(p[1]), "passante": true})
+	return elenco
+
+
 func _blocco(rett: Rect2, con_lastra: bool, fa_ombra: bool) -> void:
 	var misura := RectangleShape2D.new()
 	misura.size = rett.size
@@ -297,13 +312,20 @@ func _cassa(dove: Vector2) -> void:
 
 
 func _nemici() -> void:
-	_nemico("scheletro", Vector2(640, PAVIMENTO), true, -1)
-	_nemico("scheletro", Vector2(940, PAVIMENTO), false, -1)
-	_nemico("mago", Vector2(700, 290), false, -1)
+	# Le nemesi che il sogno ricorda prendono il posto dei nemici dello stesso tipo
+	# (prima quelli svegli, che s'incontrano a viso aperto).
+	var da_mettere := {"scheletro": Memoria.nemesi_per("scheletro"), "mago": Memoria.nemesi_per("mago")}
+	_nemico("scheletro", Vector2(940, PAVIMENTO), false, -1, da_mettere)
+	_nemico("scheletro", Vector2(640, PAVIMENTO), true, -1, da_mettere)
+	_nemico("mago", Vector2(700, 290), false, -1, da_mettere)
 
 
-func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int) -> void:
+func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int, nemesi_libere: Dictionary = {}) -> void:
 	var n := Nemico.new()
+	var libere: Array = nemesi_libere.get(tipo, [])
+	if not libere.is_empty():
+		n.nemesi = (libere.pop_front() as Dictionary).duplicate()
+		addormentato = false  # una nemesi non dorme: ti aspetta
 	n.tipo = tipo
 	n.dorme = addormentato
 	n.verso = verso

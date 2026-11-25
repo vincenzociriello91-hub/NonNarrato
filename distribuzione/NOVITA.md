@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Il sogno ricorda: nemici che imparano e un bot che gioca davvero
+
+- **Nemesi**: il nemico che ti uccide torna nel sogno successivo più forte, con un nome, un titolo ("il Trionfante", "il Tiranno"…), occhi rossi e una frase che ricorda com'è finita. Se lo batti può tornare "lo Sfregiato", in cerca di vendetta; dopo tre sconfitte riposa per sempre. Anche un nemico normale battuto, a volte, giura vendetta.
+- **Nemici più svegli**: non vedono attraverso i muri, sentono i rumori (colpi, rotoli, scatti), ti cercano dove ti hanno visto l'ultima volta. Lo scheletro sceglie tra quattro tattiche (diretto, attesa, affondo, finta) e a volte balza indietro quando attacchi; il mago tiene le distanze e mira dritto, dove andrai o a raffica.
+- **Imparano da te**: il sogno nota le tue abitudini (rotoli spesso? scatti all'indietro? salti?) e i nemici si adattano, tenendo il conto delle tattiche che funzionano contro di te. Le nemesi ti dicono cosa hanno imparato.
+- **Il bot gioca come una persona**: niente più teletrasporti. Cammina, scavalca le casse, salta, si aggrappa ai bordi, scende dalle piattaforme, rotola nel cunicolo e combatte leggendo i colpi dei nemici e schivandoli. Ricorda quali passaggi e quali schivate funzionano e non ripete gli stessi errori. Nel rapporto trovi cosa ha imparato. Alla fine le nemesi create dal bot spariscono: le tue restano.
+- Le frasi lunghe a schermo ora vanno a capo.
+
 ## 0.1 — 120 FPS e pausa più fluida
 
 - Con il limite a 90 o 120 FPS il gioco ora prova davvero ad andare oltre i 60 (prima lo schermo cambiava frequenza ma il gioco restava a 60).

@@ -245,6 +245,9 @@ func _componi(motivo: String) -> Dictionary:
 		}
 	dati["grafica"] = grafica_ora
 	dati.merge(_sezioni)
+	var memoria := get_node_or_null("/root/Memoria")
+	if memoria != null:
+		dati["memoria"] = memoria.descrizione()
 	var equipaggiamento := get_node_or_null("/root/Equipaggiamento")
 	if equipaggiamento != null:
 		dati["aspetto"] = equipaggiamento.descrizione()

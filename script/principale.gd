@@ -243,6 +243,7 @@ func _su_morte() -> void:
 	tw.tween_property(_velo, "color:a", 1.0, 0.6)
 	await tw.finished
 	hud.messaggio("Il Dormiente ti sogna di nuovo.", 2.2)
+	Memoria.nuovo_sogno()
 	_nuova_stanza()
 	var tw2 := create_tween()
 	tw2.tween_interval(0.9)

@@ -50,6 +50,7 @@ var _avviso_messaggio: Tween
 
 func _ready() -> void:
 	layer = 10
+	add_to_group("hud")  # i nemici ci scrivono le loro frasi
 	_radice = Control.new()
 	_radice.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_radice.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -174,8 +175,10 @@ func _disponi() -> void:
 	_etichetta_sogno.position = Vector2(m[0] + 20.0, m[1] + 46.0)
 	_debug.position = Vector2(m[0] + 16.0, m[1] + 78.0)
 	_debug.visible = Impostazioni.leggi("gioco/debug")
-	_messaggio.position = Vector2(0.0, area.y * 0.3)
-	_messaggio.size = Vector2(area.x, 50.0)
+	# Le frasi lunghe (per esempio quelle delle nemesi) vanno a capo restando al centro.
+	_messaggio.position = Vector2(area.x * 0.12, area.y * 0.26)
+	_messaggio.size = Vector2(area.x * 0.76, 170.0)
+	_messaggio.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	var k := Dispositivo.scala_touch()
 	_touch.modulate.a = Impostazioni.leggi("controlli/opacita_touch")

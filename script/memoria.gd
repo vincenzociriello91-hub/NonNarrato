@@ -1,0 +1,297 @@
+extends Node
+# Il Dormiente ricorda. Tre memorie, salvate fra un sogno e l'altro in user://memoria.cfg:
+#  - le NEMESI: chi ti uccide torna più forte e superbo, con un titolo; chi batti può tornare
+#    sfregiato e in cerca di vendetta. Ognuna ricorda com'è finita l'ultima volta e lo dice.
+#  - le ABITUDINI di chi gioca (rotola spesso? scatta indietro? salta?): i nemici le studiano.
+#  - le TATTICHE: ogni tipo di nemico tiene il conto di quali tattiche vanno a segno contro di te
+#    (osserva, decide, agisce, verifica, ricorda) e usa più spesso quelle che funzionano.
+# Idea nata dal bot di Minecraft (ciclo osserva-decidi-agisci-verifica, non ripetere gli errori)
+# e dalle nemesi delle Cronache dei Varchi; scritto da zero per questo gioco.
+
+signal cambiata
+
+const PERCORSO := "user://memoria.cfg"
+const MAX_NEMESI := 3
+const POTERE_MAX := 4
+const SCONFITTE_PER_RIPOSARE := 3
+const PROBABILITA_VENDETTA := 0.3        # un nemico normale battuto può tornare come nemesi
+const ESPLORAZIONE := 0.2                # ogni tanto si prova una tattica diversa dalla migliore
+const DECADIMENTO := 0.85                # a ogni nuovo sogno le abitudini vecchie pesano meno
+
+const TITOLI_VINCITORE := ["il Trionfante", "il Tiranno", "l'Invitto", "il Flagello"]
+const TITOLI_VINTO := ["lo Sfregiato", "il Redivivo", "il Rancoroso", "l'Implacabile"]
+const NOMI_A := ["Ossa", "Cenere", "Lume", "Sale", "Ruggine", "Silenzio", "Brace", "Polvere", "Vespro", "Calce"]
+const NOMI_B := ["di Fossa", "Spenta", "del Pozzo", "senza Nome", "di Cripta", "Muta", "del Sonno", "Antica"]
+
+const TATTICHE := {
+	"scheletro": ["diretto", "attesa", "affondo", "finta"],
+	"mago": ["dritto", "anticipo", "raffica"],
+}
+# Abitudine di chi gioca -> cosa impara il nemico.
+const LEZIONI := {
+	"rotolate": "aspetta", "scatti_indietro": "affondo", "salti": "anticipa",
+	"attacchi": "arretra", "scatti_avanti": "arretra",
+}
+const LEZIONE_TATTICA := {
+	"scheletro": {"aspetta": "attesa", "affondo": "affondo", "anticipa": "attesa", "arretra": "finta"},
+	"mago": {"aspetta": "anticipo", "affondo": "raffica", "anticipa": "anticipo", "arretra": "raffica"},
+}
+const SPIEGA_LEZIONE := {
+	"aspetta": "Ha imparato che rotoli spesso: aspetterà che tu finisca.",
+	"affondo": "Ha imparato che scatti all'indietro: ti raggiungerà più lontano.",
+	"anticipa": "Ha imparato che salti spesso: mirerà dove atterrerai.",
+	"arretra": "Ha imparato che attacchi per primo: farà un passo indietro e risponderà.",
+}
+# Pesi: gli attacchi sono sempre tanti, contano meno nel capire "che tipo di giocatore sei".
+const PESI := {"attacchi": 0.3, "rotolate": 1.0, "scatti_indietro": 1.2, "scatti_avanti": 0.8, "salti": 0.5}
+
+const FRASI := {
+	"vittoria": {
+		"scheletro": ["Ancora tu? L'ultima volta sei finito nella polvere ai miei piedi.",
+			"Ti ho già spezzato una volta. Il sogno lo ricorda.", "Torni a cadere, Non Narrato?"],
+		"mago": ["La mia luce ti ha già spento una volta.", "Il Dormiente sogna la tua fine, e io la scrivo.",
+			"Sei tornato a farti bruciare."],
+	},
+	"sconfitta": {
+		"scheletro": ["Mi hai lasciato questa crepa nelle ossa. Oggi te la restituisco.",
+			"Dalla polvere si torna. Io sono tornato per te.", "Il sogno mi ha ricomposto per la vendetta."],
+		"mago": ["Mi hai spento una volta. Il buio mi ha insegnato.", "Ricordo la tua lama. Ricordo tutto.",
+			"Sono tornato dal fondo del sogno, per te."],
+	},
+}
+
+var nemesi: Array = []          # record: vedi _nuova_nemesi()
+var abitudini := {}             # azione -> conteggio (con decadimento)
+var tattiche := {}              # tipo -> {tattica: [prove, riuscite]}
+var sogni := 0
+var _caso := RandomNumberGenerator.new()
+var _contatore_id := 0
+
+
+func _ready() -> void:
+	_caso.seed = 7331
+	var cfg := ConfigFile.new()
+	if cfg.load(PERCORSO) != OK:
+		return
+	nemesi = cfg.get_value("memoria", "nemesi", [])
+	abitudini = cfg.get_value("memoria", "abitudini", {})
+	tattiche = cfg.get_value("memoria", "tattiche", {})
+	sogni = int(cfg.get_value("memoria", "sogni", 0))
+	_contatore_id = int(cfg.get_value("memoria", "contatore", 0))
+
+
+# ------------------------------------------------------------------ abitudini
+
+func registra(azione: String) -> void:
+	if not PESI.has(azione):
+		return
+	abitudini[azione] = float(abitudini.get(azione, 0.0)) + 1.0
+
+
+func abitudine_principale() -> String:
+	var migliore := ""
+	var punti := 0.0
+	for azione: String in PESI:
+		var p: float = float(abitudini.get(azione, 0.0)) * float(PESI[azione])
+		if p > punti:
+			punti = p
+			migliore = azione
+	return migliore if punti >= 3.0 else ""
+
+
+func lezione_attuale() -> String:
+	return LEZIONI.get(abitudine_principale(), "")
+
+
+func nuovo_sogno() -> void:
+	sogni += 1
+	for azione: String in abitudini.keys():
+		abitudini[azione] = float(abitudini[azione]) * DECADIMENTO
+	_salva()
+
+
+# ------------------------------------------------------------------ tattiche
+
+func scegli_tattica(tipo: String, lezione: String, caso: RandomNumberGenerator) -> String:
+	# Osserva (cosa ha funzionato finora), decide (la migliore, a volte una nuova), agisce.
+	var elenco: Array = TATTICHE.get(tipo, ["diretto"])
+	var da_lezione: String = (LEZIONE_TATTICA.get(tipo, {}) as Dictionary).get(lezione, "")
+	if da_lezione != "" and caso.randf() < 0.5:
+		return da_lezione
+	if caso.randf() < ESPLORAZIONE:
+		return elenco[caso.randi() % elenco.size()]
+	var migliore: String = elenco[0]
+	var punti := -1.0
+	var conti: Dictionary = tattiche.get(tipo, {})
+	for t: String in elenco:
+		var c: Array = conti.get(t, [0, 0])
+		var p := (1.0 + float(c[1])) / (2.0 + float(c[0]))   # chi non è mai stata provata parte da metà
+		if p > punti:
+			punti = p
+			migliore = t
+	return migliore
+
+
+func esito_tattica(tipo: String, tattica: String, riuscita: bool) -> void:
+	# Verifica e ricorda: la prossima volta la scelta terrà conto di com'è andata.
+	if not tattiche.has(tipo):
+		tattiche[tipo] = {}
+	var c: Array = (tattiche[tipo] as Dictionary).get(tattica, [0, 0])
+	c = [int(c[0]) + 1, int(c[1]) + (1 if riuscita else 0)]
+	tattiche[tipo][tattica] = c
+
+
+# ------------------------------------------------------------------ nemesi
+
+func nemesi_per(tipo: String) -> Array:
+	return nemesi.filter(func(n: Dictionary) -> bool: return n["tipo"] == tipo)
+
+
+func nemico_ha_ucciso(n: Node) -> void:
+	# Chi ti uccide se lo ricorda: diventa (o resta) una nemesi, più forte.
+	if n == null or not is_instance_valid(n) or not ("tipo" in n):
+		return
+	var rec: Dictionary = n.get("nemesi")
+	if not rec.is_empty():
+		rec = _trova(rec["id"])
+	if rec.is_empty():
+		rec = _nuova_nemesi(n.get("tipo"))
+		_metti(rec)
+		Rapporto.evento("nemesi_nasce", {"nome": nome_completo(rec), "motivo": "vittoria"})
+	rec["vittorie"] = int(rec["vittorie"]) + 1
+	rec["potere"] = mini(POTERE_MAX, int(rec["potere"]) + (1 if int(rec["vittorie"]) > 1 else 0))
+	rec["titolo"] = TITOLI_VINCITORE[clampi(int(rec["vittorie"]) - 1, 0, TITOLI_VINCITORE.size() - 1)]
+	rec["esito"] = "vittoria"
+	rec["lezione"] = lezione_attuale()
+	Rapporto.evento("nemesi_vince", {"nome": nome_completo(rec), "potere": rec["potere"]})
+	_salva()
+
+
+func nemico_sconfitto(n: Node) -> String:
+	# Restituisce una frase da mostrare, se c'è qualcosa da dire.
+	if n == null or not ("tipo" in n):
+		return ""
+	var rec: Dictionary = n.get("nemesi")
+	if not rec.is_empty():
+		rec = _trova(rec["id"])
+		if rec.is_empty():
+			return ""
+		rec["sconfitte"] = int(rec["sconfitte"]) + 1
+		if int(rec["sconfitte"]) >= SCONFITTE_PER_RIPOSARE:
+			nemesi.erase(rec)
+			Rapporto.evento("nemesi_riposa", {"nome": nome_completo(rec)})
+			_salva()
+			return "%s non tornerà più nel sogno." % nome_completo(rec)
+		rec["esito"] = "sconfitta"
+		rec["cicatrice"] = true
+		rec["potere"] = mini(POTERE_MAX, int(rec["potere"]) + 1)
+		rec["titolo"] = TITOLI_VINTO[clampi(int(rec["sconfitte"]) - 1, 0, TITOLI_VINTO.size() - 1)]
+		rec["lezione"] = lezione_attuale()
+		Rapporto.evento("nemesi_sconfitta", {"nome": nome_completo(rec)})
+		_salva()
+		return "%s si dissolve... ma il sogno lo ricorda." % nome_completo(rec)
+	if _caso.randf() < PROBABILITA_VENDETTA:
+		var nuova := _nuova_nemesi(n.get("tipo"))
+		nuova["esito"] = "sconfitta"
+		nuova["cicatrice"] = true
+		nuova["titolo"] = TITOLI_VINTO[0]
+		nuova["lezione"] = lezione_attuale()
+		_metti(nuova)
+		Rapporto.evento("nemesi_nasce", {"nome": nome_completo(nuova), "motivo": "vendetta"})
+		_salva()
+		return "Qualcosa, nel sogno, giura vendetta."
+	return ""
+
+
+func incontro(rec: Dictionary) -> String:
+	# La frase con cui una nemesi ti accoglie, più quello che ha imparato.
+	rec = _trova(rec.get("id", ""))
+	if rec.is_empty():
+		return ""
+	rec["incontri"] = int(rec["incontri"]) + 1
+	var frasi: Array = (FRASI.get(rec["esito"], FRASI["vittoria"]) as Dictionary).get(rec["tipo"], ["..."])
+	var frase: String = frasi[(int(rec["incontri"]) - 1) % frasi.size()]
+	var testo := "%s: «%s»" % [nome_completo(rec), frase]
+	var lezione: String = rec.get("lezione", "")
+	if SPIEGA_LEZIONE.has(lezione):
+		testo += "\n" + SPIEGA_LEZIONE[lezione]
+	Rapporto.evento("nemesi_incontro", {"nome": nome_completo(rec)})
+	_salva()
+	return testo
+
+
+func nome_completo(rec: Dictionary) -> String:
+	return "%s %s" % [rec.get("nome", "?"), rec.get("titolo", "")]
+
+
+func _nuova_nemesi(tipo: String) -> Dictionary:
+	if nemesi.size() >= MAX_NEMESI:
+		# Il posto lo prende chi ha più da raccontare: esce la nemesi più debole.
+		var debole: Dictionary = nemesi[0]
+		for r: Dictionary in nemesi:
+			if int(r["potere"]) < int(debole["potere"]):
+				debole = r
+		nemesi.erase(debole)
+	_contatore_id += 1
+	var nome := ""
+	for prova in 8:  # niente due nemesi con lo stesso nome
+		nome = "%s %s" % [NOMI_A[_caso.randi() % NOMI_A.size()], NOMI_B[_caso.randi() % NOMI_B.size()]]
+		if not nemesi.any(func(r: Dictionary) -> bool: return r["nome"] == nome):
+			break
+	return {"id": "n%d" % _contatore_id, "tipo": tipo, "nome": nome, "titolo": TITOLI_VINCITORE[0], "potere": 1,
+			"vittorie": 0, "sconfitte": 0, "esito": "vittoria", "lezione": "", "cicatrice": false, "incontri": 0}
+
+
+func _trova(id: String) -> Dictionary:
+	for r: Dictionary in nemesi:
+		if r["id"] == id:
+			return r
+	return {}
+
+
+func _metti(rec: Dictionary) -> void:
+	if _trova(rec["id"]).is_empty():
+		nemesi.append(rec)
+
+
+# ------------------------------------------------------------------ stato e salvataggio
+
+func stato() -> Dictionary:
+	return {"nemesi": nemesi.duplicate(true), "abitudini": abitudini.duplicate(), "tattiche": tattiche.duplicate(true),
+			"sogni": sogni, "contatore": _contatore_id}
+
+
+func ripristina_stato(s: Dictionary) -> void:
+	nemesi = (s.get("nemesi", []) as Array).duplicate(true)
+	abitudini = (s.get("abitudini", {}) as Dictionary).duplicate()
+	tattiche = (s.get("tattiche", {}) as Dictionary).duplicate(true)
+	sogni = int(s.get("sogni", 0))
+	_contatore_id = int(s.get("contatore", 0))
+	_salva()
+
+
+func descrizione() -> Dictionary:
+	var tat := {}
+	for tipo: String in tattiche:
+		tat[tipo] = {}
+		for t: String in tattiche[tipo]:
+			var c: Array = tattiche[tipo][t]
+			tat[tipo][t] = "%d/%d" % [int(c[1]), int(c[0])]
+	return {
+		"nemesi": nemesi.map(func(r: Dictionary) -> String: return "%s (%s, potere %d, vinte %d, perse %d, lezione %s)" % [
+			nome_completo(r), r["tipo"], r["potere"], r["vittorie"], r["sconfitte"], r.get("lezione", "")]),
+		"abitudine": abitudine_principale(),
+		"tattiche": tat,
+		"sogni": sogni,
+	}
+
+
+func _salva() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("memoria", "nemesi", nemesi)
+	cfg.set_value("memoria", "abitudini", abitudini)
+	cfg.set_value("memoria", "tattiche", tattiche)
+	cfg.set_value("memoria", "sogni", sogni)
+	cfg.set_value("memoria", "contatore", _contatore_id)
+	cfg.save(PERCORSO)
+	cambiata.emit()

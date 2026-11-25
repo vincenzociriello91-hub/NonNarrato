@@ -78,6 +78,7 @@ var _maschera := 0
 var _cassa: RigidBody2D
 var _scarto_cassa := 0.0
 var _tirata_contata := false
+var _colpito_da: Node
 
 var _forma: CollisionShape2D
 var _rett: RectangleShape2D
@@ -228,8 +229,8 @@ func _normale(delta: float, a_terra: bool) -> void:
 	# Scavalcare: da terra con su + direzione contro un ostacolo basso; in aria ci si aggrappa da soli al bordo.
 	if absf(direzione) > 0.01:
 		var arrivo: Variant = null
-		if a_terra and Input.is_action_pressed("su") and is_on_wall():
-			arrivo = _appiglio(SCAVALCO_DA_TERRA, 6.0)
+		if a_terra and Input.is_action_pressed("su"):
+			arrivo = _appiglio(SCAVALCO_DA_TERRA, 6.0)  # il raggio guarda solo subito davanti
 		elif not a_terra and velocity.y > -60.0:
 			arrivo = _appiglio(APPIGLIO_IN_ARIA, 8.0)
 		if arrivo != null:
@@ -250,7 +251,7 @@ func _normale(delta: float, a_terra: bool) -> void:
 			position.y += 2.0
 		else:
 			velocity.y = -SALTO
-			Rapporto.conta("salti")
+			_conta("salti")
 			_polvere(5)
 		_t_memoria_salto = 0.0
 		_t_coyote = 0.0
@@ -275,7 +276,7 @@ func _inizia_attacco(numero: int, a_terra: bool) -> void:
 	sprite.riproduci("attacco%d" % numero, true)
 	if a_terra:
 		velocity.x = verso * 80.0
-	Rapporto.conta("attacchi")
+	_conta("attacchi")
 
 
 func _attacco(delta: float, a_terra: bool) -> void:
@@ -328,6 +329,12 @@ func _colpisci() -> void:
 			Effetti.fermo_immagine(self, 0.05)
 
 
+func _conta(azione: String) -> void:
+	# Nel rapporto e nella memoria del sogno: i nemici studiano le tue abitudini.
+	Rapporto.conta(azione)
+	Memoria.registra(azione)
+
+
 func _all_indietro(direzione: float) -> bool:
 	# Direzione opposta allo sguardo (o appena girati): la mossa va all'indietro e lo sguardo resta.
 	if absf(direzione) <= 0.01:
@@ -351,7 +358,7 @@ func _inizia_rotolata(direzione: float) -> void:
 	_t_stato = 0.0
 	_imposta_forma(BASSO)
 	sprite.riproduci("rotolata_indietro" if indietro else "rotolata", true)
-	Rapporto.conta("rotolate")
+	_conta("rotolate")
 	if indietro:
 		Rapporto.conta("rotolate_indietro")
 	_polvere(6)
@@ -401,7 +408,7 @@ func _inizia_schivata(a_terra: bool, direzione: float = 0.0) -> void:
 		_polvere(4)
 	sprite.riproduci("scatto" if _schivata_avanti else "schivata", true)
 	Rapporto.conta("schivate")
-	Rapporto.conta("scatti_avanti" if _schivata_avanti else "scatti_indietro")
+	_conta("scatti_avanti" if _schivata_avanti else "scatti_indietro")
 
 
 func _velocita_schivata() -> float:
@@ -533,7 +540,7 @@ func intoccabile() -> bool:
 	return stato == Stato.ROTOLATA and _t_stato > 0.03 and _t_stato < 0.33
 
 
-func subisci(danno: int, da: Vector2, spinta: float) -> bool:
+func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 	if stato == Stato.MORTO:
 		return false
 	if intoccabile():
@@ -541,6 +548,8 @@ func subisci(danno: int, da: Vector2, spinta: float) -> bool:
 			Rapporto.conta("colpi_evitati")
 		return false
 	vita = maxi(0, vita - danno)
+	if chi != null:
+		_colpito_da = chi
 	vita_cambiata.emit(vita, VITA_MASSIMA)
 	Rapporto.conta("colpi_subiti")
 	Rapporto.evento("colpito", {"vita": vita, "x": roundi(global_position.x), "y": roundi(global_position.y)})
@@ -574,6 +583,8 @@ func _muori() -> void:
 	_bersaglio.set_deferred("monitorable", false)
 	sprite.riproduci("morte", true)
 	Rapporto.conta("morti")
+	if is_instance_valid(_colpito_da):
+		Memoria.nemico_ha_ucciso(_colpito_da)  # chi ti uccide se lo ricorderà
 	Rapporto.evento("morte", {"x": roundi(global_position.x), "y": roundi(global_position.y)})
 	Controlli.vibra(1.0, 0.4)
 

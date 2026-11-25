@@ -6,14 +6,18 @@ extends Area2D
 const COLORE := Color(0.42, 0.86, 1.0)
 
 var velocita := Vector2.ZERO
+var autore: Node                  # chi l'ha lanciata: saprà se è andata a segno
+var tattica := ""
 var _vita := 3.5
 var _spenta := false
+var _colpito := false
 
 
 func _ready() -> void:
 	collision_layer = Effetti.S_BERSAGLI
 	collision_mask = Effetti.S_MONDO | Effetti.S_BERSAGLIO_GIOCATORE
 	set_meta("bersaglio", self)
+	add_to_group("sfere")  # il bot le guarda arrivare
 	z_index = 12
 
 	var cerchio := CircleShape2D.new()
@@ -65,7 +69,8 @@ func _physics_process(delta: float) -> void:
 
 func _su_area(area: Area2D) -> void:
 	var chi: Variant = area.get_meta("bersaglio", null)
-	if chi is Giocatore and (chi as Giocatore).subisci(1, global_position, 150.0):
+	if chi is Giocatore and (chi as Giocatore).subisci(1, global_position, 150.0, autore):
+		_colpito = true
 		_svanisci()
 
 
@@ -79,5 +84,7 @@ func _svanisci() -> void:
 	if _spenta:
 		return
 	_spenta = true
+	if is_instance_valid(autore) and autore.has_method("esito_sfera"):
+		autore.esito_sfera(tattica, _colpito)
 	Effetti.scoppio(get_parent(), global_position, COLORE, 8, 70.0, 0.3, 0.0)
 	queue_free()

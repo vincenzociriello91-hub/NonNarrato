@@ -152,7 +152,7 @@ func _costruisci() -> void:
 		chiudi()
 		bot_richiesto.emit())
 	var spiega := Label.new()
-	spiega.text = "Il bot gioca da solo per qualche minuto e prova tutto (mosse, aspetti, qualità). Alla fine rimette le tue scelte, salva il rapporto e chiude il gioco. Premi pausa per fermarlo."
+	spiega.text = "Il bot gioca da solo per qualche minuto come una persona: si muove, combatte, muore e affronta la sua nemesi, prova mosse, aspetti e qualità. Alla fine rimette le tue scelte e i tuoi ricordi, salva il rapporto e chiude il gioco. Premi pausa per fermarlo."
 	spiega.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	spiega.add_theme_font_size_override("font_size", 17)
 	spiega.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))

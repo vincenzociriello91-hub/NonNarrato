@@ -66,9 +66,19 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Gruppi di mosse (decisione di Vincenzo 25/11/2026: "altri move set per provare posizioni e azioni"): `mosse` in `arte/figure/protagonista.json` cambia solo le clip, mai il numero di fotogrammi delle azioni di gioco (= durata). Scelta automatica in `Equipaggiamento.mosse_automatiche()` (arma, poi mano sinistra), oppure a mano. `prove` = azioni extra solo per l'anteprima del menu.
 - Con Vulkan una CanvasTexture che punta a un viewport va sganciata prima di liberarla (vedi `FiguraViva._notification`), altrimenti "Attempted to free invalid ID". Vulkan in locale: `apt-get install mesa-vulkan-drivers`, poi `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json godot --rendering-driver vulkan --rendering-method mobile ...`.
 
+## Nemici e memoria (nemesi)
+
+- Decisione di Vincenzo (25/11/2026): dare ai nemici e al bot "l'intelligenza del bot di Minecraft e del nemesis system dei Varchi". Ispirazione, non copia (il Nemesis System originale è brevettato).
+- `Memoria` (autoload, `user://memoria.cfg`): nemesi (max 3; titoli da vincitore o da sfregiato, potere 1-4, frase d'incontro, lezione imparata dall'abitudine principale di chi gioca; 3 sconfitte = riposa per sempre; 30% di vendetta per i nemici normali battuti), abitudini con decadimento a ogni sogno, tattiche per tipo di nemico con conteggio prove/riuscite (scelta: lezione 50%, esplorazione 20%, altrimenti la migliore).
+- `nemico.gd`: vista con raggio contro `S_MONDO`, udito 150 px per colpi/rotoli/scatti/scavalchi, ricerca dell'ultima posizione 3,5 s. Scheletro: diretto, attesa (colpisce quando chi gioca è scoperto), affondo (passo avanti + portata), finta; balzo indietro se attacchi. Mago: tiene le distanze, dritto/anticipo/raffica; le sfere riferiscono se hanno colpito (`Proiettile.autore`). Le nemesi prendono il posto dei nemici dello stesso tipo in `Stanza._nemici()`.
+- Equilibrio delle nemesi: +1 vita per potere, corsa +10%, mago ricarica -6% e sfere +5% per potere. Il mago a potere 4 con +8%/-10% uccideva il bot di continuo: non tornare a quei valori.
+- Il giocatore passa il colpevole a `subisci(..., chi)`; `_muori` chiama `Memoria.nemico_ha_ucciso`.
+
 ## Bot di prova
 
 - Decisione di Vincenzo (25/11/2026): un bot che gioca in locale, fa tutto e alla chiusura manda il rapporto.
+- Il bot non si teletrasporta mai: `_vai_a()` usa il `Navigatore` (superfici da `Stanza.superfici()`, archi salto/salto_su/attraversa/caduta/rotola, Dijkstra, esperienza in `user://bot_esperienza.cfg` che corregge il punto di stacco dopo un errore). Le casse sulla strada si scavalcano (su + direzione); i nemici svegli vicini si affrontano. In combattimento legge la carica del colpo nemico, attacca quando è scoperto e sceglie la schivata che ha funzionato di più (scatto indietro, rotolo indietro o avanti, salto, colpo sulla sfera).
+- Ordine delle fasi: movimento, cassa e barili, scheletro, morte (il bot si lascia battere dal secondo scheletro), nemesi (nuovo sogno: la nemesi torna, si ripulisce la stanza), cunicolo e piattaforme (terrazza, p2, ripiano), schivate, qualità, tasti, menu, mosse, ambiente, gioco libero (visita tutte le zone), prestazioni. All'inizio il bot azzera la memoria del sogno e alla fine rimette quella di chi gioca.
 - `script/bot.gd` contiene tutto lo scenario: lo usano il tasto "Fai giocare il bot" del menu, `-- --bot` e la prova automatica (`test/prova.gd` lo avvia senza chiudere e aggiunge solo controlli da computer). Nuove funzioni = nuovi controlli nel bot.
 - Prima di partire salva impostazioni e aspetto di chi gioca in `user://bot_in_corso.txt` (var_to_str, non JSON: i tipi devono restare); alla fine li rimette. Se il gioco muore a metà, `Bot.ripara_se_interrotto()` all'avvio.
 - Durante il bot: vibrazione spenta, adattamento automatico della qualità fermo (`Dispositivo.bot_attivo`), pausa di chi gioca = stop del bot.

@@ -71,10 +71,19 @@ si scelgono dal menu di pausa, sezione Aspetto.
 - `strumenti/` — strumenti di lavoro. `test/` — prova automatica.
 - `distribuzione/` — novità e chiave di firma del canale di prova.
 
+## Nemici e memoria del sogno
+
+`script/memoria.gd` (autoload `Memoria`, file `user://memoria.cfg`) ricorda tre cose: le **nemesi** (chi ti uccide
+torna più forte con nome e titolo; chi batti può tornare sfregiato), le **abitudini** di chi gioca e le **tattiche**
+che funzionano contro di lui. `script/nemico.gd` usa questi ricordi: vista bloccata dai muri, udito, ricerca
+dell'ultima posizione vista, tattiche scelte secondo i risultati (osserva, decide, agisce, verifica, ricorda).
+
 ## Bot di prova
 
 Dal menu di pausa, "Fai giocare il bot" (oppure `godot --path . -- --bot` sul computer). `script/bot.gd` gioca da solo
-la stanza, prova mosse, aspetti e qualità, misura la fluidità di ogni fase, rimette le scelte di chi gioca, salva il
+la stanza come una persona (solo comandi, nessun teletrasporto: i percorsi li trova `script/navigatore.gd`, che
+ricorda quali passaggi falliscono), combatte schivando, muore contro uno scheletro e affronta la sua nemesi, prova mosse,
+aspetti e qualità, misura la fluidità di ogni fase, rimette le scelte di chi gioca, salva il
 rapporto con la sezione `bot` e chiude il gioco. Se il gioco si chiude a metà, al riavvio le scelte vengono rimesse.
 
 ## Prove
