@@ -47,13 +47,22 @@ ma le torce li illuminano come se avessero volume. Un ultimo filtro porta i colo
 
 I fogli già pronti sono nel repository: questi due passaggi servono solo quando si cambia un personaggio o un oggetto.
 
+Il protagonista è diverso: cambia aspetto con l'equipaggiamento, quindi non ha un foglio già pronto.
+Tutti i personaggi KayKit hanno lo stesso scheletro, così teste, busti, braccia, gambe, mantelli, copricapi e armi
+si possono scambiare. `strumenti/crea_manichino.gd` li mette tutti su un unico **manichino** (`modelli/manichino.scn`)
+e nel gioco `script/figura_viva.gd` lo fotografa in tempo reale, nello stesso stile dei fogli (colore, normali, contorno),
+solo quando cambia il fotogramma o l'aspetto. Gli oggetti indossabili e i colori sono in `script/equipaggiamento.gd`;
+si scelgono dal menu di pausa, sezione Aspetto.
+
 ## Cartelle
 
-- `script/` — il gioco. `principale.gd` avvia tutto; `stanza.gd` costruisce la stanza; `giocatore.gd`, `nemico.gd`,
+- `script/` — il gioco. `principale.gd` avvia tutto; `stanza.gd` costruisce la stanza; `giocatore.gd`, `figura_viva.gd`,
+  `equipaggiamento.gd`, `nemico.gd`,
   `rompibile.gd`, `proiettile.gd`; `dispositivo.gd` (riconoscimento e qualità), `controlli.gd`, `impostazioni.gd`,
   `rapporto.gd`; `hud.gd` e `menu.gd` per l'interfaccia.
 - `shader/` — filtro palette e nebbia.
-- `arte/` — sprite e grafica d'ambiente. `sorgenti3d/` — modelli originali (non entrano nell'APK).
+- `arte/` — sprite e grafica d'ambiente; `arte/figure/` le animazioni del protagonista. `modelli/` — il manichino.
+  `sorgenti3d/` — modelli originali (non entrano nell'APK).
 - `strumenti/` — strumenti di lavoro. `test/` — prova automatica.
 - `distribuzione/` — novità e chiave di firma del canale di prova.
 
@@ -64,7 +73,7 @@ godot --headless --path . --import
 godot --headless --fixed-fps 60 --path . -- --prova
 ```
 
-Un bot gioca la stanza (corsa, salto, colpi, cassa, barili, nemici, cunicolo, piattaforme, tasti a schermo, menu, morte)
+Un bot gioca la stanza (corsa, salto, colpi, cassa, barili, nemici, cunicolo, piattaforme, tasti a schermo, menu, aspetto, morte)
 e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno schermo e `--schermate=/cartella` salva anche le immagini.
 
 ## Pubblicazione

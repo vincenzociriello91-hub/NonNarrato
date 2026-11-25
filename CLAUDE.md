@@ -53,6 +53,17 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Ogni voce produce `arte/sprite/<nome>.png`, `<nome>_n.png` (normali) e `<nome>.json`. Il gioco li carica con `SpriteAnimato`.
 - Scala: 24 pixel per unità del modello. Tela del gioco: circa 640x360, ingrandita di un numero intero.
 
+## Aspetto del protagonista (equipaggiamento)
+
+- Decisione di Vincenzo (25/11/2026): l'aspetto cambia con accessori, armature e armi; base = personaggi KayKit attuali; per ora solo aspetto, niente effetti sul combattimento.
+- Il protagonista non usa un foglio: `FiguraViva` (estende `SpriteAnimato`) fotografa in tempo reale `modelli/manichino.scn` in due SubViewport 96x96 (colore e normali, stesso mondo 3D, strati 1 e 2), solo quando cambia fotogramma o aspetto. Contorno e bordi netti li fa lo shader dello sprite.
+- Animazioni del protagonista: `arte/figure/protagonista.json` (stesso schema della voce in `render_sprite.json`). Il manichino ha solo le clip elencate lì.
+- Manichino: `godot --headless --path . -s res://strumenti/crea_manichino.gd` (dopo `python3 strumenti/genera_arte.py texture`). Pezzi chiamati `<Fonte>__<mesh>`.
+- Oggetti, posti e colori: `script/equipaggiamento.gd` (autoload `Equipaggiamento`, salvato in `user://equipaggiamento.cfg`). Un oggetto nuovo = pezzi nel manichino + riga in `OGGETTI`; la prova controlla che ogni pezzo esista.
+- Le ossa non mosse da un'animazione tornano a riposo (`deterministic = true`): prima restavano nella posa dell'animazione precedente.
+- Profilo "bassa": niente foto delle normali (`figura_normali`).
+- Pacchetti in più (armature, elmi): solo CC0, da quaternius.com, kenney.nl, opengameart.org, itch.io quando Vincenzo li aggiunge ai domini consentiti.
+
 ## Regole del codice
 
 - Le scene si costruiscono da codice (`stanza.gd`): niente editor.

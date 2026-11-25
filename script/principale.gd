@@ -70,6 +70,7 @@ func _ready() -> void:
 
 	menu = Menu.new()
 	menu.chiuso.connect(_riprendi)
+	menu.figura = func() -> Node: return stanza.giocatore.sprite if is_instance_valid(stanza) else null
 	add_child(menu)
 
 	get_window().size_changed.connect(_ridimensiona)
@@ -177,6 +178,9 @@ func _riscalda() -> void:
 	barile.subisci(9, dove, 0.0)
 	# Tutte le torce accese con le ombre per qualche fotogramma, poi si torna alla regola normale.
 	stanza.riscalda_luci(0.4)
+	# Tutti i pezzi del manichino per un attimo: i loro shader sono pronti prima di cambiare aspetto.
+	if stanza.giocatore.sprite.has_method("riscalda"):
+		stanza.giocatore.sprite.call("riscalda")
 
 
 func _contesto() -> Dictionary:
@@ -191,6 +195,7 @@ func _contesto() -> Dictionary:
 		"torce_con_ombra": stanza.torce_con_ombra(),
 		"nemici": get_tree().get_nodes_in_group("nemici").size(),
 		"menu": menu.aperto,
+		"foto_figura": int(g.sprite.get("disegni")) if "disegni" in g.sprite else 0,
 	}
 
 

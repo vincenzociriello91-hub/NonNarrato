@@ -80,7 +80,7 @@ func _ready() -> void:
 	add_child(_forma)
 	_imposta_forma(ALTO)
 
-	sprite = SpriteAnimato.new()
+	sprite = FiguraViva.new()  # aspetto dato dall'equipaggiamento, fotografato dal manichino 3D
 	sprite.carica("protagonista")
 	sprite.light_mask = Effetti.L_DAVANTI
 	add_child(sprite)

@@ -120,6 +120,9 @@ static func occlusore(genitore: Node, rett: Rect2) -> LightOccluder2D:
 
 static func lampo(sprite: CanvasItem, durata: float = 0.08) -> void:
 	# Lo sprite appare per un attimo a piena luce: segnala il colpo ricevuto.
+	if sprite.has_method("lampo"):
+		sprite.call("lampo", durata)  # la figura viva ha il suo materiale e lo rimette da sola
+		return
 	sprite.material = materiale_piatto()
 	await sprite.get_tree().create_timer(durata).timeout
 	if is_instance_valid(sprite):

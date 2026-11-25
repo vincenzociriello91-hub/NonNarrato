@@ -238,6 +238,9 @@ func _componi(motivo: String) -> Dictionary:
 			"letture": _letture_termiche,
 		}
 	dati["grafica"] = grafica_ora
+	var equipaggiamento := get_node_or_null("/root/Equipaggiamento")
+	if equipaggiamento != null:
+		dati["aspetto"] = equipaggiamento.descrizione()
 	if controlli != null:
 		dati["comandi"] = {
 			"modo": controlli.nome_modo(),

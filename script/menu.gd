@@ -12,6 +12,7 @@ const LIMITI_FPS := [0, 30, 60, 90, 120]
 
 var aperto := false
 var versione_nuova := ""
+var figura := Callable()          # restituisce lo sprite del protagonista (per l'anteprima)
 
 var _fondo: ColorRect
 var _riprendi: Button
@@ -27,6 +28,9 @@ var _esito: Label
 var _aggiorna: Button
 var _novita: Label
 var _richiesta: HTTPRequest
+var _anteprima: TextureRect
+var _scelte_oggetto := {}         # posto -> OptionButton
+var _scelte_colore := {}          # posto -> OptionButton
 var _collegamento := ""
 var _in_caricamento := false
 
@@ -38,6 +42,7 @@ func _ready() -> void:
 	_fondo.visible = false
 	Impostazioni.cambiata.connect(func(_chiave: String) -> void: _carica_valori())
 	Dispositivo.profilo_cambiato.connect(_carica_valori)
+	Equipaggiamento.cambiato.connect(_carica_valori)
 	_richiesta = HTTPRequest.new()
 	_richiesta.timeout = 8.0
 	_richiesta.request_completed.connect(_su_risposta)
@@ -87,6 +92,8 @@ func _costruisci() -> void:
 
 	_riprendi = _pulsante(colonna, "Riprendi", chiudi)
 
+	_costruisci_aspetto(colonna)
+
 	_sezione(colonna, "Grafica")
 	_qualita = OptionButton.new()
 	for nome in ["Automatica", "Bassa", "Media", "Alta"]:
@@ -123,6 +130,54 @@ func _costruisci() -> void:
 	_novita.add_theme_font_size_override("font_size", 17)
 	_novita.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
 	colonna.add_child(_novita)
+
+
+func _costruisci_aspetto(colonna: VBoxContainer) -> void:
+	# Cosa indossa il Non Narrato: per ogni posto un oggetto e un colore. Per ora cambia solo l'aspetto.
+	_sezione(colonna, "Aspetto")
+	_anteprima = TextureRect.new()
+	_anteprima.custom_minimum_size = Vector2(288, 288)
+	_anteprima.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_anteprima.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_anteprima.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_anteprima.material = FiguraViva.materiale_anteprima()
+	_anteprima.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	colonna.add_child(_anteprima)
+	for posto in Equipaggiamento.POSTI:
+		var riga := HBoxContainer.new()
+		riga.add_theme_constant_override("separation", 8)
+		var e := Label.new()
+		e.text = Equipaggiamento.NOMI_POSTI[posto]
+		e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		e.add_theme_font_size_override("font_size", 19)
+		riga.add_child(e)
+		var oggetto := OptionButton.new()
+		oggetto.custom_minimum_size = Vector2(250, 48)
+		oggetto.clip_text = true
+		for id: String in Equipaggiamento.oggetti_del_posto(posto):
+			oggetto.add_item(Equipaggiamento.nome(id))
+			oggetto.set_item_metadata(oggetto.item_count - 1, id)
+		oggetto.item_selected.connect(func(i: int) -> void:
+			Equipaggiamento.indossa(posto, String(oggetto.get_item_metadata(i))))
+		riga.add_child(oggetto)
+		var colore := OptionButton.new()
+		colore.custom_minimum_size = Vector2(150, 48)
+		colore.clip_text = true
+		for c: String in Equipaggiamento.COLORI:
+			colore.add_item(String(Equipaggiamento.COLORI[c][0]))
+			colore.set_item_metadata(colore.item_count - 1, c)
+		colore.item_selected.connect(func(i: int) -> void:
+			Equipaggiamento.colora(posto, String(colore.get_item_metadata(i))))
+		riga.add_child(colore)
+		colonna.add_child(riga)
+		_scelte_oggetto[posto] = oggetto
+		_scelte_colore[posto] = colore
+	var tasti := HBoxContainer.new()
+	tasti.add_theme_constant_override("separation", 10)
+	colonna.add_child(tasti)
+	for coppia: Array in [["Casuale", func() -> void: Equipaggiamento.casuale()], ["Ripristina aspetto", Equipaggiamento.ripristina]]:
+		var b := _pulsante(tasti, coppia[0], coppia[1])
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 
 func _sezione(dove: Node, testo: String) -> void:
@@ -177,6 +232,9 @@ func _cursore(dove: Node, testo: String, minimo: float, massimo: float, chiave: 
 
 func apri() -> void:
 	aperto = true
+	var sprite: Variant = figura.call() if figura.is_valid() else null
+	_anteprima.texture = sprite.call("anteprima") if sprite != null and sprite.has_method("anteprima") else null
+	_anteprima.visible = _anteprima.texture != null
 	_carica_valori()
 	_fondo.visible = true
 	_riprendi.grab_focus()
@@ -203,6 +261,15 @@ func _carica_valori() -> void:
 	_opacita.set_value_no_signal(Impostazioni.leggi("controlli/opacita_touch"))
 	_vibrazione.set_pressed_no_signal(Impostazioni.leggi("controlli/vibrazione"))
 	_debug.set_pressed_no_signal(Impostazioni.leggi("gioco/debug"))
+	for posto: String in _scelte_oggetto:
+		var oggetto: OptionButton = _scelte_oggetto[posto]
+		for i in oggetto.item_count:
+			if oggetto.get_item_metadata(i) == Equipaggiamento.indossati[posto]:
+				oggetto.select(i)
+		var colore: OptionButton = _scelte_colore[posto]
+		for i in colore.item_count:
+			if colore.get_item_metadata(i) == Equipaggiamento.colori[posto]:
+				colore.select(i)
 	_in_caricamento = false
 
 

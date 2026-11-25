@@ -134,6 +134,102 @@ func _combatti(tipo: String, massimo: int) -> void:
 	await _fotogrammi(20)
 
 
+func _pezzi_attesi() -> Array:
+	var attesi: Array = []
+	for posto in Equipaggiamento.POSTI:
+		attesi.append_array(Equipaggiamento.pezzi(Equipaggiamento.indossati[posto]))
+	attesi.sort()
+	return attesi
+
+
+func _pezzi_figura() -> Array:
+	var visti: Array = (_g().sprite as FiguraViva).pezzi_visibili()
+	visti.sort()
+	return visti
+
+
+func _pixel_pieni(img: Image) -> int:
+	var n := 0
+	for y in range(0, img.get_height(), 2):
+		for x in range(0, img.get_width(), 2):
+			if img.get_pixel(x, y).a >= 0.5:
+				n += 1
+	return n
+
+
+func _prova_aspetto() -> void:
+	# Equipaggiamento: si sceglie dal menu (a gioco in pausa) e si vede subito addosso.
+	var figura := _g().sprite as FiguraViva
+	_verifica("aspetto: il protagonista è una figura viva", figura != null)
+	if figura == null:
+		return
+	_verifica("aspetto: pezzi predefiniti addosso", _pezzi_figura() == _pezzi_attesi(), str(_pezzi_figura()))
+	var con_immagini := DisplayServer.get_name() != "headless"
+	var prima := Image.new()
+	if con_immagini:
+		prima = figura.immagine()
+		_verifica("aspetto: la figura è disegnata", _pixel_pieni(prima) > 120, "pixel %d" % _pixel_pieni(prima))
+
+	var menu: Menu = _principale.menu
+	var scelta: OptionButton = menu.get("_scelte_oggetto")["copricapo"]
+	var foto := figura.disegni
+	for i in scelta.item_count:
+		if scelta.get_item_metadata(i) == "elmo_cavaliere":
+			scelta.select(i)
+			scelta.item_selected.emit(i)
+	await _fotogrammi(3)
+	if con_immagini:
+		await RenderingServer.frame_post_draw
+	_verifica("aspetto: elmo scelto dal menu", Equipaggiamento.indossati["copricapo"] == "elmo_cavaliere"
+			and _pezzi_figura().has("Cavaliere__Knight_Helmet"), str(_pezzi_figura()))
+	_verifica("aspetto: nuova foto anche in pausa", figura.disegni > foto, "foto %d -> %d" % [foto, figura.disegni])
+	if con_immagini:
+		var dopo := figura.immagine()
+		_verifica("aspetto: l'immagine cambia con l'elmo", dopo.get_data() != prima.get_data())
+	await _scatta("menu_aspetto")
+
+	var colore: OptionButton = menu.get("_scelte_colore")["mantello"]
+	for i in colore.item_count:
+		if colore.get_item_metadata(i) == "sangue":
+			colore.select(i)
+			colore.item_selected.emit(i)
+	await _fotogrammi(2)
+	var mantello: String = Equipaggiamento.pezzi(Equipaggiamento.indossati["mantello"])[0]
+	var mi: MeshInstance3D = figura.get("_pezzi")[mantello][0]
+	var tinta: Color = (mi.material_override as ShaderMaterial).get_shader_parameter("tinta")
+	_verifica("aspetto: mantello color sangue", Equipaggiamento.colori["mantello"] == "sangue"
+			and tinta.is_equal_approx(Equipaggiamento.COLORI["sangue"][1]), str(tinta))
+
+	var caso := RandomNumberGenerator.new()
+	caso.seed = 5
+	var validi := true
+	for giro in 12:
+		Equipaggiamento.casuale(caso)
+		await _fotogrammi(1)
+		for posto in Equipaggiamento.POSTI:
+			var id: String = Equipaggiamento.indossati[posto]
+			if not Equipaggiamento.OGGETTI.has(id) or Equipaggiamento.OGGETTI[id][0] != posto:
+				validi = false
+		if _pezzi_figura() != _pezzi_attesi():
+			validi = false
+	_verifica("aspetto: 12 combinazioni a caso tutte addosso", validi, str(Equipaggiamento.descrizione()))
+	var cfg := ConfigFile.new()
+	var salvato := cfg.load(Equipaggiamento.PERCORSO) == OK
+	for posto in Equipaggiamento.POSTI:
+		salvato = salvato and cfg.get_value("oggetti", posto, "") == Equipaggiamento.indossati[posto] \
+				and cfg.get_value("colori", posto, "") == Equipaggiamento.colori[posto]
+	_verifica("aspetto: salvato su file", salvato)
+	var tutti_presenti := true
+	for p: String in Equipaggiamento.tutti_i_pezzi():
+		if not figura.get("_pezzi").has(p):
+			tutti_presenti = false
+			print("PROVA pezzo mancante nel manichino: ", p)
+	_verifica("aspetto: ogni oggetto ha i suoi pezzi nel manichino", tutti_presenti)
+	Equipaggiamento.ripristina()
+	await _fotogrammi(2)
+	_verifica("aspetto: ripristino", Equipaggiamento.indossati == Equipaggiamento.PREDEFINITO and _pezzi_figura() == _pezzi_attesi())
+
+
 # ------------------------------------------------------------------ prova
 
 func _solo_foto() -> void:
@@ -151,6 +247,15 @@ func _solo_foto() -> void:
 		await _sposta(dove, 1)
 		await _fotogrammi(50)
 		await _scatta("x%d" % int(dove.x))
+	# Due aspetti a caso, sempre gli stessi.
+	var caso := RandomNumberGenerator.new()
+	for seme in [3, 11]:
+		caso.seed = seme
+		Equipaggiamento.casuale(caso)
+		await _sposta(Vector2(420, Stanza.PAVIMENTO), 1)
+		await _fotogrammi(30)
+		await _scatta("aspetto_%d" % seme)
+	Equipaggiamento.ripristina()
 	Impostazioni.ripristina()
 	print("PROVA FINE falliti: 0")
 	get_tree().quit(0)
@@ -161,6 +266,7 @@ func _esegui() -> void:
 		await _solo_foto()
 		return
 	Impostazioni.ripristina()
+	Equipaggiamento.ripristina()
 	Impostazioni.scrivi("grafica/qualita", "alta")
 	await _fotogrammi(60)
 	var g := _g()
@@ -336,6 +442,7 @@ func _esegui() -> void:
 	await _fotogrammi(5)
 	await _scatta("menu")
 	_verifica("pausa: menu aperto e gioco fermo", _principale.menu.aperto and get_tree().paused)
+	await _prova_aspetto()
 	_principale._alterna_pausa()
 	await _fotogrammi(5)
 	_verifica("ripresa dal menu", not _principale.menu.aperto and not get_tree().paused)
@@ -401,7 +508,7 @@ func _esegui() -> void:
 	var testo := Rapporto.salva("prova")
 	var dati: Variant = JSON.parse_string(testo)
 	var valido: bool = typeof(dati) == TYPE_DICTIONARY and dati.has("dispositivo") and dati.has("fps") and dati.has("partita") \
-			and dati.has("eventi") and FileAccess.file_exists(Rapporto.ultimo_percorso)
+			and dati.has("eventi") and dati.has("aspetto") and FileAccess.file_exists(Rapporto.ultimo_percorso)
 	_verifica("rapporto salvato e leggibile", valido, "%d caratteri in %s" % [testo.length(), Rapporto.ultimo_percorso])
 	if valido:
 		print("PROVA partita: ", JSON.stringify(dati["partita"]))

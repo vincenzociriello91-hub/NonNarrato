@@ -24,6 +24,7 @@ Impostazioni="*res://script/impostazioni.gd"
 Rapporto="*res://script/rapporto.gd"
 Dispositivo="*res://script/dispositivo.gd"
 Controlli="*res://script/controlli.gd"
+Equipaggiamento="*res://script/equipaggiamento.gd"
 
 [display]
 

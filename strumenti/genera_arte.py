@@ -103,12 +103,35 @@ def texture() -> None:
     ])
 
 
+REGOLE_CUPE = [
+    # (tinta da-a, saturazione da-a, luminosità da-a) -> (nuova tinta, sat×, sat+, lum×, lum+)
+    ((10, 40, 0.10, 0.48, 0.80, 1.0), (262, 0.0, 0.35, 0.0, 0.05)),       # pelle -> vuoto (il Non Narrato non ha volto)
+    ((120, 175, 0.25, 1.0, 0.0, 1.0), (258, 0.0, 0.34, 0.50, 0.06)),       # verdi -> viola-notte
+    ((175, 200, 0.25, 1.0, 0.0, 1.0), (196, 0.55, 0.0, 0.55, 0.0)),        # verde-acqua -> acqua scura
+    ((60, 120, 0.25, 1.0, 0.0, 1.0), (250, 0.0, 0.25, 0.55, 0.10)),        # giallo-verdi -> viola
+    ((40, 60, 0.30, 1.0, 0.0, 1.0), (36, 0.55, 0.0, 0.62, 0.0)),           # oro -> bronzo spento
+    ((200, 255, 0.20, 1.0, 0.0, 1.0), (222, 0.45, 0.0, 0.62, 0.0)),        # blu -> acciaio freddo
+    ((255, 320, 0.20, 1.0, 0.0, 1.0), (272, 0.6, 0.0, 0.58, 0.0)),         # viola e magenta -> vino scuro
+    ((320, 360, 0.35, 1.0, 0.0, 1.0), (352, 0.75, 0.0, 0.58, 0.0)),        # rossi -> sangue secco
+    ((0, 10, 0.35, 1.0, 0.0, 1.0), (352, 0.75, 0.0, 0.58, 0.0)),
+    ((0, 45, 0.30, 1.0, 0.0, 1.0), (22, 0.45, 0.0, 0.62, 0.0)),            # cuoio e legno più scuri
+    ((0, 360, 0.0, 0.30, 0.0, 1.0), (235, 1.0, 0.06, 0.88, 0.0)),          # grigi appena freddi
+]
+
+
+def texture_cupe() -> None:
+    """Le texture di tutti i personaggi KayKit nella stessa palette cupa: servono al manichino."""
+    for nome in ["rogue", "knight", "barbarian", "mage", "skeleton"]:
+        ricolora(nome + "_texture.png", nome + "_cupo.png", REGOLE_CUPE)
+
+
 # ---------------------------------------------------------------- avvio
 
 def main() -> None:
     cosa = sys.argv[1:] or ["texture", "ambiente"]
     if "texture" in cosa:
         texture()
+        texture_cupe()
     if "ambiente" in cosa:
         ambiente()
 

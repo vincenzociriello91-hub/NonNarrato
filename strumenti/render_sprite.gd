@@ -125,6 +125,8 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 	for n: String in voce.get("nascondi", []):
 		for trovato in modello.find_children(n, "Node3D", true, false):
 			(trovato as Node3D).visible = false
+	for percorso: String in voce.get("animazioni_da", []):
+		_aggiungi_animazioni(modello, percorso)
 	for a: Dictionary in voce.get("attacca", []):
 		_attacca(modello, a)
 	# Proporzioni: dopo aver allungato o accorciato le ossa rimetto i piedi a terra.
@@ -144,6 +146,8 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 	var lettori := modello.find_children("*", "AnimationPlayer", true, false)
 	if not lettori.is_empty():
 		lettore = lettori[0]
+		# Ossa non mosse dall'animazione a riposo, non nella posa della precedente.
+		lettore.deterministic = true
 
 	# Elenco dei fotogrammi da scattare.
 	var scatti: Array = []
@@ -248,6 +252,35 @@ func _carica(percorso: String) -> Node3D:
 	return doc.generate_scene(stato) as Node3D
 
 
+func _aggiungi_animazioni(modello: Node3D, percorso: String) -> void:
+	# Prende le animazioni da un altro file con lo stesso scheletro (per esempio Mesh2Motion)
+	# e le aggiunge al modello. I nomi delle ossa devono coincidere.
+	var sorgente := _carica(percorso)
+	if sorgente == null:
+		printerr("Non riesco a caricare ", percorso)
+		return
+	var da_lettori := sorgente.find_children("*", "AnimationPlayer", true, false)
+	if da_lettori.is_empty():
+		sorgente.free()
+		return
+	var da := da_lettori[0] as AnimationPlayer
+	var lettore: AnimationPlayer
+	var esistenti := modello.find_children("*", "AnimationPlayer", true, false)
+	if esistenti.is_empty():
+		lettore = AnimationPlayer.new()
+		lettore.name = "AnimationPlayer"
+		modello.add_child(lettore)
+	else:
+		lettore = esistenti[0]
+	if not lettore.has_animation_library(""):
+		lettore.add_animation_library("", AnimationLibrary.new())
+	var libreria := lettore.get_animation_library("")
+	for nome in da.get_animation_list():
+		if not libreria.has_animation(nome):
+			libreria.add_animation(nome, da.get_animation(nome).duplicate(true))
+	sorgente.free()
+
+
 func _attacca(modello: Node3D, a: Dictionary) -> void:
 	var scheletri := modello.find_children("*", "Skeleton3D", true, false)
 	if scheletri.is_empty():
@@ -256,6 +289,20 @@ func _attacca(modello: Node3D, a: Dictionary) -> void:
 	if oggetto == null:
 		printerr("Non riesco a caricare ", a["gltf"])
 		return
+	if a.has("nodo"):
+		# Solo un pezzo del file (per esempio il cappuccio o il mantello di un altro personaggio).
+		var trovati := oggetto.find_children(a["nodo"], "MeshInstance3D", true, false)
+		if trovati.is_empty():
+			printerr("Pezzo non trovato: ", a["nodo"], " in ", a["gltf"])
+			oggetto.free()
+			return
+		var pezzo := (trovati[0] as MeshInstance3D).duplicate() as MeshInstance3D
+		pezzo.skeleton = NodePath()
+		pezzo.skin = null
+		pezzo.transform = Transform3D.IDENTITY
+		oggetto.free()
+		oggetto = Node3D.new()
+		oggetto.add_child(pezzo)
 	var attacco := BoneAttachment3D.new()
 	(scheletri[0] as Skeleton3D).add_child(attacco)
 	attacco.bone_name = a["osso"]

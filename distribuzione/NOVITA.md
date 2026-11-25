@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — L'aspetto del Non Narrato
+
+- Nuova sezione **Aspetto** nel menu di pausa: per testa, copricapo, busto, braccia, gambe, mantello, arma e mano sinistra scegli cosa indossare (elmi, corazze, pellicce, vesti, mantelli, spade, asce, bastoni, scudi, grimorio…) e un colore (Cenere, Ossidiana, Sangue, Notte, Oro antico, Muschio, Ossa).
+- Il cambio si vede subito addosso, con l'anteprima nel menu, in tutte le animazioni e con le luci delle torce. Ci sono anche "Casuale" e "Ripristina aspetto".
+- Per ora cambia solo l'aspetto: armi e armature non cambiano ancora il combattimento.
+- Il personaggio ora è "fotografato" mentre giochi, sempre nello stesso stile pixel art: alcune pose (colpito, morte, capriola) sono più pulite di prima.
+- L'aspetto scelto viene ricordato e finisce nel rapporto.
+
 ## 0.1 — Correzioni dopo le prime prove sul Pixel
 
 - Tasti a schermo grandi quanto serve: il gioco misura lo schermo e li fa di circa 13 mm. Se li hai già regolati a mano resta la tua scelta; "Ripristina i valori consigliati" torna alla misura automatica.

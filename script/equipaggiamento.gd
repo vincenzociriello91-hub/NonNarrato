@@ -1,0 +1,194 @@
+extends Node
+# Cosa indossa il Non Narrato. Ogni oggetto è un insieme di pezzi del manichino
+# (modelli/manichino.scn); ogni posto ha anche un colore. Per ora cambia solo l'aspetto.
+# Salvato in user://equipaggiamento.cfg.
+
+signal cambiato
+
+const PERCORSO := "user://equipaggiamento.cfg"
+
+const POSTI: Array[String] = ["testa", "copricapo", "busto", "braccia", "gambe", "mantello", "arma", "mano_sinistra"]
+const NOMI_POSTI := {
+	"testa": "Testa", "copricapo": "Copricapo", "busto": "Busto", "braccia": "Braccia",
+	"gambe": "Gambe", "mantello": "Mantello", "arma": "Arma", "mano_sinistra": "Mano sinistra",
+}
+
+# id -> [posto, nome, pezzi del manichino]
+const OGGETTI := {
+	"cappuccio_viandante": ["testa", "Cappuccio del viandante", ["Viandante__Rogue_Head_Hooded"]],
+	"volto_ladro": ["testa", "Volto del ladro", ["Ladro__Rogue_Head"]],
+	"volto_cavaliere": ["testa", "Volto del cavaliere", ["Cavaliere__Knight_Head"]],
+	"volto_barbaro": ["testa", "Volto del barbaro", ["Barbaro__Barbarian_Head"]],
+	"volto_mago": ["testa", "Volto dell'eremita", ["Mago__Mage_Head"]],
+
+	"nessun_copricapo": ["copricapo", "Nessuno", []],
+	"elmo_cavaliere": ["copricapo", "Elmo del cavaliere caduto", ["Cavaliere__Knight_Helmet"]],
+	"elmo_cornuto": ["copricapo", "Elmo cornuto", ["Barbaro__Barbarian_Hat"]],
+	"cappello_eremita": ["copricapo", "Cappello dell'eremita", ["Mago__Mage_Hat"]],
+	"elmo_sepolti": ["copricapo", "Elmo dei sepolti", ["Sepolto__Skeleton_Warrior_Helmet"]],
+	"cappuccio_sepolti": ["copricapo", "Cappuccio dei sepolti", ["SepoltoLadro__Skeleton_Rogue_Hood"]],
+	"cappello_negromante": ["copricapo", "Cappello del negromante", ["SepoltoMago__Skeleton_Mage_Hat"]],
+
+	"giubba_viandante": ["busto", "Giubba del viandante", ["Viandante__Rogue_Body"]],
+	"corazza_cavaliere": ["busto", "Corazza del cavaliere", ["Cavaliere__Knight_Body"]],
+	"pelliccia_barbaro": ["busto", "Pelliccia del barbaro", ["Barbaro__Barbarian_Body"]],
+	"veste_eremita": ["busto", "Veste dell'eremita", ["Mago__Mage_Body"]],
+
+	"maniche_viandante": ["braccia", "Maniche del viandante", ["Viandante__Rogue_ArmLeft", "Viandante__Rogue_ArmRight"]],
+	"bracciali_cavaliere": ["braccia", "Bracciali del cavaliere", ["Cavaliere__Knight_ArmLeft", "Cavaliere__Knight_ArmRight"]],
+	"braccia_barbaro": ["braccia", "Braccia del barbaro", ["Barbaro__Barbarian_ArmLeft", "Barbaro__Barbarian_ArmRight"]],
+	"maniche_eremita": ["braccia", "Maniche dell'eremita", ["Mago__Mage_ArmLeft", "Mago__Mage_ArmRight"]],
+
+	"brache_viandante": ["gambe", "Brache del viandante", ["Viandante__Rogue_LegLeft", "Viandante__Rogue_LegRight"]],
+	"gambali_cavaliere": ["gambe", "Gambali del cavaliere", ["Cavaliere__Knight_LegLeft", "Cavaliere__Knight_LegRight"]],
+	"stivali_barbaro": ["gambe", "Stivali del barbaro", ["Barbaro__Barbarian_LegLeft", "Barbaro__Barbarian_LegRight"]],
+	"tunica_eremita": ["gambe", "Tunica dell'eremita", ["Mago__Mage_LegLeft", "Mago__Mage_LegRight"]],
+
+	"nessun_mantello": ["mantello", "Nessuno", []],
+	"mantello_viandante": ["mantello", "Mantello del viandante", ["Viandante__Rogue_Cape"]],
+	"mantello_cavaliere": ["mantello", "Mantello del cavaliere", ["Cavaliere__Knight_Cape"]],
+	"mantello_barbaro": ["mantello", "Pelle del barbaro", ["Barbaro__Barbarian_Cape"]],
+	"mantello_eremita": ["mantello", "Mantello dell'eremita", ["Mago__Mage_Cape"]],
+	"mantello_sepolti": ["mantello", "Sudario dei sepolti", ["SepoltoLadro__Skeleton_Rogue_Cape"]],
+
+	"spada_viandante": ["arma", "Spada del viandante", ["Viandante__Spada"]],
+	"spada_cavaliere": ["arma", "Spada del cavaliere", ["Cavaliere__1H_Sword"]],
+	"spadone": ["arma", "Spadone", ["Cavaliere__2H_Sword"]],
+	"ascia": ["arma", "Ascia", ["Barbaro__1H_Axe"]],
+	"bipenne": ["arma", "Ascia bipenne", ["Barbaro__2H_Axe"]],
+	"pugnale": ["arma", "Pugnale", ["Viandante__Knife"]],
+	"bastone": ["arma", "Bastone dell'eremita", ["Mago__2H_Staff"]],
+	"bacchetta": ["arma", "Bacchetta", ["Mago__1H_Wand"]],
+	"lama_sepolti": ["arma", "Lama dei sepolti", ["Sepolto__Lama"]],
+	"ascia_sepolti": ["arma", "Ascia dei sepolti", ["Sepolto__Ascia"]],
+	"bastone_sepolti": ["arma", "Bastone dei sepolti", ["Sepolto__Bastone"]],
+
+	"mano_vuota": ["mano_sinistra", "Nulla", []],
+	"scudo_tondo": ["mano_sinistra", "Scudo tondo", ["Cavaliere__Round_Shield"]],
+	"scudo_stemma": ["mano_sinistra", "Scudo con stemma", ["Cavaliere__Badge_Shield"]],
+	"scudo_torre": ["mano_sinistra", "Scudo a torre", ["Cavaliere__Rectangle_Shield"]],
+	"scudo_chiodato": ["mano_sinistra", "Scudo chiodato", ["Cavaliere__Spike_Shield"]],
+	"scudo_barbaro": ["mano_sinistra", "Scudo del barbaro", ["Barbaro__Barbarian_Round_Shield"]],
+	"seconda_spada": ["mano_sinistra", "Seconda spada", ["Cavaliere__1H_Sword_Offhand"]],
+	"seconda_ascia": ["mano_sinistra", "Seconda ascia", ["Barbaro__1H_Axe_Offhand"]],
+	"secondo_pugnale": ["mano_sinistra", "Secondo pugnale", ["Viandante__Knife_Offhand"]],
+	"grimorio": ["mano_sinistra", "Grimorio", ["Mago__Spellbook"]],
+}
+
+# Colori: tingono la texture nello shader della figura. id -> [nome, colore, saturazione, luminosità]
+const COLORI := {
+	"naturale": ["Naturale", Color(1, 1, 1), 1.0, 1.0],
+	"cenere": ["Cenere", Color(0.92, 0.92, 1.0), 0.15, 1.1],
+	"ossidiana": ["Ossidiana", Color(0.62, 0.58, 0.78), 0.4, 0.75],
+	"sangue": ["Sangue", Color(1.0, 0.55, 0.55), 1.2, 0.95],
+	"notte": ["Notte", Color(0.66, 0.6, 1.0), 1.1, 0.9],
+	"oro_antico": ["Oro antico", Color(1.0, 0.85, 0.55), 1.1, 1.15],
+	"muschio": ["Muschio", Color(0.72, 0.9, 0.66), 0.9, 0.9],
+	"ossa": ["Ossa", Color(1.0, 0.95, 0.82), 0.5, 1.25],
+}
+
+const PREDEFINITO := {
+	"testa": "cappuccio_viandante", "copricapo": "nessun_copricapo", "busto": "giubba_viandante",
+	"braccia": "maniche_viandante", "gambe": "brache_viandante", "mantello": "mantello_viandante",
+	"arma": "spada_viandante", "mano_sinistra": "mano_vuota",
+}
+
+var indossati := {}
+var colori := {}
+
+
+func _ready() -> void:
+	_predefiniti()
+	var cfg := ConfigFile.new()
+	if cfg.load(PERCORSO) != OK:
+		return
+	for posto in POSTI:
+		var id: String = str(cfg.get_value("oggetti", posto, ""))
+		if OGGETTI.has(id) and OGGETTI[id][0] == posto:
+			indossati[posto] = id
+		var colore: String = str(cfg.get_value("colori", posto, ""))
+		if COLORI.has(colore):
+			colori[posto] = colore
+
+
+func _predefiniti() -> void:
+	indossati = PREDEFINITO.duplicate()
+	colori = {}
+	for posto in POSTI:
+		colori[posto] = "naturale"
+
+
+func oggetti_del_posto(posto: String) -> Array:
+	var elenco: Array = []
+	for id: String in OGGETTI:
+		if OGGETTI[id][0] == posto:
+			elenco.append(id)
+	return elenco
+
+
+func nome(id: String) -> String:
+	return OGGETTI[id][1] if OGGETTI.has(id) else id
+
+
+func pezzi(id: String) -> Array:
+	return OGGETTI[id][2] if OGGETTI.has(id) else []
+
+
+func tutti_i_pezzi() -> Array:
+	var elenco: Array = []
+	for id: String in OGGETTI:
+		elenco.append_array(OGGETTI[id][2])
+	return elenco
+
+
+func indossa(posto: String, id: String) -> void:
+	if not OGGETTI.has(id) or OGGETTI[id][0] != posto or indossati.get(posto) == id:
+		return
+	indossati[posto] = id
+	_dopo_cambio()
+
+
+func colora(posto: String, colore: String) -> void:
+	if not COLORI.has(colore) or colori.get(posto) == colore:
+		return
+	colori[posto] = colore
+	_dopo_cambio()
+
+
+func casuale(generatore: RandomNumberGenerator = null) -> void:
+	var g := generatore
+	if g == null:
+		g = RandomNumberGenerator.new()
+		g.randomize()
+	var nomi_colori := COLORI.keys()
+	for posto in POSTI:
+		var elenco := oggetti_del_posto(posto)
+		indossati[posto] = elenco[g.randi() % elenco.size()]
+		colori[posto] = "naturale" if g.randf() < 0.5 else nomi_colori[g.randi() % nomi_colori.size()]
+	_dopo_cambio()
+
+
+func ripristina() -> void:
+	_predefiniti()
+	_dopo_cambio()
+
+
+func descrizione() -> Dictionary:
+	var d := {}
+	for posto in POSTI:
+		d[posto] = "%s (%s)" % [indossati[posto], colori[posto]]
+	return d
+
+
+func _dopo_cambio() -> void:
+	_salva()
+	cambiato.emit()
+	Rapporto.conta("cambi_aspetto")
+
+
+func _salva() -> void:
+	var cfg := ConfigFile.new()
+	for posto in POSTI:
+		cfg.set_value("oggetti", posto, indossati[posto])
+		cfg.set_value("colori", posto, colori[posto])
+	cfg.save(PERCORSO)
