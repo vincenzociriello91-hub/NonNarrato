@@ -115,6 +115,23 @@ func _solo_foto() -> void:
 	await _tocca("tira")
 	await _fotogrammi(18)
 	await _scatta("magia_e_saltatore")
+	# Scudo alzato e magia caricata.
+	Equipaggiamento.indossa("mano_sinistra", "scudo_tondo")
+	await _sposta(Vector2(1950, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(20)
+	_g().call("_inizia_parata")
+	await _fotogrammi(4)
+	await _scatta("parata_con_scudo")
+	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
+	await _fotogrammi(30)
+	_g().energia = Giocatore.ENERGIA_MASSIMA
+	Input.action_press("tira")
+	await _fotogrammi(60)
+	Input.action_release("tira")
+	await _fotogrammi(14)
+	await _scatta("magia_caricata")
+	await _fotogrammi(40)
+	await _scatta("esplosione")
 	var pacco := Raccoglibile.new()
 	pacco.cosa = "frecce"
 	pacco.position = Vector2(620, Stanza.PAVIMENTO)
@@ -192,6 +209,8 @@ func _esegui() -> void:
 			str(dopo) if dopo != prima else "")
 	_prova_lezione_fallita()
 	await _prova_armi_e_bestione()
+	await _prova_nemesi_e_veterani()
+	await _prova_ondate()
 	if bot.solo_fasi.is_empty() or bot.solo_fasi.has("prestazioni"):
 		_verifica("il bot prova anche il limite FPS di chi gioca", bot.fasi.any(func(f: Dictionary) -> bool: return f["nome"] == "prestazioni_120fps"))
 	print("PROVA bot: %d controlli, fasi %s" % [bot.controlli.size(), JSON.stringify(bot.fasi.map(func(f: Dictionary) -> String: return "%s %.0fs" % [f["nome"], f["secondi"]]))])
@@ -256,10 +275,110 @@ func _prova_armi_e_bestione() -> void:
 	var magia := bestione.subisci(1, bestione.global_position + Vector2(-30.0, -20.0), 100.0, "magia")
 	bestione.stato = Nemico.Stato.PATTUGLIA
 	var spalle := bestione.subisci(1, bestione.global_position + Vector2(30.0, -20.0), 100.0)
+	var rotta := bestione.subisci(1, bestione.global_position + Vector2(-30.0, -20.0), 100.0, "mischia", {"rompe": true})
+	_verifica("lo spadone e le asce rompono la corazza del bestione", rotta)
 	_verifica("il bestione para da davanti, non la magia né i colpi alle spalle", not davanti and magia and spalle
 			and Rapporto.contatore("parate_bestione") == parate + 1, "davanti %s, magia %s, spalle %s" % [davanti, magia, spalle])
 	bestione.queue_free()
 	await _fotogrammi(2)
+
+	# Scudo: da davanti para (e chi colpisce barcolla), da dietro no.
+	Equipaggiamento.indossa("mano_sinistra", "scudo_tondo")
+	g = _g()
+	var vita := g.vita
+	g.call("_inizia_parata")
+	var colpito_davanti := g.subisci(1, g.global_position + Vector2(g.verso * 30.0, -20.0), 100.0)
+	g.call("_inizia_parata")
+	var colpito_dietro := g.subisci(1, g.global_position + Vector2(-g.verso * 30.0, -20.0), 100.0)
+	_verifica("lo scudo para i colpi da davanti, non quelli alle spalle", not colpito_davanti and colpito_dietro,
+			"vita %d -> %d" % [vita, g.vita])
+	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
+	g.vita = Giocatore.VITA_MASSIMA
+	await _fotogrammi(60)
+	# Le combinazioni: la seconda arma aggiunge un colpo ed è più veloce.
+	var spada: Array = Armi.colpi("spada", "mano_vuota")
+	var doppia: Array = Armi.colpi("spada", "seconda_spada")
+	_verifica("seconda arma: un colpo in più e più veloce", doppia.size() == spada.size() + 1
+			and float(doppia[0]["t"]) < float(spada[0]["t"]))
+
+
+func _prova_nemesi_e_veterani() -> void:
+	# Il bot non muore più apposta: qui si prova sul computer che chi ti uccide diventa nemesi, che a ogni
+	# ritorno impara qualcosa, che ricorda l'arma che l'ha battuta, e che i veterani salgono di livello.
+	var salvata := Memoria.stato()
+	Memoria.ripristina_stato({})
+	var finto := Nemico.new()
+	finto.tipo = "scheletro"
+	finto.id_posto = "prova@1"
+	Memoria.nemico_ha_ucciso(finto)
+	var rec: Array = Memoria.nemesi_per("scheletro")
+	_verifica("chi ti uccide diventa una nemesi", rec.size() == 1 and int(rec[0]["vittorie"]) == 1)
+	finto.nemesi = (rec[0] as Dictionary).duplicate()
+	Memoria.nemico_ha_ucciso(finto)
+	rec = Memoria.nemesi_per("scheletro")
+	_verifica("la nemesi che vince ancora cresce e impara una capacità", int(rec[0]["potere"]) >= 2
+			and (rec[0]["capacita"] as Array).size() == 1, str(rec[0]))
+	finto.nemesi = (rec[0] as Dictionary).duplicate()
+	Memoria.nemico_sconfitto(finto, "ascia")
+	rec = Memoria.nemesi_per("scheletro")
+	_verifica("battuta, la nemesi ricorda l'arma e impara ancora", rec[0]["arma_nemica"] == "ascia"
+			and (rec[0]["capacita"] as Array).size() == 2 and String(Memoria.incontro(rec[0])).contains("ascia"), str(rec[0]))
+	# La nemesi in stanza: più vita del normale, e para spesso l'arma che l'ha battuta.
+	var forte := Nemico.new()
+	forte.tipo = "scheletro"
+	forte.nemesi = (rec[0] as Dictionary).duplicate()
+	forte.set_physics_process(false)
+	_principale.stanza.add_child(forte)
+	await _fotogrammi(2)
+	_verifica("la nemesi torna più forte", forte.vita > int(Nemico.TIPI["scheletro"]["vita"]), "vita %d" % forte.vita)
+	forte.queue_free()
+	# Veterani: ogni morte dà esperienza, il livello sale piano.
+	for i in 10:
+		Memoria.veterano_morto("prova@1", 6.0, 2)
+	var livello := Memoria.livello_veterano("prova@1")
+	var veterano := Nemico.new()
+	veterano.tipo = "scheletro"
+	veterano.id_posto = "prova@1"
+	veterano.ondata = 3
+	veterano.set_physics_process(false)
+	_principale.stanza.add_child(veterano)
+	await _fotogrammi(2)
+	_verifica("i veterani salgono di livello e tornano più forti", livello >= 2 and veterano.livello == livello
+			and veterano.vita > int(Nemico.TIPI["scheletro"]["vita"]), "livello %d, vita %d" % [livello, veterano.vita])
+	veterano.queue_free()
+	finto.free()   # mai entrato nella scena
+	await _fotogrammi(2)
+	Memoria.ripristina_stato(salvata)
+
+
+func _prova_ondate() -> void:
+	# Stanza vuota -> i caduti si rialzano (più forti), quattro volte; dopo la quarta il sogno si quieta.
+	var salvata := Memoria.stato()
+	_principale.ricomincia_stanza()   # una stanza nuova: si parte dalla prima ondata
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	var ondata_prima := stanza.ondata
+	var forze: Array = []
+	for giro in Stanza.ONDATE:
+		if stanza.sogno_completato:
+			break
+		for n: Node in get_tree().get_nodes_in_group("nemici"):
+			var nemico := n as Nemico
+			if nemico.get_parent() == stanza and nemico.stato != Nemico.Stato.MORTO:
+				nemico.vita = 0
+				nemico.call("_muori", 1.0)
+		_g().vita = Giocatore.VITA_MASSIMA
+		await _fotogrammi(int((Stanza.ATTESA_ONDATA + 1.0) * 60.0))
+		var massima := 0
+		for n: Node in get_tree().get_nodes_in_group("nemici"):
+			if (n as Nemico).stato != Nemico.Stato.MORTO:
+				massima = maxi(massima, int(n.get("_forza")))
+		forze.append(massima)
+	_verifica("ondate: i caduti tornano, ogni volta più forti, e dopo la quarta il sogno si quieta",
+			stanza.sogno_completato and stanza.ondata == Stanza.ONDATE and stanza.nemici_vivi() == 0
+			and forze.size() >= 3 and int(forze[1]) > int(forze[0]) and int(forze[2]) > int(forze[1]),
+			"ondata %d -> %d, forza per ondata %s" % [ondata_prima, stanza.ondata, str(forze)])
+	Memoria.ripristina_stato(salvata)
 
 
 func _prova_lezione_fallita() -> void:

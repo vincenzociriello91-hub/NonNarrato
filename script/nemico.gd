@@ -13,18 +13,25 @@ extends CharacterBody2D
 #    dopo un suo colpo (quando è scoperto), con la magia o con le trappole. Colpisce forte e carica.
 #  - "saltatore": piccolo e veloce, ti balza addosso (dritto, a zig-zag o dall'alto) e ti segue
 #    saltando da una piattaforma all'altra.
-# Una nemesi (vedi Memoria) è lo stesso nemico, ma più forte, con un nome, un titolo e una frase.
+# Una nemesi (vedi Memoria) è lo stesso nemico, ma più forte, con un nome, un titolo e una frase;
+# a ogni ritorno ha una capacità in più (parata, combo, rinforzi, pelle dura, furia) e resiste all'arma
+# che l'ha battuta.
 # Chi ha imparato che colpisci da lontano ("schiva_tiri") schiva i tuoi tiri.
+# Insieme: chi ti vede chiama i compagni vicini; chi arriva secondo ti gira alle spalle; al massimo
+# due (tre nelle ultime ondate) attaccano nello stesso momento. Lo scheletro può parare e concatenare
+# due colpi, il bestione fino a tre. Riconoscono la tua arma preferita (Memoria.lezione_arma).
+# Veterani: ogni nemico ha un posto nella stanza (id_posto) che accumula esperienza fra un sogno e
+# l'altro (Memoria.veterani); il livello e l'ondata in corso lo rendono più forte.
 
 enum Stato { DORME, RISVEGLIO, FERMO, PATTUGLIA, INSEGUE, ATTACCO, LANCIA, COLPITO, MORTO }
 
 const TIPI := {
-	"scheletro": {"foglio": "scheletro", "vita": 3, "passo": 30.0, "corsa": 54.0, "vista": 170.0, "portata": 38.0},
-	"mago": {"foglio": "mago", "vita": 2, "passo": 26.0, "corsa": 26.0, "vista": 250.0, "portata": 0.0},
-	"arciere": {"foglio": "arciere", "vita": 2, "passo": 28.0, "corsa": 28.0, "vista": 260.0, "portata": 0.0},
-	"pipistrello": {"foglio": "pipistrello", "vita": 1, "passo": 34.0, "corsa": 190.0, "vista": 190.0, "portata": 0.0},
-	"bestione": {"foglio": "bestione", "vita": 6, "passo": 22.0, "corsa": 38.0, "vista": 190.0, "portata": 50.0},
-	"saltatore": {"foglio": "saltatore", "vita": 2, "passo": 44.0, "corsa": 84.0, "vista": 210.0, "portata": 30.0},
+	"scheletro": {"foglio": "scheletro", "vita": 4, "passo": 30.0, "corsa": 58.0, "vista": 180.0, "portata": 38.0},
+	"mago": {"foglio": "mago", "vita": 3, "passo": 26.0, "corsa": 26.0, "vista": 250.0, "portata": 0.0},
+	"arciere": {"foglio": "arciere", "vita": 3, "passo": 28.0, "corsa": 28.0, "vista": 260.0, "portata": 0.0},
+	"pipistrello": {"foglio": "pipistrello", "vita": 2, "passo": 34.0, "corsa": 190.0, "vista": 190.0, "portata": 0.0},
+	"bestione": {"foglio": "bestione", "vita": 8, "passo": 22.0, "corsa": 40.0, "vista": 190.0, "portata": 50.0},
+	"saltatore": {"foglio": "saltatore", "vita": 3, "passo": 44.0, "corsa": 88.0, "vista": 210.0, "portata": 30.0},
 }
 const TIRATORI := ["mago", "arciere"]
 const GRAVITA := 1200.0
@@ -39,11 +46,15 @@ const LANCIO_DURATA := 0.83
 const LANCIO_MOMENTO := 0.45
 const RICARICA_MAGO := 2.4
 const VELOCITA_SFERA := 115.0
-const VELOCITA_DARDO := 210.0
+const VELOCITA_DARDO := 185.0
 const UDITO := 150.0
 const RICERCA_MASSIMA := 3.5
 const BALZO_DURATA := 0.86
 const GIRO_BESTIONE := 0.8      # secondi che il bestione impiega a girarsi
+const CORPO_A_CORPO := ["scheletro", "bestione", "saltatore"]
+const RICHIAMO := 200.0          # chi ti vede chiama i compagni entro questa distanza
+const COMBO_VELOCE := 0.72       # i colpi concatenati partono prima
+const PARATA_NEMICO := 0.45
 
 var tipo := "scheletro"
 var dorme := false
@@ -55,6 +66,12 @@ var nemesi := {}                 # se non è vuoto, questo nemico è una nemesi 
 var potere := 0
 var tattica := ""
 var annunciato := false
+var id_posto := ""               # posto nella stanza: la sua esperienza resta fra un sogno e l'altro
+var livello := 0                 # livello da veterano (Memoria)
+var ondata := 1                  # ondata in cui è comparso: ogni ondata in più lo rende più forte
+var evocato := false             # chiamato da una nemesi con "rinforzi": niente esperienza
+var rialzato := false            # torna in un'ondata: si rialza da terra
+var capacita: Array = []
 
 var _dati := {}
 var _t_stato := 0.0
@@ -86,6 +103,21 @@ var _colpo: Area2D
 var _forma_colpo: CollisionShape2D
 var _ombra: LightOccluder2D
 var _centro_locale := Vector2.ZERO
+var _forza := 0                  # livello + ondata: quanto è cresciuto
+var _t_parata := 0.0
+var _t_ricarica_parata := 0.0
+var _combo_rimasti := 0
+var _veloce := false
+var _allertato := false
+var _fianco := 0                 # -1/1: ti sta girando attorno per prenderti dall'altra parte
+var _t_fianco := 0.0
+var _furioso := false
+var _rinforzi_chiamati := false
+var _danno_inflitto := 0
+var _t_vivo := 0.0
+var _schivate := 0
+var _ultima_famiglia := ""
+var _t_bloccato := 0.0
 
 
 func _ready() -> void:
@@ -96,6 +128,22 @@ func _ready() -> void:
 		_dati["vita"] = int(_dati["vita"]) + potere
 		_dati["corsa"] = float(_dati["corsa"]) * (1.0 + 0.1 * potere)
 		_dati["vista"] = float(_dati["vista"]) + 30.0 * potere
+	# Veterano e ondata: un po' più di vita, velocità, vista e riflessi a ogni livello.
+	if not evocato:
+		livello = Memoria.livello_veterano(id_posto)
+	_forza = livello + maxi(0, ondata - 1)
+	_dati["vita"] = int(_dati["vita"]) + _forza / 2
+	_dati["corsa"] = float(_dati["corsa"]) * (1.0 + 0.03 * _forza)
+	_dati["vista"] = float(_dati["vista"]) + 8.0 * _forza
+	capacita = (nemesi.get("capacita", []) as Array).duplicate()
+	if livello >= 4 and not capacita.has("combo"):
+		capacita.append("combo")
+	if livello >= 7 and not capacita.has("parata"):
+		capacita.append("parata")
+	if livello >= 9 and not capacita.has("furia"):
+		capacita.append("furia")
+	if capacita.has("pelle_dura"):
+		_dati["vita"] = int(_dati["vita"]) + 3
 	vita = _dati["vita"]
 	_casa = position
 	collision_layer = Effetti.S_NEMICI
@@ -167,11 +215,21 @@ func _ready() -> void:
 	_ombra = Effetti.occlusore(self, Rect2(-5, -6, 10, 10) if vola else Rect2(-5, -corpo.y + 2.0, 10, corpo.y - 4.0))
 	if not nemesi.is_empty():
 		_aspetto_nemesi()
+	elif livello >= 5 and Dispositivo.profilo.get("luci_doppie", true):
+		# Un veterano si riconosce dagli occhi accesi, più tenui di quelli di una nemesi.
+		var occhi := Effetti.luce(Color(1.0, 0.6, 0.25), 18.0, 0.6, 12.0)
+		occhi.position = Vector2(0, -2) if tipo == "pipistrello" else Vector2(0, -34)
+		add_child(occhi)
 
 	if dorme and sprite.ha("dorme"):
 		stato = Stato.DORME
 		sprite.riproduci("dorme")
 		_bersaglio.monitorable = vola  # il pipistrello appeso si può colpire
+		_ombra.visible = false
+	elif rialzato and sprite.ha("risveglio"):
+		stato = Stato.RISVEGLIO
+		sprite.riproduci("risveglio", true)
+		_bersaglio.monitorable = false
 		_ombra.visible = false
 	else:
 		stato = Stato.PATTUGLIA
@@ -198,7 +256,34 @@ func bersagliabile() -> bool:
 
 func tempi_attacco() -> Array:
 	# Durata, inizio e fine della parte del colpo che fa male (il bot li legge per difendersi).
-	return TEMPI_BESTIONE if tipo == "bestione" else [ATTACCO_DURATA, ATTACCO_INIZIO, ATTACCO_FINE]
+	var tempi: Array = TEMPI_BESTIONE if tipo == "bestione" else [ATTACCO_DURATA, ATTACCO_INIZIO, ATTACCO_FINE]
+	if _veloce:
+		return tempi.map(func(t: float) -> float: return t * COMBO_VELOCE)
+	return tempi
+
+
+func sta_parando() -> bool:
+	return _t_parata > 0.0
+
+
+func colpi_in_arrivo() -> int:
+	# Quanti colpi aggiungerà alla combinazione in corso (chi gioca lo impara dal ritmo; il bot lo legge qui).
+	return _combo_rimasti if stato == Stato.ATTACCO else 0
+
+
+func barcolla(durata: float) -> void:
+	# Colpito su uno scudo, stordito, o con la guardia rotta: resta scoperto per un po'.
+	if stato in [Stato.MORTO, Stato.DORME, Stato.RISVEGLIO]:
+		return
+	_carica = false
+	_in_balzo = false
+	_combo_rimasti = 0
+	_t_parata = 0.0
+	_cambia(Stato.COLPITO)
+	_t_stato = 0.3 - durata   # COLPITO finisce a 0,3
+	velocity.x = 0.0
+	sprite.riproduci("colpito", true)
+	Rapporto.conta("nemici_barcollano")
 
 
 func _physics_process(delta: float) -> void:
@@ -209,6 +294,11 @@ func _physics_process(delta: float) -> void:
 	_t_balzo = maxf(0.0, _t_balzo - delta)
 	_t_finestra = maxf(0.0, _t_finestra - delta)
 	_t_schiva = maxf(0.0, _t_schiva - delta)
+	_t_parata = maxf(0.0, _t_parata - delta)
+	_t_ricarica_parata = maxf(0.0, _t_ricarica_parata - delta)
+	_t_fianco = maxf(0.0, _t_fianco - delta)
+	if stato != Stato.MORTO:
+		_t_vivo += delta
 	var vola := tipo == "pipistrello" and stato != Stato.MORTO
 	if not vola:
 		velocity.y = minf(velocity.y + GRAVITA * delta, 500.0)
@@ -231,6 +321,14 @@ func _physics_process(delta: float) -> void:
 			_ha_ricordo = true
 		if visto and not annunciato and not nemesi.is_empty() and stato != Stato.DORME:
 			_annuncia()
+		if visto and not _allertato and stato not in [Stato.DORME, Stato.RISVEGLIO, Stato.MORTO]:
+			_allertato = true
+			_chiama_compagni(g)
+		_controlla_furia()
+		if _reagisci_al_colpo(g, dx, dy):
+			move_and_slide()
+			sprite.flip_h = verso < 0
+			return
 		if stato in [Stato.INSEGUE, Stato.FERMO, Stato.PATTUGLIA] and _schiva_tiri():
 			move_and_slide()
 			sprite.flip_h = verso < 0
@@ -407,6 +505,9 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 	var distanza := absf(dx)
 	var portata := float(_dati["portata"])
 	var stessa_quota := absf(dy) < 44.0
+	# Accerchiare: se un compagno ti è già addosso da questa parte, si passa dall'altra.
+	if stessa_quota and not _carica and _accerchia(g, dx):
+		return
 
 	# Carica del bestione: corre dritto finché non ti raggiunge, sbatte o passa il tempo.
 	if _carica:
@@ -420,7 +521,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 		return
 
 	# Difesa: se attacchi da vicino, a volte balza indietro (di più se ha imparato che attacchi per primo).
-	if tipo == "scheletro" and g.stato == Giocatore.Stato.ATTACCO and float(g.get("_t_stato")) < 0.12 and distanza < 46.0 \
+	if tipo == "scheletro" and g.attacco_in_carica() and distanza < 46.0 \
 			and is_on_floor() and _t_ricarica <= 0.0 and _t_pausa <= 0.0:
 		var p := 0.12 + 0.12 * potere + (0.3 if nemesi.get("lezione", "") == "arretra" else 0.0)
 		if _caso.randf() < p:
@@ -435,7 +536,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 		sprite.riproduci("fermo")
 		return
 
-	var pronto := _t_ricarica <= 0.0 and is_on_floor() and stessa_quota
+	var pronto := _t_ricarica <= 0.0 and is_on_floor() and stessa_quota and _posto_per_attaccare()
 	match tattica:
 		"attesa":
 			# Resta appena fuori portata e colpisce quando sei scoperto (o dopo un po').
@@ -449,7 +550,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 			else:
 				velocity.x = 0.0
 				sprite.riproduci("fermo")
-			var scoperto: bool = _t_finestra > 0.0 or (g.stato == Giocatore.Stato.ATTACCO and float(g.get("_t_stato")) > 0.24)
+			var scoperto: bool = _t_finestra > 0.0 or g.attacco_scoperto()
 			if pronto and distanza <= portata + 20.0 and (scoperto or _t_tattica > 2.2):
 				_inizia_attacco(distanza > portata - 2.0, false)
 		"affondo":
@@ -502,7 +603,18 @@ func _cammina(velocita_voluta: float) -> void:
 	sprite.riproduci("cammina", false, 1.6 if velocita_voluta > float(_dati["passo"]) * 1.2 else 1.0)
 
 
-func _inizia_attacco(affondo: bool, finta: bool) -> void:
+func _inizia_attacco(affondo: bool, finta: bool, concatenato: bool = false) -> void:
+	_veloce = concatenato
+	if not concatenato:
+		# Quanti colpi aggiungerà di fila: più è esperto, più spesso; la capacità "combo" lo garantisce.
+		var massimo := 2 if tipo == "bestione" else 1
+		if capacita.has("combo"):
+			massimo += 1
+		_combo_rimasti = 0
+		if tipo in ["scheletro", "bestione"] and not finta:
+			var p := 0.08 * _forza + (0.35 if capacita.has("combo") else 0.0)   # all'inizio quasi mai: lo imparano
+			while _combo_rimasti < massimo and _caso.randf() < p:
+				_combo_rimasti += 1
 	_colpo_dato = false
 	_affondo = affondo
 	_finta = finta
@@ -530,12 +642,27 @@ func _attacca(g: Giocatore) -> void:
 		for area in _colpo.get_overlapping_areas():
 			if area.get_meta("bersaglio", null) == g and g != null:
 				_colpo_dato = true
-				g.subisci(2 if tipo == "bestione" else 1, global_position, 240.0 if tipo == "bestione" else 190.0, self)
+				var danno := 2 if tipo == "bestione" else 1
+				if g.subisci(danno, global_position, 240.0 if tipo == "bestione" else 190.0, self):
+					_danno_inflitto += danno
 		if tipo == "bestione" and _t_stato - get_physics_process_delta_time() < float(tempi[1]):
 			_scossa_ascia()
 	if _t_stato >= float(tempi[0]):
 		_verifica_attacco()
-		_t_ricarica = maxf(0.25, (0.9 if tipo == "bestione" else 0.5) - 0.06 * potere)
+		# Combinazione: se sei ancora a portata, un altro colpo subito.
+		if _combo_rimasti > 0 and g != null and g.stato != Giocatore.Stato.MORTO:
+			var dx := g.global_position.x - global_position.x
+			if absf(dx) < float(_dati["portata"]) + 26.0 and absf(g.global_position.y - global_position.y) < 40.0:
+				_combo_rimasti -= 1
+				verso = 1 if dx > 0.0 else -1
+				Rapporto.conta("combo_nemici")
+				_inizia_attacco(false, false, true)
+				return
+		_combo_rimasti = 0
+		_veloce = false
+		_t_ricarica = maxf(0.25, (0.9 if tipo == "bestione" else 0.5) - 0.06 * potere - 0.02 * _forza)
+		if _furioso:
+			_t_ricarica *= 0.6
 		_cambia(Stato.INSEGUE)
 
 
@@ -552,6 +679,8 @@ func _colpisci_a_contatto(g: Giocatore, danno: int, spinta: float) -> void:
 	for area in _bersaglio_giocatore_vicino():
 		if area.get_meta("bersaglio", null) == g:
 			_colpo_dato = g.subisci(danno, global_position, spinta, self)
+			if _colpo_dato:
+				_danno_inflitto += danno
 			return
 
 
@@ -705,12 +834,18 @@ func _pipistrello(g: Giocatore, delta: float, dx: float, dy: float, allerta: boo
 			var lato := -g.verso if tattica == "aggira" else (-1 if dx > 0.0 else 1)
 			var posto := corpo + Vector2(lato * 46.0, -74.0 + sin(_t_tattica * 3.0) * 6.0)
 			_vola_verso(posto, 95.0 * (1.0 + 0.1 * potere), delta)
-			var pronto := _t_ricarica <= 0.0 and global_position.distance_to(posto) < 40.0
+			# Se il posto è irraggiungibile (sotto un soffitto) non resta a girare per sempre: scende lo stesso.
+			if global_position.distance_to(posto) >= 40.0:
+				_t_bloccato += delta
+			else:
+				_t_bloccato = 0.0
+			var pronto := _t_ricarica <= 0.0 and (global_position.distance_to(posto) < 40.0 or _t_bloccato > 1.2)
 			var scoperto := _t_finestra > 0.0 or g.stato in [Giocatore.Stato.ATTACCO, Giocatore.Stato.TIRO, Giocatore.Stato.USA]
 			if pronto and (tattica != "attesa" or scoperto or _t_tattica > 3.0):
 				_fase_volo = "scende"
 				_colpo_dato = false
 				_meta_volo = corpo + Vector2(g.velocity.x * 0.25, 4.0)
+				_t_bloccato = 0.0
 				_cambia(Stato.INSEGUE)
 				Rapporto.conta("picchiate_pipistrello")
 
@@ -758,12 +893,12 @@ func _lancia(g: Giocatore) -> void:
 		_secondo = true
 		_tira(g)
 	if _t_stato >= LANCIO_DURATA:
-		var ricarica := RICARICA_MAGO * (1.0 - 0.06 * potere)
+		var ricarica := RICARICA_MAGO * (1.0 - 0.06 * potere) * (1.0 - 0.03 * _forza)
 		if tipo == "mago" and tattica == "raffica":
 			ricarica += 0.8
 		elif tipo == "arciere":
-			ricarica = 2.1 * (1.0 - 0.06 * potere) + (0.7 if tattica == "doppio" else 0.0)
-		_t_ricarica = ricarica
+			ricarica = 2.6 * (1.0 - 0.06 * potere) * (1.0 - 0.03 * _forza) + (0.7 if tattica == "doppio" else 0.0)
+		_t_ricarica = ricarica * (0.6 if _furioso else 1.0)
 		_cambia(Stato.FERMO)
 
 
@@ -808,6 +943,139 @@ func _cambia(nuovo: Stato) -> void:
 	_t_stato = 0.0
 
 
+# ------------------------------------------------------------------ insieme e reazioni
+
+func _chiama_compagni(g: Giocatore) -> void:
+	# Ti ha visto: lo dice ai compagni vicini (anche a chi dorme).
+	var chiamati := 0
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var altro := n as Nemico
+		if altro == null or altro == self or altro.stato == Stato.MORTO:
+			continue
+		if altro.global_position.distance_to(global_position) > RICHIAMO:
+			continue
+		if altro.stato in [Stato.DORME, Stato.PATTUGLIA, Stato.FERMO]:
+			altro._sveglia_da_richiamo(g.global_position)
+			chiamati += 1
+	if chiamati > 0:
+		Rapporto.conta("richiami")
+	# Una nemesi con "rinforzi" non viene da sola.
+	if capacita.has("rinforzi") and not _rinforzi_chiamati and not evocato:
+		_rinforzi_chiamati = true
+		var aiuto := Nemico.new()
+		aiuto.tipo = "saltatore" if tipo != "saltatore" else "scheletro"
+		aiuto.evocato = true
+		aiuto.ondata = ondata
+		aiuto.position = global_position + Vector2(-verso * 30.0, -4.0 if tipo != "pipistrello" else 30.0)
+		aiuto.add_to_group("nemici")
+		get_parent().add_child.call_deferred(aiuto)
+		Rapporto.conta("rinforzi")
+
+
+func _sveglia_da_richiamo(dove: Vector2) -> void:
+	_ultimo_visto = dove
+	_ha_ricordo = true
+	_allertato = true
+	if stato == Stato.DORME:
+		if tipo == "pipistrello":
+			return   # il pipistrello si sveglia da solo, vedendoti
+		_risvegliati()
+	elif stato != Stato.FERMO or tipo not in TIRATORI:
+		_cambia(Stato.FERMO if tipo in TIRATORI else Stato.INSEGUE)
+
+
+func _posto_per_attaccare() -> bool:
+	# Non tutti insieme: all'inizio uno alla volta, poi due, poi tre, man mano che crescono.
+	var massimo := 1 + (1 if _forza >= 2 else 0) + (1 if _forza >= 6 else 0)
+	var occupati := 0
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var altro := n as Nemico
+		if altro != null and altro != self and altro.stato == Stato.ATTACCO and altro.tipo in CORPO_A_CORPO:
+			occupati += 1
+	return occupati < massimo
+
+
+func _accerchia(g: Giocatore, dx: float) -> bool:
+	# Vero se in questo fotogramma si sta spostando per prenderti dall'altra parte.
+	if tipo not in CORPO_A_CORPO or tipo == "saltatore" or _forza < 1:
+		return false   # ad accerchiare si impara: dalla seconda ondata, o da veterani
+	var mio_lato := -1 if dx > 0.0 else 1    # da che parte di te sono
+	if _t_fianco <= 0.0:
+		_t_fianco = 0.6
+		var prima := _fianco
+		_fianco = 0
+		for n: Node in get_tree().get_nodes_in_group("nemici"):
+			var altro := n as Nemico
+			if altro == null or altro == self or altro.tipo not in CORPO_A_CORPO or altro.stato in [Stato.MORTO, Stato.DORME]:
+				continue
+			var sua := altro.global_position.x - g.global_position.x
+			if signf(sua) == float(mio_lato) and absf(sua) < 70.0 and absf(sua) < absf(dx) \
+					and absf(altro.global_position.y - global_position.y) < 40.0:
+				_fianco = -mio_lato
+				if prima == 0:
+					Rapporto.conta("accerchiamenti")
+				break
+	if _fianco == 0 or mio_lato == _fianco:
+		return false
+	var meta := g.global_position.x + _fianco * 40.0
+	verso = 1 if meta > global_position.x else -1
+	_cammina(float(_dati["corsa"]) * 1.15)
+	return true
+
+
+func _reagisci_al_colpo(g: Giocatore, dx: float, dy: float) -> bool:
+	# Legge il tuo attacco. Vero se in questo fotogramma sta reagendo (parata o passo indietro).
+	if _t_parata > 0.0:
+		velocity.x = 0.0
+		return true
+	if stato not in [Stato.INSEGUE, Stato.FERMO, Stato.PATTUGLIA] or not g.attacco_in_carica():
+		return false
+	if absf(dy) > 40.0 or absf(dx) > 72.0 or signf(dx) != float(verso) or _t_ricarica_parata > 0.0:
+		return false
+	_t_ricarica_parata = 0.9
+	var famiglia := g.famiglia_arma()
+	var lezione := Memoria.lezione_arma() if nemesi.is_empty() else ""
+	# Contro un'arma lenta: un passo indietro mentre carichi, poi si risponde subito.
+	if lezione == "punisce_lente" and Armi.LENTE.has(famiglia) and tipo in CORPO_A_CORPO and is_on_floor() \
+			and _caso.randf() < 0.3 + 0.04 * _forza:
+		velocity = Vector2(-verso * 170.0, -90.0)
+		_t_balzo = 0.25
+		_t_ricarica = 0.0
+		_schivate += 1
+		Rapporto.conta("letture_arma")
+		return true
+	# Parata: lo scheletro per natura, gli altri se l'hanno imparata.
+	if tipo == "scheletro" or (capacita.has("parata") and tipo in CORPO_A_CORPO):
+		var p := 0.06 + 0.03 * _forza + (0.25 if capacita.has("parata") else 0.0)
+		if lezione == "para_rapide" and Armi.RAPIDE.has(famiglia):
+			p += 0.25
+		if _caso.randf() < p:
+			_t_parata = PARATA_NEMICO
+			velocity.x = 0.0
+			sprite.riproduci("parata" if sprite.ha("parata") else "fermo", true)
+			Rapporto.conta("parate_nemici")
+			return true
+	return false
+
+
+func _parato(da: Vector2) -> void:
+	Effetti.scoppio(get_parent(), global_position + Vector2(verso * 14.0, -30.0), Color(1.0, 0.9, 0.6), 8, 90.0, 0.2, 100.0)
+	_schivate += 1
+	_t_ricarica = 0.0   # risponde subito
+	var g := get_tree().get_first_node_in_group("giocatore") as Giocatore
+	if g != null and g.global_position.distance_to(da) < 80.0:
+		g.velocity.x = signf(g.global_position.x - global_position.x) * 140.0   # respinto
+
+
+func _controlla_furia() -> void:
+	if _furioso or not capacita.has("furia") or vita > maxi(1, int(int(_dati["vita"]) * 0.4)):
+		return
+	_furioso = true
+	_dati["corsa"] = float(_dati["corsa"]) * 1.3
+	sprite.modulate = sprite.modulate * Color(1.15, 0.75, 0.7)
+	Rapporto.conta("furie")
+
+
 # ------------------------------------------------------------------ danni
 
 func esposto() -> bool:
@@ -819,8 +1087,27 @@ func esposto() -> bool:
 	return stato == Stato.ATTACCO and _t_stato >= float(TEMPI_BESTIONE[2])
 
 
-func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "") -> bool:
+func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", dettagli: Dictionary = {}) -> bool:
 	if stato == Stato.MORTO or stato == Stato.RISVEGLIO:
+		return false
+	var davanti := signf(da.x - global_position.x) == float(verso)
+	var famiglia: String = dettagli.get("famiglia", "")
+	if famiglia != "":
+		_ultima_famiglia = famiglia
+	# Parata: da davanti la spada e i tiri non passano, a meno che l'arma non rompa la guardia.
+	if _t_parata > 0.0 and davanti and tipo_colpo in ["mischia", "tiro"]:
+		if dettagli.get("rompe", false):
+			Rapporto.conta("guardie_rotte")
+			Effetti.scoppio(get_parent(), global_position + Vector2(verso * 12.0, -30.0), Color(1.0, 0.7, 0.4), 12, 120.0, 0.25, 100.0)
+			_t_parata = 0.0
+			barcolla(0.8)
+			return true
+		_parato(da)
+		return false
+	# La nemesi che hai battuto con quest'arma ha imparato a difendersene.
+	if famiglia != "" and famiglia == String(nemesi.get("arma_nemica", "")) and davanti and _caso.randf() < 0.4:
+		Rapporto.conta("resistenze_nemesi")
+		_parato(da)
 		return false
 	if stato == Stato.DORME:
 		if tipo == "pipistrello":
@@ -830,8 +1117,8 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "") ->
 		_risvegliati()  # un colpo lo sveglia soltanto
 		return false
 	# Il bestione para da davanti, se non è scoperto (la magia e le trappole passano la corazza).
-	if tipo == "bestione" and tipo_colpo not in ["magia", "trappola"] and not esposto() \
-			and signf(da.x - global_position.x) == float(verso):
+	if tipo == "bestione" and tipo_colpo not in ["magia", "trappola"] and not esposto() and davanti \
+			and not dettagli.get("rompe", false):
 		sprite.riproduci("parata", true)
 		Effetti.scoppio(get_parent(), global_position + Vector2(verso * 14.0, -34.0), Color(1.0, 0.9, 0.6), 8, 90.0, 0.2, 100.0)
 		Rapporto.conta("parate_bestione")
@@ -846,7 +1133,12 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "") ->
 		return true
 	_carica = false
 	_in_balzo = false
+	_combo_rimasti = 0
+	_t_parata = 0.0
 	_cambia(Stato.COLPITO)
+	if float(dettagli.get("stordisce", 0.0)) > 0.0:
+		barcolla(float(dettagli["stordisce"]))
+		return true
 	if tipo == "bestione":
 		velocity = Vector2(lato * spinta * 0.15, 0.0)   # pesante: quasi non si sposta
 	elif tipo == "pipistrello":
@@ -873,6 +1165,9 @@ func _muori(lato: float) -> void:
 	Rapporto.evento("nemico_ucciso", {"tipo": tipo, "x": roundi(global_position.x), "y": roundi(global_position.y),
 			"nemesi": Memoria.nome_completo(nemesi) if not nemesi.is_empty() else ""})
 	Effetti.scoppio(get_parent(), global_position + Vector2(0, -22), Color(0.82, 0.8, 0.7, 0.8), 12, 80.0, 0.5, 220.0, false)
-	var frase := Memoria.nemico_sconfitto(self)
+	if not evocato:
+		var xp := 1.0 + _danno_inflitto * 2.0 + minf(4.0, _t_vivo / 20.0) + _schivate * 0.5 + (ondata - 1) * 0.5
+		Memoria.veterano_morto(id_posto, xp, ondata)
+	var frase := Memoria.nemico_sconfitto(self, _ultima_famiglia)
 	if frase != "":
 		get_tree().call_group("hud", "messaggio", frase, 3.0)

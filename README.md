@@ -28,8 +28,8 @@ quando c'è una versione nuova.
 | Saltare | A | Salto | Spazio |
 | Attaccare (due colpi) | X | Colpo | J |
 | Rotolare | B | Rotola | K |
-| Schivare / scatto (con la direzione: avanti o indietro) | Y | Schiva | L |
-| Tirare (magia, dardi, frecce; con su in alto) | RB o RT | Tira | I |
+| Schivare / scatto (con la direzione: avanti o indietro); con lo scudo, da fermo: parata | Y | Schiva | L |
+| Tirare (magia, dardi, frecce; con su in alto; tenendo premuto: magia caricata, raffica, arco carico) | RB o RT | Tira | I |
 | Cambiare arma a distanza | LT | Arma | Q |
 | Afferrare una cassa (tenere premuto) | LB | Afferra (solo vicino a una cassa) | E |
 | Tirare una leva, aprire un forziere | LB | Leva / Apri (solo accanto) | E |
@@ -66,7 +66,7 @@ si scelgono dal menu di pausa, sezione Aspetto.
 
 - `script/` — il gioco. `principale.gd` avvia tutto; `stanza.gd` costruisce la stanza; `giocatore.gd`, `figura_viva.gd`,
   `equipaggiamento.gd`, `bot.gd`, `navigatore.gd`, `nemico.gd`, `memoria.gd`,
-  `rompibile.gd`, `proiettile.gd` (colpi dei nemici e tiri di chi gioca), `raccoglibile.gd` (munizioni a terra); meccanismi e trappole della galleria: `porta.gd`, `leva.gd`, `piastra.gd`,
+  `armi.gd` (attacchi delle armi da mischia), `rompibile.gd`, `proiettile.gd` (colpi dei nemici e tiri di chi gioca), `raccoglibile.gd` (munizioni a terra); meccanismi e trappole della galleria: `porta.gd`, `leva.gd`, `piastra.gd`,
   `forziere.gd`, `spuntoni.gd`, `pendolo.gd`, `balestra.gd`, `piattaforma_mobile.gd`, `piattaforma_fragile.gd`,
   `bracieri.gd`; `dispositivo.gd` (riconoscimento e qualità), `controlli.gd`, `impostazioni.gd`,
   `rapporto.gd`; `hud.gd` e `menu.gd` per l'interfaccia.
@@ -94,11 +94,24 @@ dell'ultima posizione vista, tattiche scelte secondo i risultati (osserva, decid
 Sei tipi: scheletro, mago, arciere (dardi di balestra), pipistrello (dorme appeso, scende in picchiata), saltatore
 (balza da una piattaforma all'altra) e bestione (corazzato: da davanti para la spada, si gira lentamente).
 
+## Armi da mischia
+
+Ogni arma ha la sua combinazione (numero di colpi, danno, portata, tempi) e una dote: `script/armi.gd`.
+La mano sinistra aggiunge la parata (scudo) o un colpo in più (seconda arma). Le animazioni restano quelle del
+gruppo di mosse, accelerate o rallentate per seguire i tempi dell'arma.
+
+## Ondate e veterani
+
+In ogni sogno, quando la stanza è vuota, i caduti si rialzano per tre volte (quattro ondate in tutto), ogni volta
+più forti. Ogni posto della stanza ha un veterano che accumula esperienza a ogni morte (`Memoria.veterani`, in
+`user://memoria.cfg`) e cresce piano, nel corso di mesi.
+
 ## Armi a distanza
 
 Magia (energia che si ricarica), dardi e frecce (munizioni da forzieri e barili), in `script/giocatore.gd`
 (`ARMI_DISTANZA`). Tasto Tira, con su in alto; tasto Arma per cambiare. Un aiuto alla mira raddrizza il tiro sul
-nemico più vicino entro circa 30 gradi (`bersaglio_tiro`).
+nemico più vicino entro circa 30 gradi (`bersaglio_tiro`). Tenendo premuto: magia caricata che esplode,
+raffica di dardi, arco carico che trapassa.
 
 ## Bot di prova
 

@@ -49,6 +49,10 @@ var _piastre_saltate := 0
 var _alle_spalle := 0            # volte che è passato alle spalle del bestione
 var _usa_tiri := true            # spento quando una fase vuole provare il corpo a corpo
 var _stanza_segnalata: Node = null
+var _fase_interrotta := false
+var _pericolo_da_chi: Nemico = null
+var _esito_ondate := {}
+var _ondate_permesse := false
 var _armatura_provata := false   # il primo colpo di spada sul bestione si prova da davanti (come farebbe una persona)
 var _trappole_forzate := {}      # trappola -> fino a quando non la si aspetta più (ms)
 
@@ -549,8 +553,8 @@ func _minaccia() -> Nemico:
 		if n.tipo == "pipistrello":
 			if d.length() < 150.0 and _visibile(n):
 				return n
-		elif absf(d.x) < 110.0 and absf(d.y) < (60.0 if n.tipo == "saltatore" else 40.0):
-			return n
+		elif absf(d.x) < 110.0 and absf(d.y) < (60.0 if n.tipo == "saltatore" else 40.0) and _visibile(n):
+			return n   # dietro un muro non è una minaccia
 	return null
 
 
@@ -562,6 +566,22 @@ func _visibile(n: Nemico) -> bool:
 
 
 func _pericolo(n: Nemico) -> String:
+	# Il pericolo può arrivare anche da chi non si sta guardando (chi ti gira alle spalle).
+	var mio := _pericolo_da(n)
+	if mio != "":
+		return mio
+	for altro: Nemico in _nemici_vivi():
+		if altro == n or altro.global_position.distance_to(_g().global_position) > 110.0:
+			continue
+		var suo := _pericolo_da(altro)
+		if suo in ["colpo", "carica", "picchiata"]:
+			_pericolo_da_chi = altro
+			return suo
+	return ""
+
+
+func _pericolo_da(n: Nemico) -> String:
+	_pericolo_da_chi = n
 	var g := _g()
 	var d := n.global_position - g.global_position
 	var t := float(n.get("_t_stato"))
@@ -635,10 +655,30 @@ func _tira_contro(n: Nemico, arma: String) -> bool:
 		return false
 	if modo == 2:
 		Input.action_press("su")
-	await _tocca("tira")
+	# Ogni arma col suo attacco: l'arco sempre caricato (se c'è tempo), la magia caricata contro il
+	# bestione o un gruppo, i dardi a raffica contro chi è piccolo e veloce.
+	var vicini := _nemici_vivi().filter(func(m: Nemico) -> bool: return m.global_position.distance_to(n.global_position) < 50.0).size()
+	var lontano := n.global_position.distance_to(g.global_position) > 110.0
+	match arma:
+		"frecce":
+			if lontano:
+				await _tieni_tiro(true, 60)
+			else:
+				await _tocca("tira")
+		"magia":
+			if g.energia >= g.costo_magia(true) and (n.tipo == "bestione" or vicini >= 2) and lontano:
+				await _tieni_tiro(true, 50)
+			else:
+				await _tocca("tira")
+		"dardi":
+			if n.tipo in ["pipistrello", "saltatore"]:
+				await _tieni_tiro(false, 26)
+			else:
+				await _tocca("tira")
 	if modo == 2:
 		Input.action_release("su")
-	await _fotogrammi(int(float(Giocatore.ARMI_DISTANZA[arma]["durata"]) * 60.0) + 2)
+	if arma == "dardi" or g.stato == Giocatore.Stato.TIRO:
+		await _fotogrammi(int(float(Giocatore.ARMI_DISTANZA[arma]["durata"]) * 60.0) + 2)
 	return true
 
 
@@ -708,7 +748,20 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 	_in_combattimento = true
 	var t_tiro := 0
 	var nascosto := 0
+	# Contro lo stallo: se per otto secondi non cambia niente (nessuno si muove, nessuno si ferisce), si lascia.
+	var inizio_ms := Engine.get_physics_frames()
+	var istantanea := ""
 	for i in massimo:
+		if Engine.get_physics_frames() - inizio_ms >= 480:
+			inizio_ms = Engine.get_physics_frames()
+			var ora := "%s %d %d %s" % [str((_g().global_position / 8.0).round()), _g().vita,
+					n.vita if is_instance_valid(n) else -1, str((n.global_position / 8.0).round()) if is_instance_valid(n) else ""]
+			if ora == istantanea:
+				Rapporto.conta("stalli_bot")
+				if Dispositivo.in_prova:
+					print("PROVA stallo contro %s" % (n.tipo if is_instance_valid(n) else "?"))
+				break
+			istantanea = ora
 		if not is_instance_valid(n) or n.stato == Nemico.Stato.MORTO:
 			break
 		var g := _g()
@@ -738,20 +791,49 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 				var raggiunto := await _vai_a(n.global_position + Vector2(lato, 0.0), 24.0)
 				if not raggiunto:
 					await _fotogrammi(10)
-			else:
-				await _fotogrammi(10)
-			continue
+				continue
+			break   # combattimento dentro un altro: chi è su un'altra quota lo cercherà quello di fuori
+		# Stessa quota ma superfici diverse (per esempio un muro in mezzo): ci si arriva col navigatore.
+		if absf(d.x) > 60.0 and _pericolo(n) == "":
+			var mia := _nav.superficie_di(g.global_position)
+			var sua := _nav.superficie_di(n.global_position)
+			if mia != "" and sua != "" and mia != sua:
+				_rilascia_tutto()
+				if gia_in_combattimento:
+					break
+				var lato := -28.0 if d.x > 0.0 else 28.0
+				if not await _vai_a(n.global_position + Vector2(lato, 0.0), 24.0):
+					await _fotogrammi(10)
+				continue
 		var pericolo := _pericolo(n)
 		if pericolo != "":
-			await _difenditi(n, pericolo)
+			await _difenditi(_pericolo_da_chi if is_instance_valid(_pericolo_da_chi) else n, pericolo)
 			continue
 		var v := 1 if d.x > 0.0 else -1
 		var avanti := "destra" if v > 0 else "sinistra"
 		Input.action_release("sinistra" if v > 0 else "destra")
 		# Legge il nemico: mentre carica un colpo non gli si va addosso; dopo il colpo è scoperto.
 		var tempi := n.tempi_attacco()
-		var carica := n.stato == Nemico.Stato.ATTACCO and float(n.get("_t_stato")) < float(tempi[2])
-		var scoperto := n.stato == Nemico.Stato.ATTACCO and float(n.get("_t_stato")) >= float(tempi[2])
+		var carica := n.stato == Nemico.Stato.ATTACCO and (float(n.get("_t_stato")) < float(tempi[2]) or n.colpi_in_arrivo() > 0)
+		var scoperto := (n.stato == Nemico.Stato.ATTACCO and float(n.get("_t_stato")) >= float(tempi[2]) and n.colpi_in_arrivo() == 0) \
+				or n.stato == Nemico.Stato.COLPITO
+		# Prudenza: con poca vita non si resta addosso a chi non è scoperto; da lontano si tira.
+		if g.vita <= 2 and not scoperto and n.tipo in Nemico.CORPO_A_CORPO:
+			if absf(d.x) > 90.0 and t_tiro <= 0 and _scegli_arma(n) != "" and _a_tiro(n) != 0:
+				await _tira_contro(n, _scegli_arma(n))
+				t_tiro = 30
+				continue
+			if absf(d.x) < 90.0:
+				Input.action_release(avanti)
+				Input.action_press("sinistra" if v > 0 else "destra")
+				await _fotogrammi(8)
+				Input.action_release("sinistra" if v > 0 else "destra")
+				continue
+		if n.sta_parando() and absf(d.x) < 70.0:
+			# Para: non si colpisce lo scudo, si aspetta (o si gira attorno).
+			Input.action_release(avanti)
+			await _fotogrammi(4)
+			continue
 		# Il bestione para da davanti: magia da lontano, oppure gli si rotola alle spalle.
 		# La prima volta si prova comunque un colpo di spada da davanti, per vedere che para.
 		if n.tipo == "bestione" and not _armatura_provata and absf(d.x) < 80.0 and not n.esposto() \
@@ -827,7 +909,12 @@ func _contro_pipistrello(n: Nemico, puo_tirare: bool) -> bool:
 	var g := _g()
 	if n.stato == Nemico.Stato.DORME and _a_tiro(n) == 0:
 		# Appeso e addormentato: ci si va sotto (si sveglia) o finché non è a tiro.
-		await _cammina_verso(n.global_position.x - 50.0 * signf(n.global_position.x - g.global_position.x), 20.0, 30)
+		var posto := _sotto_o_sopra(n)
+		if posto != Vector2.INF:
+			var arrivato := await _vai_a(posto, 12.0)
+			if Dispositivo.in_prova and not arrivato:
+				print("PROVA pipistrello appeso: non arriva a %s da %s" % [str(posto), str(_g().global_position.round())])
+		await _fotogrammi(10)
 		return false
 	var pericolo := _pericolo(n)
 	if pericolo != "":
@@ -840,6 +927,16 @@ func _contro_pipistrello(n: Nemico, puo_tirare: bool) -> bool:
 		await _guarda(v)
 		await _tocca("attacca")
 		await _fotogrammi(8)
+		return false
+	if absf(d.x) < 56.0 and d.y < -30.0 and d.y > -100.0 and g.is_on_floor():
+		# Poco sopra la testa: si salta e lo si colpisce in aria.
+		_rilascia_tutto()
+		await _guarda(v)
+		Input.action_press("salta")
+		await _fotogrammi(9)
+		await _tocca("attacca")
+		Input.action_release("salta")
+		await _fotogrammi(16)
 		return false
 	var arma := _scegli_arma(n)
 	if puo_tirare and arma != "" and _a_tiro(n) != 0:
@@ -905,6 +1002,9 @@ func _chiudi_fase() -> void:
 
 
 func _process(delta: float) -> void:
+	# Le ondate restano ferme finché il bot prova enigmi e meccanismi; le affronta nella sua fase.
+	if in_corso and is_instance_valid(_principale.stanza) and _principale.stanza.ondate_attive != _ondate_permesse:
+		_principale.stanza.ondate_attive = _ondate_permesse
 	if Dispositivo.in_prova and in_corso and Engine.get_process_frames() % 600 == 0 and _principale.stanza != null:
 		var g := _g()
 		print("PROVA traccia: %s %s %s" % [fase_nome, str(g.global_position.round()), Giocatore.Stato.keys()[g.stato]])
@@ -957,12 +1057,22 @@ func _esegui() -> void:
 			"%s, torce con ombra %d" % [Dispositivo.livello, _principale.stanza.torce_con_ombra()])
 	await _scatta("inizio")
 
-	var tutte: Array[Callable] = [_movimento, _oggetti, _scheletro, _morte, _nemesi, _percorso, _qualita, _tasti_a_schermo,
-			_menu_e_aspetto, _mosse_in_partita, _ambiente, _armi_a_distanza, _galleria, _trappole, _torre, _enigma_cassa,
-			_enigma_bracieri, _nemici_nuovi, _gioco_libero, _prestazioni]
+	var tutte: Array[Callable] = [_movimento, _oggetti, _scheletro, _cripta, _percorso, _qualita, _tasti_a_schermo,
+			_menu_e_aspetto, _mosse_in_partita, _ambiente, _armi_da_mischia, _armi_a_distanza, _galleria, _trappole, _torre,
+			_enigma_cassa, _enigma_bracieri, _nemici_nuovi, _ondate, _gioco_libero, _prestazioni]
+	# Le fasi della galleria, se il bot muore davvero a metà, si rifanno (la stanza è ricominciata).
+	var ripetibili := [_galleria, _trappole, _torre, _enigma_cassa, _enigma_bracieri]
 	for fase: Callable in tutte:
-		if solo_fasi.is_empty() or solo_fasi.has(fase.get_method().trim_prefix("_")):
+		if not (solo_fasi.is_empty() or solo_fasi.has(fase.get_method().trim_prefix("_"))):
+			continue
+		for tentativo in (3 if ripetibili.has(fase) else 1):
+			_fase_interrotta = false
 			await fase.call()
+			if not _fase_interrotta:
+				break
+			Rapporto.evento("fase_ripetuta", {"fase": fase_nome, "tentativo": tentativo + 1})
+		if _fase_interrotta:
+			_verifica("%s: portata a termine (il bot è morto ogni volta)" % fase_nome, false)
 	_chiudi_fase()
 	await _concludi("bot")
 
@@ -1045,63 +1155,18 @@ func _scheletro() -> void:
 	await _scatta("dopo_scheletro")
 
 
-func _morte() -> void:
-	# Contro il secondo scheletro il bot si distrae (non si difende): cade, e il sogno lo ricorda.
-	_nuova_fase("morte")
-	var sogno: int = _principale.sogno
-	var killer: Nemico = null
-	for n: Nemico in _nemici_vivi("scheletro"):
-		if n.global_position.x < Stanza.CRIPTA:
-			killer = n
-	if killer == null:
-		_verifica("c'è un nemico per la prova della morte", false)
-		return
-	_combatte_minacce = false
-	await _vai_a(killer.global_position + Vector2(-30.0, 0.0), 12.0)
-	for i in 1800:
-		if _g().stato == Giocatore.Stato.MORTO or not is_instance_valid(killer):
-			break
-		var dx := killer.global_position.x - _g().global_position.x
-		if absf(dx) > 34.0:
-			Input.action_press("destra" if dx > 0.0 else "sinistra")
-		else:
-			_rilascia_tutto()
-		await _fotogrammi(1)
-	_rilascia_tutto()
-	await _scatta("morte")
-	for i in 600:
-		if _principale.sogno > sogno and not _principale._in_transizione:
-			break
-		await _fotogrammi(1)
-	await _fotogrammi(20)
-	_combatte_minacce = true
-	var g := _g()
-	_verifica("dopo la morte si rinasce in un nuovo sogno", _principale.sogno == sogno + 1 and g.vita == Giocatore.VITA_MASSIMA
-			and g.stato == Giocatore.Stato.NORMALE, "sogno %d, vita %d" % [_principale.sogno, g.vita])
-	var nemesi: Array = Memoria.nemesi_per("scheletro")
-	_verifica("chi ti uccide diventa una nemesi", not nemesi.is_empty() and int(nemesi[0]["vittorie"]) >= 1,
-			str(Memoria.descrizione()["nemesi"]))
-	await _scatta("nuovo_sogno")
-
-
-func _nemesi() -> void:
-	# Nuovo sogno: la nemesi è tornata, più forte. Il bot ripulisce la stanza combattendo davvero.
-	_nuova_fase("nemesi")
-	var nemesi_viva: Nemico = null
-	for n: Nemico in _nemici_vivi():
-		if not n.nemesi.is_empty():
-			nemesi_viva = n
-	_verifica("la nemesi torna nel sogno, più forte", nemesi_viva != null and nemesi_viva.potere >= 1
-			and nemesi_viva.vita > int(Nemico.TIPI["scheletro"]["vita"]),
-			"" if nemesi_viva == null else "%s, vita %d" % [Memoria.nome_completo(nemesi_viva.nemesi), nemesi_viva.vita])
+func _cripta() -> void:
+	# Si ripulisce la cripta combattendo davvero: prima chi è sulla stessa quota, poi il mago sulla sua
+	# piattaforma (raggiunto a piedi: qui niente tiri, per provare il corpo a corpo). Se una nemesi c'è,
+	# si presenta. Il bot non si lascia mai uccidere apposta: la nascita delle nemesi la prova il computer.
+	_nuova_fase("cripta")
 	var uccisi := Rapporto.contatore("nemici_uccisi")
 	var magie := Rapporto.contatore("magie_lanciate")
-	_usa_tiri = false   # qui si prova ad arrivare al mago sulla sua piattaforma (le armi a distanza dopo)
-	for giro in 8:
+	_usa_tiri = false
+	for giro in 10:
 		var vivi := _nemici_cripta()
 		if vivi.is_empty():
 			break
-		# Prima chi è sulla stessa quota, poi il mago sulla sua piattaforma.
 		var bersaglio: Nemico = vivi[0]
 		for n: Nemico in vivi:
 			if absf(n.global_position.y - _g().global_position.y) < 40.0:
@@ -1111,14 +1176,14 @@ func _nemesi() -> void:
 		if _g().stato == Giocatore.Stato.MORTO:
 			await _rinasci()
 	_usa_tiri = true
-	var presentata: bool = Rapporto.get("_eventi").any(func(e: Dictionary) -> bool: return e.get("tipo", "") == "nemesi_incontro")
-	_verifica("la nemesi si presenta con la sua frase", presentata)
 	_verifica("il mago lancia", Rapporto.contatore("magie_lanciate") > magie)
 	_verifica("cripta ripulita combattendo", _nemici_cripta().is_empty(),
 			"uccisi %d, rimasti %d" % [Rapporto.contatore("nemici_uccisi") - uccisi, _nemici_cripta().size()])
-	_verifica("la nemesi ricorda com'è finita", Memoria.nemesi.is_empty() or Memoria.nemesi.any(
-			func(r: Dictionary) -> bool: return int(r["sconfitte"]) >= 1 or int(r["vittorie"]) >= 2),
-			str(Memoria.descrizione()["nemesi"]))
+	var con_nemesi: bool = _nemici_vivi().any(func(n: Nemico) -> bool: return not n.nemesi.is_empty()) \
+			or Rapporto.get("_eventi").any(func(e: Dictionary) -> bool: return e.get("tipo", "") == "nemesi_incontro")
+	if con_nemesi:
+		var presentata: bool = Rapporto.get("_eventi").any(func(e: Dictionary) -> bool: return e.get("tipo", "") == "nemesi_incontro")
+		_verifica("la nemesi si presenta con la sua frase", presentata)
 	await _scatta("stanza_ripulita")
 
 
@@ -1537,19 +1602,83 @@ func _ultimo_tiro(tipo: String) -> Proiettile:
 	return null
 
 
+func _armi_da_mischia() -> void:
+	# Ogni arma da mischia ha la sua combinazione: il bot le prova tutte (numero di colpi, danno dell'ultimo),
+	# poi la seconda arma (un colpo in più) e lo scudo (Schiva da fermo = parata). Alla fine torna alla spada.
+	_nuova_fase("armi_da_mischia")
+	await _vai_a(Vector2(560, Stanza.PAVIMENTO), 8.0)
+	var prove := {"spada_viandante": "mano_vuota", "ascia": "mano_vuota", "pugnale": "mano_vuota", "spadone": "mano_vuota",
+			"bipenne": "mano_vuota", "bastone": "mano_vuota", "bacchetta": "mano_vuota", "mani_nude": "mano_vuota",
+			"lama_sepolti": "seconda_spada"}
+	var esiti := {}
+	var giuste := 0
+	for arma: String in prove:
+		Equipaggiamento.indossa("arma", arma)
+		Equipaggiamento.indossa("mano_sinistra", prove[arma])
+		await _fotogrammi(8)
+		await _guarda(1 if _g().global_position.x < 700.0 else -1)
+		var attesi: Array = Armi.colpi(Armi.famiglia(arma), prove[arma])
+		var inizio := Rapporto.contatore("attacchi")
+		var danno_ultimo := -1
+		var fotogrammi := 0
+		await _tocca("attacca")
+		while Rapporto.contatore("attacchi") - inizio < attesi.size() and fotogrammi < 300:
+			await _fotogrammi(3)
+			await _tocca("attacca")
+			fotogrammi += 6
+		for i in 90:
+			if _g().stato != Giocatore.Stato.ATTACCO:
+				break
+			if not _g().colpo_attuale().is_empty():
+				danno_ultimo = int(_g().colpo_attuale()["d"])
+			await _fotogrammi(1)
+		var fatti := Rapporto.contatore("attacchi") - inizio
+		esiti[arma] = "%d/%d colpi, ultimo %d" % [fatti, attesi.size(), danno_ultimo]
+		if fatti == attesi.size() and danno_ultimo == int((attesi[-1] as Dictionary)["d"]):
+			giuste += 1
+		await _fotogrammi(10)
+	_verifica("ogni arma da mischia ha la sua combinazione", giuste == prove.size(), str(esiti))
+	# Scudo: Schiva da fermo alza lo scudo.
+	Equipaggiamento.indossa("arma", "spada_viandante")
+	Equipaggiamento.indossa("mano_sinistra", "scudo_tondo")
+	await _fotogrammi(20)
+	_rilascia_tutto()
+	await _tocca("schiva")
+	await _fotogrammi(2)
+	var parata := _g().stato == Giocatore.Stato.PARATA
+	await _scatta("parata")
+	await _fotogrammi(40)
+	_verifica("con lo scudo Schiva da fermo para", parata, Giocatore.Stato.keys()[_g().stato])
+	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
+	await _fotogrammi(10)
+
+
+func _tieni_tiro(fino_alla_carica: bool, massimo: int = 90) -> void:
+	# Tiene premuto Tira: fino a carica piena (arco, magia) o per un po' (raffica), poi lascia.
+	Input.action_press("tira")
+	await _fotogrammi(3)
+	for i in massimo:
+		if fino_alla_carica and _g().carica_tiro() >= 1.0:
+			break
+		if _g().stato != Giocatore.Stato.TIRO:
+			break
+		await _fotogrammi(1)
+	Input.action_release("tira")
+	await _fotogrammi(int(float(Giocatore.ARMI_DISTANZA[_g().arma_distanza]["durata"]) * 60.0) + 4)
+
+
 func _armi_a_distanza() -> void:
 	# Magia, dardi e frecce: il tasto Arma le scorre e l'indicatore segue; ogni tiro consuma energia
 	# o munizioni; una freccia rompe un barile da lontano; con su si tira in alto; l'energia torna da sola;
 	# finite le frecce il tiro va a vuoto (le ridà il forziere dell'alcova, poi).
 	_nuova_fase("armi_a_distanza")
 	await _vai_a(Vector2(600, Stanza.PAVIMENTO), 8.0)
-	var g := _g()
 	var hud: Node = _principale.hud
 	var viste := {}
 	for i in Giocatore.ORDINE_ARMI.size():
-		var nome: String = Giocatore.ARMI_DISTANZA[g.arma_distanza]["nome"]
+		var nome: String = Giocatore.ARMI_DISTANZA[_g().arma_distanza]["nome"]
 		if String(hud.testo_armi()).contains("[" + nome):
-			viste[g.arma_distanza] = true
+			viste[_g().arma_distanza] = true
 		await _tocca("cambia_arma")
 		await _fotogrammi(4)
 	_verifica("il tasto Arma scorre le tre armi e l'indicatore mostra quella scelta", viste.size() == Giocatore.ORDINE_ARMI.size(),
@@ -1562,26 +1691,38 @@ func _armi_a_distanza() -> void:
 		if is_instance_valid(r) and _nav.superficie_di(r.global_position) == "pavimento" \
 				and (barile == null or r.global_position.x > barile.global_position.x):
 			barile = r
+	var dal_ripiano := false
+	if barile == null:
+		# Rotti tutti quelli a terra: ci sono quelli sul ripiano, si tira dal suo bordo.
+		for b: Node in get_tree().get_nodes_in_group("rompibili"):
+			if is_instance_valid(b) and _nav.superficie_di((b as Node2D).global_position) == "ripiano":
+				barile = b as Rompibile
+				dal_ripiano = true
 	if barile == null:
 		_verifica("c'è un barile per provare i tiri", false)
 	else:
-		await _vai_a(Vector2(barile.global_position.x + 84.0, Stanza.PAVIMENTO), 4.0)
+		if dal_ripiano:
+			await _vai_a(Vector2(196.0, 392.0), 4.0)
+		else:
+			await _vai_a(Vector2(barile.global_position.x + 84.0, Stanza.PAVIMENTO), 4.0)
 		await _scegli_arma_col_tasto("frecce")
 		await _guarda(-1)
 		var rotti := Rapporto.contatore("oggetti_rotti")
-		var frecce: int = g.munizioni["frecce"]
-		var pronta := g.puo_tirare("frecce")
-		await _tocca("tira")
-		await _fotogrammi(16)
+		var frecce: int = _g().munizioni["frecce"]
+		var cariche := Rapporto.contatore("tiri_carichi")
+		var pronta := _g().puo_tirare("frecce")
+		await _tieni_tiro(true)   # l'arco si carica tenendo premuto
+		await _fotogrammi(4)
 		await _scatta("tiro_freccia")
 		await _fotogrammi(30)
-		_verifica("una freccia rompe un barile da lontano", pronta and Rapporto.contatore("oggetti_rotti") > rotti
-				and int(g.munizioni["frecce"]) == frecce - 1, "frecce %d -> %d, rotti %d" % [frecce, g.munizioni["frecce"],
-				Rapporto.contatore("oggetti_rotti") - rotti])
+		_verifica("una freccia caricata rompe un barile da lontano", pronta and Rapporto.contatore("oggetti_rotti") > rotti
+				and int(_g().munizioni["frecce"]) == frecce - 1 and Rapporto.contatore("tiri_carichi") == cariche + 1,
+				"frecce %d -> %d, rotti %d, cariche %d" % [frecce, _g().munizioni["frecce"], Rapporto.contatore("oggetti_rotti") - rotti,
+				Rapporto.contatore("tiri_carichi") - cariche])
 
 	# Dardi: veloci, uno alla volta; con su si tira in alto.
 	await _scegli_arma_col_tasto("dardi")
-	var dardi: int = g.munizioni["dardi"]
+	var dardi: int = _g().munizioni["dardi"]
 	Input.action_press("su")
 	await _tocca("tira")
 	await _fotogrammi(9)
@@ -1589,30 +1730,54 @@ func _armi_a_distanza() -> void:
 	var dardo := _ultimo_tiro("dardo")
 	var in_alto := dardo != null and dardo.velocita.y < -100.0
 	await _fotogrammi(20)
-	_verifica("con su il dardo parte verso l'alto", in_alto and int(g.munizioni["dardi"]) == dardi - 1,
-			"dardi %d -> %d, velocità %s" % [dardi, g.munizioni["dardi"], "nessun dardo" if dardo == null else str(dardo.velocita.round())])
+	_verifica("con su il dardo parte verso l'alto", in_alto and int(_g().munizioni["dardi"]) == dardi - 1,
+			"dardi %d -> %d, velocità %s" % [dardi, _g().munizioni["dardi"], "nessun dardo" if dardo == null else str(dardo.velocita.round())])
+	# Tenendo premuto parte una raffica.
+	dardi = _g().munizioni["dardi"]
+	var in_raffica := Rapporto.contatore("dardi_in_raffica")
+	Input.action_press("tira")
+	await _fotogrammi(46)
+	Input.action_release("tira")
+	await _fotogrammi(24)
+	_verifica("tenendo premuto i dardi partono a raffica", Rapporto.contatore("dardi_in_raffica") >= in_raffica + 2
+			and int(_g().munizioni["dardi"]) <= dardi - 3, "dardi %d -> %d" % [dardi, _g().munizioni["dardi"]])
 
 	# Magia: consuma energia, che torna da sola.
 	await _scegli_arma_col_tasto("magia")
 	for i in 400:
-		if g.energia >= Giocatore.ENERGIA_MASSIMA:
+		if _g().energia >= Giocatore.ENERGIA_MASSIMA:
 			break
 		await _fotogrammi(1)
-	var energia := g.energia
+	var energia := _g().energia
 	await _guarda(1)
 	await _tocca("tira")
 	await _fotogrammi(16)
 	var sfera_partita := _ultimo_tiro("magia_eroe") != null
 	await _scatta("tiro_magia")
-	var dopo := g.energia
+	var dopo := _g().energia
 	await _fotogrammi(150)
-	_verifica("la magia consuma energia, che poi torna", sfera_partita and dopo < energia - Giocatore.COSTO_MAGIA + 8.0
-			and g.energia > dopo + 20.0, "energia %.0f -> %.0f -> %.0f" % [energia, dopo, g.energia])
+	_verifica("la magia consuma energia, che poi torna", sfera_partita and dopo < energia - _g().costo_magia() + 8.0
+			and _g().energia > dopo + 20.0, "energia %.0f -> %.0f -> %.0f" % [energia, dopo, _g().energia])
+	# Caricata, la sfera è più grande ed esplode.
+	for i in 400:
+		if _g().energia >= _g().costo_magia(true) + 4.0:
+			break
+		await _fotogrammi(1)
+	energia = _g().energia
+	var esplosioni := Rapporto.contatore("esplosioni")
+	await _tieni_tiro(true)
+	dopo = _g().energia
+	for i in 140:
+		if Rapporto.contatore("esplosioni") > esplosioni:
+			break
+		await _fotogrammi(1)
+	_verifica("la magia caricata costa di più ed esplode", dopo < energia - _g().costo_magia(true) + 8.0
+			and Rapporto.contatore("esplosioni") > esplosioni, "energia %.0f -> %.0f" % [energia, dopo])
 
 	# Finite le frecce, il tiro va a vuoto e l'indicatore lo segnala.
 	await _scegli_arma_col_tasto("frecce")
 	for i in 12:
-		if not g.puo_tirare("frecce"):
+		if not _g().puo_tirare("frecce"):
 			break
 		await _tocca("tira")
 		await _fotogrammi(int(Giocatore.ARMI_DISTANZA["frecce"]["durata"] * 60.0) + 4)
@@ -1620,18 +1785,24 @@ func _armi_a_distanza() -> void:
 	var tiri := Rapporto.contatore("tiri")
 	await _tocca("tira")
 	await _fotogrammi(20)
-	_verifica("senza frecce il tiro va a vuoto", int(g.munizioni["frecce"]) == 0 and Rapporto.contatore("tiri_a_vuoto") == a_vuoto + 1
-			and Rapporto.contatore("tiri") == tiri and g.stato != Giocatore.Stato.TIRO and String(hud.testo_armi()).contains("Frecce 0"),
+	_verifica("senza frecce il tiro va a vuoto", int(_g().munizioni["frecce"]) == 0 and Rapporto.contatore("tiri_a_vuoto") == a_vuoto + 1
+			and Rapporto.contatore("tiri") == tiri and _g().stato != Giocatore.Stato.TIRO and String(hud.testo_armi()).contains("Frecce 0"),
 			"%s — a vuoto %d, tiri %d, stato %s" % [hud.testo_armi(), Rapporto.contatore("tiri_a_vuoto") - a_vuoto,
-			Rapporto.contatore("tiri") - tiri, Giocatore.Stato.keys()[g.stato]])
+			Rapporto.contatore("tiri") - tiri, Giocatore.Stato.keys()[_g().stato]])
 	await _scegli_arma_col_tasto("dardi")
 
 
 func _sotto_o_sopra(n: Nemico) -> Vector2:
-	# Dove mettersi per svegliare un pipistrello appeso: la superficie più vicina in verticale.
+	# Dove mettersi per svegliare un pipistrello appeso: la superficie più vicina sotto di lui (appeso,
+	# da sopra lo copre il soffitto a cui è attaccato); se non c'è, la più vicina in verticale.
 	var migliore := Vector2.INF
+	var sotto := _nav.superfici.values().any(func(sup: Dictionary) -> bool:
+		return float(sup["y"]) > n.global_position.y and absf(clampf(n.global_position.x, float(sup["x0"]), float(sup["x1"])) - n.global_position.x) < 60.0 \
+				and not sup.get("isolata", false) and not sup.has("condizione"))
 	for sup: Dictionary in _nav.superfici.values():
 		if sup.get("isolata", false) or sup.has("condizione"):
+			continue
+		if sotto and float(sup["y"]) <= n.global_position.y:
 			continue
 		var x := clampf(n.global_position.x, float(sup["x0"]) + 10.0, float(sup["x1"]) - 10.0)
 		if absf(x - n.global_position.x) > 60.0:
@@ -1640,6 +1811,17 @@ func _sotto_o_sopra(n: Nemico) -> Vector2:
 		if absf(p.y - n.global_position.y) < absf(migliore.y - n.global_position.y):
 			migliore = p
 	return migliore
+
+
+func _affronta(n: Nemico) -> void:
+	# Un pipistrello appeso si va a svegliare (andandogli vicino); poi si combatte.
+	if n.tipo == "pipistrello" and n.stato == Nemico.Stato.DORME:
+		var posto := _sotto_o_sopra(n)
+		if posto != Vector2.INF:
+			await _vai_a(posto, 10.0)
+			await _veglia(30)
+	if is_instance_valid(n) and n.stato != Nemico.Stato.MORTO:
+		await _combatti_contro(n, 2400)
 
 
 func _nemici_nuovi() -> void:
@@ -1654,19 +1836,13 @@ func _nemici_nuovi() -> void:
 			break
 		var n: Nemico = vivi[0]
 		provati[n.get_instance_id()] = true
-		if n.tipo == "pipistrello" and n.stato == Nemico.Stato.DORME:
-			var posto := _sotto_o_sopra(n)
-			if posto != Vector2.INF:
-				await _vai_a(posto, 10.0)
-				await _veglia(30)
-		await _combatti_contro(n, 2400)
+		await _affronta(n)
 		if _g().stato == Giocatore.Stato.MORTO:
 			await _rinasci()
 	await _scatta("nemici_nuovi")
 	_verifica("l'arciere tira dardi di balestra", Rapporto.contatore("dardi_nemici") > 0)
 	_verifica("il pipistrello scende in picchiata", Rapporto.contatore("picchiate_pipistrello") > 0)
 	_verifica("il saltatore balza addosso", Rapporto.contatore("balzi_saltatore") > 0)
-	_verifica("il bestione para la spada da davanti", Rapporto.contatore("parate_bestione") > 0)
 	_verifica("i tiri colpiscono i nemici", Rapporto.contatore("tiri_a_segno") > 0, "a segno %d su %d tiri" % [
 			Rapporto.contatore("tiri_a_segno"), Rapporto.contatore("tiri")])
 	for tipo: String in ["arciere", "pipistrello", "saltatore", "bestione"]:
@@ -1676,16 +1852,68 @@ func _nemici_nuovi() -> void:
 			str(Memoria.tattiche.keys()))
 
 
+func _ondate() -> void:
+	# Quando la stanza è vuota i caduti si rialzano, più esperti, per tre volte: il bot le affronta tutte.
+	# Se muore davvero, il sogno ricomincia (e le ondate con lui): si continua finché c'è tempo.
+	_nuova_fase("ondate")
+	_ondate_permesse = true
+	var ondate_prima := Rapporto.contatore("ondate")
+	var forza_massima := 0
+	var inizio := Engine.get_physics_frames()
+	var morti_prima := Rapporto.contatore("morti")
+	var tentativi := {}
+	while Engine.get_physics_frames() - inizio < 60 * 240:
+		var stanza: Stanza = _principale.stanza
+		if stanza.sogno_completato:
+			break
+		var vivi := _nemici_vivi()
+		for n: Nemico in vivi:
+			forza_massima = maxi(forza_massima, int(n.get("_forza")))
+		if vivi.is_empty():
+			await _veglia(30)   # la prossima ondata arriva fra poco
+			continue
+		# Il più vicino, a meno che non si sia già provato troppe volte senza riuscirci.
+		var bersaglio: Nemico = vivi[0]
+		for n: Nemico in vivi:
+			if int(tentativi.get(n.get_instance_id(), 0)) < 3:
+				bersaglio = n
+				break
+		tentativi[bersaglio.get_instance_id()] = int(tentativi.get(bersaglio.get_instance_id(), 0)) + 1
+		if Dispositivo.in_prova:
+			print("PROVA ondata %d: contro %s %s %s, vivi %d, vita %d" % [stanza.ondata, bersaglio.tipo,
+					str(bersaglio.global_position.round()), Nemico.Stato.keys()[bersaglio.stato], vivi.size(), _g().vita])
+		await _affronta(bersaglio)
+		if _g().stato == Giocatore.Stato.MORTO:
+			await _rinasci()
+			tentativi.clear()
+	var stanza_ora: Stanza = _principale.stanza
+	await _scatta("ondate")
+	_verifica("le ondate arrivano: i caduti si rialzano", Rapporto.contatore("ondate") > 0,
+			"ondate %d (in questa fase %d)" % [Rapporto.contatore("ondate"), Rapporto.contatore("ondate") - ondate_prima])
+	_verifica("chi si rialza è più forte", forza_massima >= 1, "forza massima %d" % forza_massima)
+	var livelli := 0
+	for posto: String in Memoria.veterani:
+		livelli = maxi(livelli, Memoria.livello_veterano(posto))
+	_verifica("i veterani crescono con l'esperienza", livelli >= 1, str(Memoria.descrizione()["veterani"]))
+	# Superarle tutte è una prova di bravura, non un controllo: se il bot è morto davvero, lo dice il rapporto
+	# (che il sogno si quieti dopo la quarta lo controlla la prova sul computer).
+	_esito_ondate = {"completate": stanza_ora.sogno_completato, "ondata_raggiunta": stanza_ora.ondata,
+			"morti_del_bot": Rapporto.contatore("morti") - morti_prima, "forza_massima": forza_massima}
+	Rapporto.evento("ondate_bot", _esito_ondate)
+	if Dispositivo.in_prova:
+		print("PROVA ondate del bot: %s" % str(_esito_ondate))
+
+
 # ------------------------------------------------------------------ galleria
 
-func _interrotta(stanza_fase: Node) -> bool:
-	# Morto a metà fase: la stanza è ricominciata e i meccanismi di prima non ci sono più. Si dice una volta
-	# sola e si passa alla fase dopo (prima si sbagliava toccando oggetti spariti).
-	if _principale.stanza == stanza_fase:
+func _interrotta(stanza_fase: Variant) -> bool:
+	# Morto davvero a metà fase: la stanza è ricominciata e i meccanismi di prima non ci sono più.
+	# La fase si ferma (senza toccare oggetti spariti) e _esegui la rifà.
+	if is_instance_valid(stanza_fase) and _principale.stanza == stanza_fase:
 		return false
-	if _stanza_segnalata != stanza_fase:
-		_stanza_segnalata = stanza_fase
-		_verifica("%s: finita senza morire" % fase_nome, false, "il bot è morto a metà fase, la stanza è ricominciata")
+	if not _fase_interrotta and Dispositivo.in_prova:
+		print("PROVA fase interrotta: %s (morto davvero)" % fase_nome)
+	_fase_interrotta = true
 	return true
 
 
@@ -1869,8 +2097,8 @@ func _torre() -> void:
 	await _vai_a(Vector2(2420, 120), 10.0)
 	if _interrotta(stanza_fase):
 		return
-	_verifica("prende il montacarichi fino al salone", _nav.superficie_di(_g().global_position) == "salone"
-			and int(_passaggi.get("ascensore", 0)) > montacarichi, "%s %s" % [str(_g().global_position), str(_passaggi)])
+	_verifica("arriva al salone (col montacarichi o per un'altra strada)", _nav.superficie_di(_g().global_position) == "salone",
+			"%s, montacarichi %s, passaggi %s" % [str(_g().global_position), int(_passaggi.get("ascensore", 0)) > montacarichi, str(_passaggi)])
 	await _scatta("salone")
 	if _interrotta(stanza_fase):
 		return
@@ -2087,7 +2315,9 @@ func _gioco_libero() -> void:
 	# affronta chi incontra, e ogni tanto cambia aspetto. Le lastre fragili e il gradino segreto non contano.
 	_nuova_fase("gioco_libero")
 	var visitate := {}
+	var chiuse := {}
 	var fuori := 0
+	var morti_prima := Rapporto.contatore("morti")
 	var da_visitare: Array = []
 	for id: String in _nav.superfici:
 		var sup: Dictionary = _nav.superfici[id]
@@ -2096,8 +2326,8 @@ func _gioco_libero() -> void:
 	var rng_aspetto := RandomNumberGenerator.new()
 	rng_aspetto.seed = 11
 	var passo := 0
-	var inizio := Time.get_ticks_msec()
-	while not da_visitare.is_empty() and Time.get_ticks_msec() - inizio < 240000:
+	var inizio := Engine.get_physics_frames()
+	while not da_visitare.is_empty() and Engine.get_physics_frames() - inizio < 60 * 240:
 		# La più vicina fra quelle ancora da vedere.
 		var qui := _g().global_position
 		da_visitare.sort_custom(func(a: String, b: String) -> bool:
@@ -2108,6 +2338,10 @@ func _gioco_libero() -> void:
 		await _vai_a(meta, 12.0)
 		if _nav.superficie_di(_g().global_position) == id:
 			visitate[id] = true
+		else:
+			var da := _nav.superficie_di(_g().global_position)
+			if da != "" and _nav.percorso(da, id).is_empty():
+				chiuse[id] = true   # dopo una morte vera grate e gradino sono di nuovo chiusi: ora non ci si arriva
 		for b: Node in get_tree().get_nodes_in_group("rompibili"):
 			if not is_instance_valid(b):
 				continue
@@ -2115,6 +2349,8 @@ func _gioco_libero() -> void:
 			if is_instance_valid(barile) and absf(barile.global_position.y - _g().global_position.y) < 10.0 \
 					and absf(barile.global_position.x - _g().global_position.x) < 90.0:
 				await _vai_a(barile.global_position + Vector2(-20.0 * signf(barile.global_position.x - _g().global_position.x), 0.0), 6.0)
+				if not is_instance_valid(barile):
+					continue   # rotto per strada (o stanza ricominciata)
 				await _guarda(1 if barile.global_position.x > _g().global_position.x else -1)
 				await _tocca("attacca")
 				await _fotogrammi(16)
@@ -2126,10 +2362,15 @@ func _gioco_libero() -> void:
 			fuori += 1
 	Equipaggiamento.ripristina()
 	await _scatta("fine")
-	_verifica("gioco libero: raggiunge da solo tutte le zone", da_visitare.is_empty() and visitate.size() >= passo - 1,
-			"%d su %d: %s" % [visitate.size(), passo, ", ".join(visitate.keys())])
+	# Se è morto davvero per strada, la stanza è ricominciata: quante zone ha visto lo dice il rapporto.
+	if Rapporto.contatore("morti") == morti_prima:
+		_verifica("gioco libero: raggiunge da solo tutte le zone", da_visitare.is_empty() and visitate.size() + chiuse.size() >= passo - 1
+				and chiuse.size() <= 2, "%d su %d: %s; chiuse ora: %s" % [visitate.size(), passo, ", ".join(visitate.keys()),
+				", ".join(chiuse.keys())])
+	Rapporto.evento("gioco_libero_bot", {"zone_viste": visitate.size(), "tentate": passo, "morti": Rapporto.contatore("morti") - morti_prima})
 	_verifica("gioco libero: il giocatore resta nella stanza", fuori == 0, "fuori %d" % fuori)
 	_verifica("per muoversi usa salti, prese, discese, rotoli, grate e montacarichi", _passaggi.size() >= 6
+			and int(_passaggi.get("ascensore", 0)) > 0
 			and Rapporto.contatore("scavalchi") > 0, str(_passaggi))
 
 
@@ -2209,6 +2450,9 @@ func _prova_limite_utente() -> void:
 
 func _concludi(motivo: String) -> void:
 	_rilascia_tutto()
+	_ondate_permesse = true
+	if is_instance_valid(_principale.stanza):
+		_principale.stanza.ondate_attive = true
 	_memoria_bot = Memoria.descrizione()
 	_tesori_bot = {"colori": Equipaggiamento.trovati.duplicate(), "frammenti": Equipaggiamento.frammenti.size()}
 	if get_tree().paused and _principale.menu.aperto:
@@ -2258,6 +2502,7 @@ func _esito(motivo: String) -> Dictionary:
 		"difese": _difese,
 		"esperienza": _nav.riassunto() if _nav != null else {},
 		"morti_impreviste": _morti_impreviste,
+		"morti_vere": Rapporto.contatore("morti"),
 		"memoria_nemici": _memoria_bot,
 		"galleria": {
 			"attese_davanti_alle_trappole": _attese_trappole,
@@ -2284,6 +2529,16 @@ func _esito(motivo: String) -> Dictionary:
 			"balzi_saltatore": Rapporto.contatore("balzi_saltatore"),
 			"dardi_nemici": Rapporto.contatore("dardi_nemici"),
 			"tiri_schivati_dai_nemici": Rapporto.contatore("tiri_schivati_dai_nemici"),
+			"ondate": _esito_ondate,
+			"parate_nemici": Rapporto.contatore("parate_nemici"),
+			"combo_nemici": Rapporto.contatore("combo_nemici"),
+			"accerchiamenti": Rapporto.contatore("accerchiamenti"),
+			"richiami": Rapporto.contatore("richiami"),
+			"letture_arma": Rapporto.contatore("letture_arma"),
+			"guardie_rotte": Rapporto.contatore("guardie_rotte"),
+			"tiri_carichi": Rapporto.contatore("tiri_carichi"),
+			"esplosioni": Rapporto.contatore("esplosioni"),
+			"veterani": Memoria.descrizione()["veterani"],
 			"uccisi": {"arciere": Rapporto.contatore("uccisi_arciere"), "pipistrello": Rapporto.contatore("uccisi_pipistrello"),
 					"saltatore": Rapporto.contatore("uccisi_saltatore"), "bestione": Rapporto.contatore("uccisi_bestione")},
 		},

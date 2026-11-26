@@ -6,7 +6,7 @@ extends Node
 const CARTELLA := "user://rapporti"
 const SEGNO_SESSIONE := "user://ultima_sessione.txt"
 const CARTELLA_DOWNLOAD := "NonNarrato_report"
-const MASSIMO_EVENTI := 400
+const MASSIMO_EVENTI := 1500       # partite più lunghe (ondate): il rapporto deve restare completo
 const MASSIMO_FILE := 20
 
 

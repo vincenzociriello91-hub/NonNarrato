@@ -1,5 +1,24 @@
 # Novità di NonNarrato
 
+## 0.1 — Armi vere, nemici più duri, nemesi che crescono e quattro ondate
+
+- **Ogni arma ha i suoi attacchi**:
+  - spada: tre colpi, l'ultimo più forte;
+  - ascia: lenta, il secondo colpo rompe le parate;
+  - pugnale: quattro colpi rapidissimi, doppio danno alle spalle;
+  - spadone: lungo e pesante, rompe le parate;
+  - ascia bipenne: la più forte, fa barcollare;
+  - bastone e bacchetta: colpi deboli, ma la magia costa meno o parte prima;
+  - pugni: rapidissimi, l'ultimo stordisce.
+  Con una seconda arma nella mano sinistra la combinazione ha un colpo in più ed è più veloce. Con lo **scudo**, Schiva da fermo **para** i colpi da davanti, e chi ti colpisce resta scoperto. Nel menu, sotto l'aspetto, una scritta spiega l'arma che hai.
+- **Le armi a distanza hanno il loro attacco**: tenendo premuto Tira la **magia si carica** e diventa una sfera che esplode e colpisce tutti attorno; i **dardi partono a raffica**; l'**arco va caricato** (più lo tieni, più la freccia è forte e veloce; a carica piena trapassa).
+- **Nemici più duri e più furbi**: hanno più vita; chi ti vede chiama i compagni vicini; chi arriva secondo ti gira alle spalle; al massimo due ti attaccano nello stesso momento. Lo scheletro para e può colpire due volte di fila, il bestione fino a tre. Riconoscono la tua arma preferita: contro le armi pesanti arretrano mentre carichi e rispondono subito, contro quelle rapide parano di più.
+- **Nemesi che si evolvono**: a ogni ritorno imparano una capacità nuova (parare, colpire due volte, chiamare rinforzi, pelle dura, furia quando sono ferite) e si difendono dall'arma con cui le hai battute. Te lo dicono quando ti rivedono.
+- **Quattro ondate**: quando la stanza è vuota i caduti si rialzano, per tre volte, ogni volta più forti. Fra un'ondata e l'altra recuperi due cuori. Dopo la quarta il sogno si quieta.
+- **Più vita**: il Non Narrato ora ha 8 cuori (prima 5) e i forzieri ne ridanno 3.
+- **Veterani**: ogni nemico accumula esperienza a ogni morte e la conserva. Sale di livello piano piano, nel corso di mesi di gioco: più vita, più velocità, più riflessi, nuove capacità. I veterani esperti hanno gli occhi accesi.
+- **Il bot non si fa più uccidere apposta**: muore solo se perde davvero, e se succede a metà di una prova la rifà. Prova tutte le armi con i loro attacchi e affronta le quattro ondate.
+
 ## 0.1 — Ingresso in galleria più fluido
 
 - Entrando in galleria il gioco non dà più un piccolo scatto la prima volta che si vede la sega a pendolo: il telefono la prepara all'avvio.

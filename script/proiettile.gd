@@ -14,6 +14,9 @@ var velocita := Vector2.ZERO
 var danno := 1
 var autore: Node                  # chi l'ha lanciata: saprà se è andata a segno
 var tattica := ""
+var raggio_esplosione := 0.0      # magia caricata: esplode e colpisce tutti attorno
+var perfora := 0                  # freccia a carica piena: quanti altri nemici può ancora attraversare
+var _gia_colpiti: Array = []
 var _vita := 3.5
 var _spenta := false
 var _colpito := false
@@ -28,7 +31,7 @@ func _ready() -> void:
 		match tipo:
 			"magia_eroe":
 				_vita = 1.6
-				_aspetto_sfera(COLORE_MAGIA, 5.0)
+				_aspetto_sfera(COLORE_MAGIA, 8.0 if raggio_esplosione > 0.0 else 5.0)
 			"dardo":
 				_vita = 0.9
 				_aspetto_lungo("dardo", Vector2(12, 4))
@@ -133,6 +136,10 @@ func _su_area(area: Area2D) -> void:
 	if amico():
 		_colpisci_nemico(chi)
 		return
+	if chi is Giocatore and (chi as Giocatore).sta_parando(global_position):
+		(chi as Giocatore).subisci(danno, global_position, 150.0, null)   # parato dallo scudo: si spegne qui
+		_svanisci()
+		return
 	if chi is Giocatore and (chi as Giocatore).subisci(danno, global_position, 150.0, autore):
 		_colpito = true
 		if tipo == "freccia" and autore == null:
@@ -147,6 +154,9 @@ func _colpisci_nemico(chi: Variant) -> void:
 		return
 	if not chi.has_method("subisci"):
 		return
+	if _gia_colpiti.has(chi):
+		return
+	_gia_colpiti.append(chi)
 	var a_segno := false
 	if chi is Nemico:
 		a_segno = (chi as Nemico).subisci(danno, global_position - velocita.normalized() * 10.0, 110.0,
@@ -157,7 +167,31 @@ func _colpisci_nemico(chi: Variant) -> void:
 		a_segno = chi.subisci(danno, global_position, 110.0)
 	if a_segno and is_instance_valid(autore) and autore.has_method("scuoti"):
 		autore.call("scuoti", 1.5)
+	if chi is Nemico and perfora > 0:
+		perfora -= 1   # trapassa e prosegue
+		Rapporto.conta("nemici_trapassati")
+		return
 	_svanisci()
+
+
+static func _esplodi(dove: Node, punto: Vector2, danno_esplosione: int, raggio: float, chi: Node, esclusi: Array) -> void:
+	# Sfera caricata: colpisce tutti i nemici attorno. Statica e chiamata dopo: il proiettile è già sparito.
+	if not is_instance_valid(dove):
+		return
+	var colpiti := 0
+	for n: Node in dove.get_tree().get_nodes_in_group("nemici"):
+		var nemico := n as Nemico
+		if nemico == null or esclusi.has(nemico) or not nemico.bersagliabile():
+			continue
+		if nemico.centro().distance_to(punto) <= raggio:
+			if nemico.subisci(danno_esplosione, punto, 160.0, "magia"):
+				colpiti += 1
+	Rapporto.conta("esplosioni")
+	if colpiti > 1:
+		Rapporto.conta("esplosioni_multiple")
+	Effetti.scoppio(dove, punto, COLORE_MAGIA, 24, 160.0, 0.45, 0.0)
+	if is_instance_valid(chi) and chi.has_method("scuoti"):
+		chi.call("scuoti", 3.0)
 
 
 func subisci(_danno: int, _da: Vector2, _spinta: float) -> bool:
@@ -170,6 +204,8 @@ func _svanisci() -> void:
 	if _spenta:
 		return
 	_spenta = true
+	if raggio_esplosione > 0.0:
+		Proiettile._esplodi.call_deferred(get_parent(), global_position, danno, raggio_esplosione, autore, _gia_colpiti.duplicate())
 	if is_instance_valid(autore) and autore.has_method("esito_sfera"):
 		autore.esito_sfera(tattica, _colpito)
 	match tipo:

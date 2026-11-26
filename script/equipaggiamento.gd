@@ -105,7 +105,7 @@ const FRAMMENTI: Array[String] = [
 	"«Quando l'ultima storia sarà finita, qualcuno dovrà decidere se raccontarla o lasciarla dormire.»",
 ]
 
-# Gruppi di mosse: cambiano le animazioni (per ora solo l'aspetto, i tempi di gioco restano uguali).
+# Gruppi di mosse: cambiano le animazioni. I numeri del combattimento (colpi, danno, tempi) li dà l'arma: vedi Armi.
 const MOSSE := {
 	"una_mano": "Una mano", "affondi": "Affondi", "due_mani": "Due mani", "doppia": "Doppia arma",
 	"scudo": "Scudo", "magia": "Magia", "mani_nude": "A mani nude",

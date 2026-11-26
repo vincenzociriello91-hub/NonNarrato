@@ -34,6 +34,7 @@ var _scelte_colore := {}          # posto -> OptionButton
 var _scelta_mosse: OptionButton
 var _griglia_prove: GridContainer
 var _azione_in_prova: Label
+var _dote_arma: Label
 var tasti_prova := {}             # azione -> Button (li usa anche il bot)
 var vetrina: FiguraViva           # figura animata dell'anteprima, anche a gioco in pausa
 var _prova_corrente := "fermo"
@@ -153,7 +154,7 @@ func _costruisci() -> void:
 		chiudi()
 		bot_richiesto.emit())
 	var spiega := Label.new()
-	spiega.text = "Il bot gioca da solo per qualche minuto come una persona: si muove, combatte, muore e affronta la sua nemesi, evita le trappole, risolve gli enigmi, apre i forzieri, prova mosse, aspetti e qualità. Alla fine rimette le tue scelte, i tuoi tesori e i tuoi ricordi, salva il rapporto e chiude il gioco. Premi pausa per fermarlo."
+	spiega.text = "Il bot gioca da solo per qualche minuto come una persona: si muove, combatte con armi diverse, affronta le quattro ondate, evita le trappole, risolve gli enigmi, apre i forzieri, prova mosse, aspetti e qualità. Muore solo se perde davvero. Alla fine rimette le tue scelte, i tuoi tesori e i tuoi ricordi, salva il rapporto e chiude il gioco. Premi pausa per fermarlo."
 	spiega.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	spiega.add_theme_font_size_override("font_size", 17)
 	spiega.add_theme_color_override("font_color", Color(0.7, 0.72, 0.8))
@@ -167,7 +168,8 @@ func _costruisci() -> void:
 
 
 func _costruisci_aspetto(sinistra: VBoxContainer, colonna: VBoxContainer) -> void:
-	# Cosa indossa il Non Narrato: per ogni posto un oggetto e un colore. Per ora cambia solo l'aspetto.
+	# Cosa indossa il Non Narrato: per ogni posto un oggetto e un colore. L'arma e la mano sinistra
+	# decidono anche come si combatte (vedi Armi): la scritta sotto lo spiega.
 	_anteprima = TextureRect.new()
 	_anteprima.custom_minimum_size = Vector2(288, 288)
 	_anteprima.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -192,6 +194,11 @@ func _costruisci_aspetto(sinistra: VBoxContainer, colonna: VBoxContainer) -> voi
 	_scelta_mosse.item_selected.connect(func(i: int) -> void:
 		Equipaggiamento.scegli_mosse(String(_scelta_mosse.get_item_metadata(i))))
 	_riga(colonna, "Mosse", _scelta_mosse)
+	_dote_arma = Label.new()
+	_dote_arma.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dote_arma.add_theme_font_size_override("font_size", 17)
+	_dote_arma.add_theme_color_override("font_color", Color(0.86, 0.8, 0.62))
+	colonna.add_child(_dote_arma)
 	for posto in Equipaggiamento.POSTI:
 		var riga := HBoxContainer.new()
 		riga.add_theme_constant_override("separation", 8)
@@ -361,6 +368,8 @@ func _carica_valori() -> void:
 	if _in_caricamento or _qualita == null:
 		return
 	_in_caricamento = true
+	if _dote_arma != null:
+		_dote_arma.text = Armi.descrizione(Equipaggiamento.indossati.get("arma", ""), Equipaggiamento.indossati.get("mano_sinistra", ""))
 	_qualita.select(maxi(0, QUALITA.find(Impostazioni.leggi("grafica/qualita"))))
 	_qualita.set_item_text(0, "Automatica (%s)" % Dispositivo.livello)
 	_fps.select(maxi(0, LIMITI_FPS.find(Impostazioni.leggi("grafica/limite_fps"))))

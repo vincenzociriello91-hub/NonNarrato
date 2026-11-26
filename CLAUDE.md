@@ -78,7 +78,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 - Decisione di Vincenzo (25/11/2026): un bot che gioca in locale, fa tutto e alla chiusura manda il rapporto.
 - Il bot non si teletrasporta mai: `_vai_a()` usa il `Navigatore` (superfici da `Stanza.superfici()`, archi salto/salto_su/attraversa/caduta/rotola, Dijkstra, esperienza in `user://bot_esperienza.cfg` che corregge il punto di stacco dopo un errore). Le casse sulla strada si scavalcano (su + direzione); i nemici svegli vicini si affrontano. In combattimento legge la carica del colpo nemico, attacca quando è scoperto e sceglie la schivata che ha funzionato di più (scatto indietro, rotolo indietro o avanti, salto, colpo sulla sfera).
-- Ordine delle fasi: movimento, cassa e barili, scheletro, morte (il bot si lascia battere dal secondo scheletro), nemesi (nuovo sogno: la nemesi torna, si ripulisce la stanza), cunicolo e piattaforme (terrazza, p2, ripiano), schivate, qualità, tasti, menu, mosse, ambiente, gioco libero (visita tutte le zone), prestazioni. All'inizio il bot azzera la memoria del sogno e alla fine rimette quella di chi gioca.
+- Ordine delle fasi: movimento, cassa e barili, scheletro, cripta (si ripulisce combattendo; il bot non muore mai apposta), cunicolo e piattaforme (terrazza, p2, ripiano), schivate, qualità, tasti, menu, mosse, ambiente, armi da mischia, armi a distanza, galleria, trappole, torre, due enigmi, nemici nuovi, ondate, gioco libero (visita tutte le zone), prestazioni. All'inizio il bot azzera la memoria del sogno e alla fine rimette quella di chi gioca.
 - `script/bot.gd` contiene tutto lo scenario: lo usano il tasto "Fai giocare il bot" del menu, `-- --bot` e la prova automatica (`test/prova.gd` lo avvia senza chiudere e aggiunge solo controlli da computer). Nuove funzioni = nuovi controlli nel bot.
 - Prima di partire salva impostazioni e aspetto di chi gioca in `user://bot_in_corso.txt` (var_to_str, non JSON: i tipi devono restare); alla fine li rimette. Se il gioco muore a metà, `Bot.ripara_se_interrotto()` all'avvio.
 - Durante il bot: vibrazione spenta, adattamento automatico della qualità fermo (`Dispositivo.bot_attivo`), pausa di chi gioca = stop del bot.
@@ -109,6 +109,17 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Le casse si spingono a velocità piena (`_spingi_oggetti`): con l'accelerazione l'attrito di una cassa ferma la teneva inchiodata (la cassa della balconata non si muoveva).
 - Se il bot muore a metà di una fase della galleria la stanza ricomincia: `_interrotta(stanza_fase)` dopo ogni attesa ferma la fase con un controllo fallito, senza toccare oggetti spariti.
 - `user://bot_esperienza.cfg` resta fra una prova e l'altra e cambia i percorsi del bot; la compilazione su GitHub parte senza. Prima del push conviene una prova con la cartella dei dati di Godot spostata da parte.
+
+## Armi vere, nemici più duri, nemesi, ondate (0.1.15)
+
+- Decisione di Vincenzo (26/11/2026): bot e nemici "intelligenti alla Minecraft"; ogni arma (anche da mischia) con i suoi attacchi; nemici con un equilibrio "avvincente"; il bot non si fa più uccidere apposta; quattro ondate in cui i caduti tornano con l'esperienza accumulata, per vedere il sistema crescere nei mesi; il combattimento si fa adesso (cambia la vecchia decisione "combattimento per ultimo").
+- `script/armi.gd`: famiglie (spada, ascia, pugnale, spadone, bipenne, bastone, bacchetta, mani_nude), colpi {d, t, da, a, p, h, passo, spinta, rompe, stordisce}, doti (alle_spalle, magia_costo/ricarica/veloce); mano sinistra scudo (stato `PARATA`, `sta_parando`) o doppia (colpo in più, ×0,85). Il giocatore passa a `Nemico.subisci(..., "mischia", {famiglia, rompe, stordisce})`.
+- Tiri: magia caricata (`raggio_esplosione`, `Proiettile._esplodi` statica e chiamata dopo), dardi a raffica, arco da caricare (`perfora`). Il consumo avviene quando il colpo parte (`_spara`).
+- Nemici: vita più alta; `_chiama_compagni` (richiamo 200 px), `_accerchia` (passa dall'altra parte), `_posto_per_attaccare` (max 2-3 in attacco), combo (scheletro +1, bestione +2), `_reagisci_al_colpo` (parata dello scheletro, passo indietro contro armi lente), `barcolla`. Lezioni d'arma in `Memoria.lezione_arma()`.
+- Nemesi: `capacita` (parata, combo, rinforzi, pelle_dura, furia) una nuova a ogni ritorno; `arma_nemica` = famiglia con cui è stata battuta (para il 40% di quei colpi).
+- Veterani: `Memoria.veterani[id_posto]` {xp, morti, uccisioni, ondate}; livello = radice(xp/12), max 10 (livello 5 dopo circa 70 morti: mesi); `_forza` = livello + ondata - 1 dà vita, corsa, vista, riflessi; livello 4/7/9 = combo/parata/furia. `id_posto` = "tipo@x,y" da `Stanza._nemico`.
+- Ondate: `Stanza.ONDATE = 4`, `_controlla_ondate` (stanza vuota → 4 s → `_nuova_ondata`), `sogno_completato`, `Memoria.sogni_completati`.
+- Bot: niente fase `morte`; fase `cripta` (ex nemesi); fasi nuove `armi_da_mischia` e `ondate`; le fasi della galleria interrotte da una morte vera si rifanno (fino a 3 volte). La nascita delle nemesi la prova `test/prova.gd` (`_prova_nemesi_e_veterani`).
 
 ## Regole del codice
 

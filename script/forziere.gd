@@ -1,7 +1,7 @@
 class_name Forziere
 extends Node2D
 # Un forziere: col tasto "afferra" (accanto) si apre. Dentro:
-#  - forziere di legno: due cuori di vita, dardi e frecce, un frammento della storia del Dormiente;
+#  - forziere di legno: tre cuori di vita, dardi e frecce, un frammento della storia del Dormiente;
 #  - forziere d'oro: un colore nuovo per l'aspetto (resta per sempre), dardi e frecce, un frammento.
 # Si apre una volta per sogno.
 
@@ -76,7 +76,7 @@ func _premio(g: Node) -> Dictionary:
 			dati["colore"] = colore
 			Rapporto.conta("colori_trovati")
 	elif g != null and g.has_method("cura"):
-		var curati: int = g.cura(2)
+		var curati: int = g.cura(3)
 		if curati > 0:
 			dati["vita"] = curati
 	if g != null and g.has_method("raccogli"):

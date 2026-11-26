@@ -11,7 +11,7 @@ signal vita_cambiata(vita: int, massima: int)
 signal armi_cambiate
 signal morto
 
-enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO }
+enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO, PARATA }
 
 const VELOCITA := 150.0
 const ACCELERAZIONE := 1500.0
@@ -31,10 +31,8 @@ const SCHIVATA_DURATA := 0.20
 const SCHIVATA_VELOCITA := 290.0
 const SCATTO_VELOCITA := 320.0
 const SCHIVATA_PAUSA := 0.35
-const ATTACCO_DURATA := 0.36
-const ATTACCO_INIZIO := 0.10        # da qui il colpo fa male...
-const ATTACCO_FINE := 0.24          # ...fino a qui
-const VITA_MASSIMA := 5
+# I colpi da mischia (quanti, danno, portata, tempi) dipendono dall'arma: vedi Armi.
+const VITA_MASSIMA := 8             # nemici più duri (0.1.15): più margine per imparare
 const PROTEZIONE_DOPO_COLPO := 0.9
 const SPINTA_CASSE := 70.0
 const TEMPO_GIRO := 0.2             # direzione indietro + rotola/schiva entro questo tempo = mossa all'indietro
@@ -45,17 +43,24 @@ const PRESA_VELOCITA := 70.0
 const PRESA_DISTANZA := 30.0        # centro cassa - centro giocatore per poterla afferrare
 const USO_DISTANZA := 26.0          # leve e forzieri si usano da qui
 const USO_DURATA := 0.38
-# Armi a distanza: animazione, durata, quando parte il colpo, velocità, danno.
+# Armi a distanza: animazione, durata, quando parte il colpo, velocità, danno, e l'attacco proprio:
+#  - magia: tenendo premuto si carica una sfera grande che esplode e colpisce tutti attorno;
+#  - dardi: tenendo premuto parte una raffica (un dardo dopo l'altro, fino a quattro);
+#  - frecce: l'arco va caricato: più lo tieni, più la freccia è veloce e forte; a carica piena trapassa.
 const ARMI_DISTANZA := {
-	"magia": {"nome": "Magia", "anim": "tiro_magia", "durata": 0.42, "momento": 0.2, "velocita": 230.0, "danno": 2},
-	"dardi": {"nome": "Dardi", "anim": "tiro_dardo", "durata": 0.3, "momento": 0.12, "velocita": 380.0, "danno": 1},
-	"frecce": {"nome": "Frecce", "anim": "tiro_freccia", "durata": 0.5, "momento": 0.3, "velocita": 320.0, "danno": 2},
+	"magia": {"nome": "Magia", "anim": "tiro_magia", "durata": 0.42, "momento": 0.2, "velocita": 230.0, "danno": 2,
+			"carica": 0.7, "danno_carica": 3, "raggio": 46.0},
+	"dardi": {"nome": "Dardi", "anim": "tiro_dardo", "durata": 0.3, "momento": 0.12, "velocita": 380.0, "danno": 1,
+			"raffica": 4, "intervallo": 0.13},
+	"frecce": {"nome": "Frecce", "anim": "tiro_freccia", "durata": 0.5, "momento": 0.3, "velocita": 220.0, "danno": 1,
+			"carica": 0.9, "velocita_carica": 430.0, "danno_carica": 3},
 }
 const ORDINE_ARMI: Array[String] = ["magia", "dardi", "frecce"]
 const MIRA_CONO := 0.55            # aiuto alla mira: angolo (in radianti) entro cui il tiro si raddrizza
 const MIRA_PORTATA := 260.0
 const ENERGIA_MASSIMA := 100.0
 const COSTO_MAGIA := 34.0
+const COSTO_MAGIA_CARICA := 60.0
 const RICARICA_ENERGIA := 14.0        # al secondo
 const MUNIZIONI_MASSIME := {"dardi": 12, "frecce": 10}
 const MUNIZIONI_INIZIALI := {"dardi": 8, "frecce": 5}
@@ -84,6 +89,8 @@ var _t_protetto := 0.0
 var _t_attraversa := 0.0
 var _t_atterra := 0.0
 var _colpo_numero := 0
+var _arma := {}                     # Armi.attuali() all'inizio della combinazione
+var _colpo_ora := {}                # il colpo in corso
 var _colpo_prenotato := false
 var _gia_colpiti: Array = []
 var _scatto_usato := false
@@ -105,6 +112,10 @@ var _tirata_contata := false
 var _colpito_da: Node
 var _tiro_partito := false
 var _mira_in_alto := false
+var _carica := 0.0
+var _carica_piena := false
+var _raffica := 0
+var _t_raffica := 0.0
 
 var _forma: CollisionShape2D
 var _rett: RectangleShape2D
@@ -220,6 +231,8 @@ func _physics_process(delta: float) -> void:
 			_uso(delta)
 		Stato.TIRO:
 			_tiro(delta, a_terra)
+		Stato.PARATA:
+			_parata(delta)
 
 	_velocita_caduta = velocity.y
 	move_and_slide()
@@ -231,9 +244,9 @@ func _physics_process(delta: float) -> void:
 
 func _scorri_tempi(delta: float) -> void:
 	if energia < ENERGIA_MASSIMA:
-		var prima := int(energia / COSTO_MAGIA)
-		energia = minf(ENERGIA_MASSIMA, energia + RICARICA_ENERGIA * delta)
-		if int(energia / COSTO_MAGIA) != prima:
+		var prima := colpi_rimasti("magia")
+		energia = minf(ENERGIA_MASSIMA, energia + RICARICA_ENERGIA * _dote_magia("magia_ricarica") * delta)
+		if colpi_rimasti("magia") != prima:
 			armi_cambiate.emit()
 	if Input.is_action_just_pressed("cambia_arma") and stato != Stato.MORTO:
 		cambia_arma()
@@ -303,25 +316,58 @@ func _normale(delta: float, a_terra: bool) -> void:
 
 	if Input.is_action_just_pressed("rotola") and a_terra and _t_pausa_rotolata <= 0.0:
 		_inizia_rotolata(direzione)
+	elif Input.is_action_just_pressed("schiva") and a_terra and absf(direzione) < 0.01 and _ha_scudo() \
+			and _t_pausa_schivata <= 0.0:
+		_inizia_parata()
 	elif Input.is_action_just_pressed("schiva") and _t_pausa_schivata <= 0.0 and (a_terra or not _scatto_usato):
 		_inizia_schivata(a_terra, direzione)
 	elif Input.is_action_just_pressed("attacca"):
+		_arma = Armi.attuali()
 		_inizia_attacco(1, a_terra)
 	elif Input.is_action_just_pressed("tira"):
 		_inizia_tiro()
 
 
 func _inizia_attacco(numero: int, a_terra: bool) -> void:
+	if _arma.is_empty():
+		_arma = Armi.attuali()
+	var lista: Array = _arma["colpi"]
+	_colpo_ora = lista[clampi(numero - 1, 0, lista.size() - 1)]
 	stato = Stato.ATTACCO
 	_t_stato = 0.0
 	_colpo_numero = numero
 	_colpo_prenotato = false
 	_gia_colpiti.clear()
-	_forma_colpo.position.x = 24.0 * verso
-	sprite.riproduci("attacco%d" % numero, true)
+	var portata := float(_colpo_ora["p"])
+	(_forma_colpo.shape as RectangleShape2D).size = Vector2(portata, float(_colpo_ora["h"]))
+	_forma_colpo.position = Vector2((portata * 0.5 + 4.0) * verso, -float(_colpo_ora["h"]) * 0.5)
+	# Le animazioni sono due (attacco1, attacco2): si alternano e si adattano ai tempi dell'arma.
+	var anim := "attacco1" if numero % 2 == 1 else "attacco2"
+	var lunga := sprite.durata(anim)
+	sprite.riproduci(anim, true, lunga / float(_colpo_ora["t"]) if lunga > 0.0 else 1.0)
 	if a_terra:
-		velocity.x = verso * 80.0
+		velocity.x = verso * float(_colpo_ora["passo"])
 	_conta("attacchi")
+	Memoria.registra_arma(String(_arma["famiglia"]))
+
+
+func colpo_attuale() -> Dictionary:
+	# Per i nemici e il bot: il colpo in corso (vuoto se non sta attaccando).
+	return _colpo_ora if stato == Stato.ATTACCO else {}
+
+
+func attacco_in_carica() -> bool:
+	# Sta caricando un colpo che non fa ancora male.
+	return stato == Stato.ATTACCO and _t_stato < float(_colpo_ora.get("da", 0.1))
+
+
+func attacco_scoperto() -> bool:
+	# Il colpo è finito ma non si è ancora ripreso: un buon momento per colpirlo.
+	return stato == Stato.ATTACCO and _t_stato > float(_colpo_ora.get("a", 0.24))
+
+
+func famiglia_arma() -> String:
+	return Armi.famiglia(Equipaggiamento.indossati.get("arma", "spada_viandante"))
 
 
 func _attacco(delta: float, a_terra: bool) -> void:
@@ -334,26 +380,32 @@ func _attacco(delta: float, a_terra: bool) -> void:
 		_muovi(delta, false, direzione)
 	_gravita(delta)
 
-	if prima < ATTACCO_INIZIO and _t_stato >= ATTACCO_INIZIO:
+	var da := float(_colpo_ora["da"])
+	var a := float(_colpo_ora["a"])
+	if prima < da and _t_stato >= da:
 		_fendente()
-	if _t_stato >= ATTACCO_INIZIO and _t_stato <= ATTACCO_FINE:
+	if _t_stato >= da and _t_stato <= a:
 		_colpisci()
-	if Input.is_action_just_pressed("attacca") and _t_stato >= 0.06:
+	if Input.is_action_just_pressed("attacca") and _t_stato >= minf(0.06, da):
 		_colpo_prenotato = true
 
-	if _t_stato > ATTACCO_FINE:
+	if _t_stato > a:
 		if Input.is_action_just_pressed("rotola") and a_terra and _t_pausa_rotolata <= 0.0:
 			_inizia_rotolata(direzione)
+			return
+		if Input.is_action_just_pressed("schiva") and a_terra and absf(direzione) < 0.01 and _ha_scudo() \
+				and _t_pausa_schivata <= 0.0:
+			_inizia_parata()
 			return
 		if Input.is_action_just_pressed("schiva") and _t_pausa_schivata <= 0.0 and (a_terra or not _scatto_usato):
 			_inizia_schivata(a_terra, direzione)
 			return
-		if _colpo_prenotato and _colpo_numero == 1:
+		if _colpo_prenotato and _colpo_numero < (_arma["colpi"] as Array).size():
 			if absf(direzione) > 0.01:
 				verso = 1 if direzione > 0.0 else -1
-			_inizia_attacco(2, a_terra)
+			_inizia_attacco(_colpo_numero + 1, a_terra)
 			return
-	if _t_stato >= ATTACCO_DURATA:
+	if _t_stato >= float(_colpo_ora["t"]):
 		stato = Stato.NORMALE
 
 
@@ -365,13 +417,54 @@ func _colpisci() -> void:
 		_gia_colpiti.append(chi)
 		if not chi.has_method("subisci"):
 			continue
-		var danno := 1 if _colpo_numero == 1 else 2
-		if chi.subisci(danno, global_position, 150.0):
+		var danno := int(_colpo_ora["d"])
+		var riuscito := false
+		if chi is Nemico:
+			var nemico := chi as Nemico
+			# Pugnale: alle spalle (il nemico guarda dall'altra parte) fa di più.
+			var spalle := nemico.verso == int(signf(nemico.global_position.x - global_position.x))
+			if spalle and _arma.has("alle_spalle"):
+				danno *= int(_arma["alle_spalle"])
+				Rapporto.conta("colpi_alle_spalle")
+			riuscito = nemico.subisci(danno, global_position, float(_colpo_ora["spinta"]), "mischia", {
+				"famiglia": _arma.get("famiglia", "spada"), "rompe": _colpo_ora.get("rompe", false),
+				"stordisce": float(_colpo_ora.get("stordisce", 0.0))})
+		else:
+			riuscito = chi.subisci(danno, global_position, float(_colpo_ora["spinta"]))
+		if riuscito:
 			var punto: Vector2 = (area as Area2D).global_position.lerp(global_position + Vector2(verso * 24.0, -24.0), 0.5)
 			Effetti.scoppio(get_parent(), punto, Color(1.0, 0.9, 0.7), 8, 110.0, 0.22, 200.0)
-			scuoti(2.5)
-			Controlli.vibra(0.4, 0.08)
-			Effetti.fermo_immagine(self, 0.05)
+			scuoti(2.0 + danno * 0.8)
+			Controlli.vibra(0.3 + 0.1 * danno, 0.08)
+			Effetti.fermo_immagine(self, 0.04 + 0.015 * danno)
+
+
+# ------------------------------------------------------------------ parata (con lo scudo)
+
+func _ha_scudo() -> bool:
+	return Armi.dote_mano(Equipaggiamento.indossati.get("mano_sinistra", "")) == "scudo"
+
+
+func _inizia_parata() -> void:
+	stato = Stato.PARATA
+	_t_stato = 0.0
+	velocity.x = 0.0
+	_t_pausa_schivata = Armi.PARATA_DURATA + Armi.PARATA_PAUSA
+	sprite.riproduci("fermo", true)   # col gruppo "scudo" la posa di riposo è lo scudo alzato
+	_conta("parate_tentate")
+
+
+func _parata(delta: float) -> void:
+	_t_stato += delta
+	velocity.x = move_toward(velocity.x, 0.0, ATTRITO * delta)
+	_gravita(delta)
+	if _t_stato >= Armi.PARATA_DURATA:
+		stato = Stato.NORMALE
+
+
+func sta_parando(da: Vector2) -> bool:
+	# Para i colpi che arrivano da davanti, nei primi istanti della parata.
+	return stato == Stato.PARATA and _t_stato <= Armi.PARATA_FINESTRA and int(signf(da.x - global_position.x)) == verso
 
 
 func _conta(azione: String) -> void:
@@ -607,17 +700,26 @@ func cambia_arma() -> void:
 	armi_cambiate.emit()
 
 
+func _dote_magia(chiave: String) -> float:
+	# Bastone e bacchetta rendono la magia più economica, più rapida o più veloce a ricaricarsi.
+	return float((Armi.FAMIGLIE[famiglia_arma()] as Dictionary).get(chiave, 1.0))
+
+
+func costo_magia(caricata: bool = false) -> float:
+	return (COSTO_MAGIA_CARICA if caricata else COSTO_MAGIA) * _dote_magia("magia_costo")
+
+
 func puo_tirare(arma: String = "") -> bool:
 	var a := arma if arma != "" else arma_distanza
 	if a == "magia":
-		return energia >= COSTO_MAGIA
+		return energia >= costo_magia()
 	return int(munizioni.get(a, 0)) > 0
 
 
 func colpi_rimasti(arma: String = "") -> int:
 	var a := arma if arma != "" else arma_distanza
 	if a == "magia":
-		return int(energia / COSTO_MAGIA)
+		return int(energia / costo_magia())
 	return int(munizioni.get(a, 0))
 
 
@@ -640,43 +742,110 @@ func _inizia_tiro() -> void:
 	stato = Stato.TIRO
 	_t_stato = 0.0
 	_tiro_partito = false
+	_carica = 0.0
+	_carica_piena = false
+	_raffica = 0
+	_t_raffica = 0.0
 	# Con su si mira in alto (per chi vola o sta sulle piattaforme). La direzione esatta si decide
 	# quando il colpo parte, con l'aiuto alla mira.
 	_mira_in_alto = Input.is_action_pressed("su")
 	var dati: Dictionary = ARMI_DISTANZA[arma_distanza]
 	if sprite.has_method("mostra_in_mano"):
 		sprite.call("mostra_in_mano", IN_MANO[arma_distanza])
-	sprite.riproduci(String(dati["anim"]), true)
-	if arma_distanza == "magia":
-		energia -= COSTO_MAGIA
-	else:
-		munizioni[arma_distanza] = int(munizioni[arma_distanza]) - 1
-	armi_cambiate.emit()
-	_conta("tiri")
-	Rapporto.conta("tiri_" + arma_distanza)
+	sprite.riproduci(String(dati["anim"]), true, 1.0 / _fattore_tiro())
+
+
+func _fattore_tiro() -> float:
+	# La bacchetta fa partire la magia prima.
+	return _dote_magia("magia_veloce") if arma_distanza == "magia" else 1.0
+
+
+func carica_tiro() -> float:
+	# Da 0 a 1: quanto è carico il tiro in corso (per la scritta e per il bot).
+	var dati: Dictionary = ARMI_DISTANZA[arma_distanza]
+	if stato != Stato.TIRO or not dati.has("carica"):
+		return 0.0
+	return clampf(_carica / float(dati["carica"]), 0.0, 1.0)
 
 
 func _tiro(delta: float, a_terra: bool) -> void:
 	_t_stato += delta
 	var dati: Dictionary = ARMI_DISTANZA[arma_distanza]
+	var fattore := _fattore_tiro()
+	var momento := float(dati["momento"]) * fattore
 	if a_terra:
 		velocity.x = move_toward(velocity.x, 0.0, ATTRITO * delta)
 	else:
 		_muovi(delta, false, Input.get_axis("sinistra", "destra"))
 	_gravita(delta)
-	if not _tiro_partito and _t_stato >= float(dati["momento"]):
+	var tiene := Input.is_action_pressed("tira")
+	if not _tiro_partito:
+		if _t_stato < momento:
+			return
+		var puo_caricare := dati.has("carica") and (arma_distanza != "magia" or energia >= costo_magia(true))
+		if tiene and puo_caricare and not _carica_piena:
+			# Si carica: la posa resta ferma finché non si lascia il tasto.
+			_carica += delta
+			_t_stato = momento
+			sprite.velocita = 0.0
+			if _carica >= float(dati["carica"]):
+				_carica_piena = true
+				Effetti.scoppio(get_parent(), bocca(), Color(1.0, 0.9, 0.6), 6, 40.0, 0.3, 0.0)
+				Controlli.vibra(0.2, 0.05)
+			return
+		if tiene and _carica_piena:
+			_t_stato = momento   # carico: parte quando si lascia
+			return
+		sprite.velocita = 1.0 / fattore
+		_spara()
 		_tiro_partito = true
-		var colpo := Proiettile.new()
-		colpo.tipo = {"magia": "magia_eroe", "dardi": "dardo", "frecce": "freccia_eroe"}[arma_distanza]
-		colpo.danno = int(dati["danno"])
-		colpo.velocita = direzione_tiro(_mira_in_alto) * float(dati["velocita"])
-		colpo.position = bocca()
-		colpo.autore = self
-		get_parent().add_child(colpo)
-	if _t_stato >= float(dati["durata"]):
+	elif arma_distanza == "dardi" and tiene and _raffica < int(dati["raffica"]) and int(munizioni["dardi"]) > 0:
+		# Raffica: finché si tiene premuto parte un dardo dopo l'altro.
+		_t_raffica += delta
+		_t_stato = minf(_t_stato, momento + 0.02)
+		if _t_raffica >= float(dati["intervallo"]):
+			_t_raffica = 0.0
+			_spara()
+	if _t_stato >= float(dati["durata"]) * fattore:
 		if sprite.has_method("mostra_in_mano"):
 			sprite.call("mostra_in_mano", [])
 		stato = Stato.NORMALE
+
+
+func _spara() -> void:
+	var dati: Dictionary = ARMI_DISTANZA[arma_distanza]
+	var colpo := Proiettile.new()
+	colpo.tipo = {"magia": "magia_eroe", "dardi": "dardo", "frecce": "freccia_eroe"}[arma_distanza]
+	colpo.danno = int(dati["danno"])
+	var velocita := float(dati["velocita"])
+	var k := carica_tiro() if dati.has("carica") else 0.0
+	match arma_distanza:
+		"magia":
+			var caricata := _carica_piena and energia >= costo_magia(true)
+			energia -= costo_magia(caricata)
+			if caricata:
+				colpo.danno = int(dati["danno_carica"])
+				colpo.raggio_esplosione = float(dati["raggio"])
+				Rapporto.conta("tiri_carichi")
+		"dardi":
+			munizioni["dardi"] = int(munizioni["dardi"]) - 1
+			_raffica += 1
+			if _raffica > 1:
+				Rapporto.conta("dardi_in_raffica")
+		"frecce":
+			munizioni["frecce"] = int(munizioni["frecce"]) - 1
+			colpo.danno = int(dati["danno"]) + roundi((int(dati["danno_carica"]) - int(dati["danno"])) * k)
+			velocita = lerpf(velocita, float(dati["velocita_carica"]), k)
+			if _carica_piena:
+				colpo.perfora = 2   # a carica piena trapassa fino a tre nemici
+				Rapporto.conta("tiri_carichi")
+	colpo.velocita = direzione_tiro(_mira_in_alto) * velocita
+	colpo.position = bocca()
+	colpo.autore = self
+	get_parent().add_child(colpo)
+	armi_cambiate.emit()
+	_conta("tiri")
+	Rapporto.conta("tiri_" + arma_distanza)
 
 
 func cura(quanta: int) -> int:
@@ -758,6 +927,14 @@ func intoccabile() -> bool:
 func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 	if stato == Stato.MORTO:
 		return false
+	if sta_parando(da):
+		Rapporto.conta("parate_riuscite")
+		Effetti.scoppio(get_parent(), global_position + Vector2(verso * 12.0, -26.0), Color(1.0, 0.92, 0.7), 10, 120.0, 0.25, 150.0)
+		scuoti(2.0)
+		velocity.x = -verso * 60.0
+		if is_instance_valid(chi) and chi.has_method("barcolla"):
+			chi.call("barcolla", 0.8)   # chi colpisce uno scudo resta scoperto
+		return false
 	if intoccabile():
 		if stato == Stato.ROTOLATA or stato == Stato.SCHIVATA:
 			Rapporto.conta("colpi_evitati")
@@ -799,7 +976,12 @@ func _muori() -> void:
 	Rapporto.conta("morti")
 	if is_instance_valid(_colpito_da):
 		Memoria.nemico_ha_ucciso(_colpito_da)  # chi ti uccide se lo ricorderà
-	Rapporto.evento("morte", {"x": roundi(global_position.x), "y": roundi(global_position.y)})
+	var assassino := "trappola"
+	if is_instance_valid(_colpito_da) and "tipo" in _colpito_da:
+		assassino = String(_colpito_da.get("tipo"))
+		if "livello" in _colpito_da:
+			assassino += " (livello %d, ondata %d)" % [int(_colpito_da.get("livello")), int(_colpito_da.get("ondata"))]
+	Rapporto.evento("morte", {"x": roundi(global_position.x), "y": roundi(global_position.y), "da": assassino})
 	Controlli.vibra(1.0, 0.4)
 
 

@@ -58,6 +58,14 @@ const PULVISCOLO := 170
 
 var giocatore: Giocatore
 var meccanismi := {}               # nome -> porta, leva, piastra, forziere, lastra fragile, enigma
+const ONDATE := 4                  # in ogni sogno i caduti si rialzano tre volte, ogni volta più esperti
+const ATTESA_ONDATA := 4.0
+var ondata := 1
+var sogno_completato := false
+var _posti: Array = []             # i posti dei nemici: {tipo, dove, dorme, verso, id}
+var _t_ondata := -1.0              # conto alla rovescia verso la prossima ondata (-1 = nessuno)
+var _t_controllo_ondata := 0.0
+var ondate_attive := true          # il bot le ferma mentre prova enigmi e meccanismi
 
 var _mondo: StaticBody2D
 var _torce: Array = []
@@ -102,6 +110,58 @@ func _process(delta: float) -> void:
 	if _t_luci <= 0.0:
 		_t_luci = 0.25
 		_aggiorna_luci()
+	_controlla_ondate(delta)
+
+
+# ------------------------------------------------------------------ ondate
+
+func nemici_vivi() -> int:
+	var vivi := 0
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if n.get_parent() == self and (n as Nemico).stato != Nemico.Stato.MORTO:
+			vivi += 1
+	return vivi
+
+
+func _controlla_ondate(delta: float) -> void:
+	if sogno_completato or not ondate_attive or not is_instance_valid(giocatore) or giocatore.stato == Giocatore.Stato.MORTO:
+		return
+	if _t_ondata >= 0.0:
+		_t_ondata -= delta
+		if _t_ondata < 0.0:
+			_nuova_ondata()
+		return
+	_t_controllo_ondata -= delta
+	if _t_controllo_ondata > 0.0:
+		return
+	_t_controllo_ondata = 0.5
+	if nemici_vivi() > 0:
+		return
+	if ondata >= ONDATE:
+		sogno_completato = true
+		Memoria.sogno_completato()
+		Rapporto.conta("sogni_completati")
+		Rapporto.evento("sogno_completato", {"ondate": ondata})
+		get_tree().call_group("hud", "messaggio", "Il sogno si quieta. Per ora.", 4.0)
+		return
+	_t_ondata = ATTESA_ONDATA
+	var nomi := ["", "Seconda", "Terza", "Ultima"]
+	var curati := giocatore.cura(2)   # un respiro fra un'ondata e l'altra
+	get_tree().call_group("hud", "messaggio", "%s ondata: i caduti si rialzano, e ricordano.%s" % [nomi[ondata],
+			"\nIl sogno ti ridà un po' di forza." if curati > 0 else ""], 3.5)
+
+
+func _nuova_ondata() -> void:
+	ondata += 1
+	Rapporto.conta("ondate")
+	Rapporto.evento("ondata", {"numero": ondata})
+	var da_mettere := {}
+	for tipo: String in Nemico.TIPI:
+		da_mettere[tipo] = Memoria.nemesi_per(tipo)
+	for posto: Dictionary in _posti:
+		# Si rialzano tutti svegli (nessuno dorme più), dove erano caduti la prima volta.
+		var n := _nemico(posto["tipo"], posto["dove"], false, posto["verso"], da_mettere, posto["id"])
+		Effetti.scoppio(self, n.position + Vector2(0, -10), Color(0.6, 0.55, 0.75, 0.8), 14, 60.0, 0.6, -40.0, false)
 
 
 # ------------------------------------------------------------------ costruzione
@@ -551,8 +611,13 @@ func _nemici() -> void:
 	_nemico("mago", Vector2(2610, 120), false, -1, da_mettere)
 
 
-func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int, nemesi_libere: Dictionary = {}) -> void:
+func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int, nemesi_libere: Dictionary = {},
+		id: String = "") -> Nemico:
 	var n := Nemico.new()
+	if id == "":
+		id = "%s@%d,%d" % [tipo, roundi(dove.x), roundi(dove.y)]
+		_posti.append({"tipo": tipo, "dove": dove, "dorme": addormentato, "verso": verso, "id": id})
+	n.id_posto = id
 	var libere: Array = nemesi_libere.get(tipo, [])
 	if not libere.is_empty():
 		n.nemesi = (libere.pop_front() as Dictionary).duplicate()
@@ -561,8 +626,11 @@ func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int, nemesi
 	n.dorme = addormentato
 	n.verso = verso
 	n.position = dove
+	n.ondata = ondata
 	n.add_to_group("nemici")
+	n.rialzato = ondata > 1
 	add_child(n)
+	return n
 
 
 func _crea_giocatore() -> void:
