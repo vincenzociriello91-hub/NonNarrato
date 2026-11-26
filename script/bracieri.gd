@@ -50,7 +50,7 @@ class Braciere extends Area2D:
 		_sprite.light_mask = Effetti.L_DAVANTI
 		_sprite.set_process(false)
 		add_child(_sprite)
-		Effetti.occlusore(self, Rect2(-6, -38, 12, 36))
+		Effetti.occlusore(self, Rect2(-6, -38, 12, 36), false)   # oggetti: niente ombra (strisce dalle torce)
 		_fuoco = CPUParticles2D.new()
 		_fuoco.position = Vector2(0, -40)
 		_fuoco.amount = Effetti.quantita(36)

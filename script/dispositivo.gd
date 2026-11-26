@@ -12,9 +12,11 @@ signal audio_cambiato
 const ALTEZZA_BASE := 360
 const LIVELLI: Array[String] = ["bassa", "media", "alta"]
 const PROFILI := {
+	# Ombre delle torce spente in automatico a ogni livello (Vincenzo, 26/11/2026: strisce scure dalle torce sul Pixel).
+	# Si accendono solo a mano (Grafica > Torce con ombra) e le fanno solo muri e pilastri.
 	"bassa": {"luci_con_ombra": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false},
-	"media": {"luci_con_ombra": 2, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true},
-	"alta": {"luci_con_ombra": 4, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true},
+	"media": {"luci_con_ombra": 0, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true},
+	"alta": {"luci_con_ombra": 0, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true},
 }
 const GPU_FORTI: Array[String] = [
 	"adreno (tm) 7", "adreno (tm) 8", "adreno 7", "adreno 8", "immortalis",

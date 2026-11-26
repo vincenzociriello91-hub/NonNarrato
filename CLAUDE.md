@@ -262,3 +262,9 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 - Vincenzo guarda spesso il bot: nelle prove tecniche i nemici in `tregua` (fisica spenta, intoccabili, attraversabili) restavano congelati a metà camminata e sembravano rotti ("bloccati e intangibili", 26/11/2026). Ora `Nemico.tregua(true)` mette l'animazione di riposo e `ALFA_TREGUA` (0,4); `tregua(false)` rimette l'opacità. La scritta del bot aggiunge "nemici in pausa per le prove" (`Bot._aggiorna_scritta`, ogni 30 fotogrammi).
 - Lezione: guardare anche le fasi tecniche del bot con gli occhi di chi gioca, non solo la partita libera.
+
+## Bot e cambi di stanza (0.1.28)
+
+- "Il bot si teletrasporta" (Vincenzo, 26/11/2026): erano le `ricomincia_stanza` fra le fasi (sotterraneo, bottino, partita), che riportavano il personaggio all'inizio di colpo. Ora il bot usa `Principale.ricomincia_con_velo(testo)` (velo nero 0,35 s, scritta, stanza nuova, 0,7 s, velo via). Alla fine del bot (`_lascia_la_stanza_a_chi_gioca`) "Tocca a te".
+- Ombre delle torce (Vincenzo, 26/11/2026, "le torce fanno sempre lo stesso difetto"): `luci_con_ombra` 0 in tutti i `Dispositivo.PROFILI`; si accendono solo a mano (`grafica/luci_ombra`). Oggetti e meccanismi (casse, barili, forzieri, porte, bracieri, strutture) hanno occlusori con `fa_ombra = false`; fanno ombra solo pilastri e blocchi alti. Prove in `_prova_da_giocatore` e nella fase `qualita`. Se tornano strisce, prima controllare nel rapporto la versione installata.
+- La prova "una freccia caricata rompe un barile" sceglie un altro barile se il bot rompe il primo passandoci accanto (`_barile_davanti`).

@@ -713,6 +713,18 @@ func _prova_da_giocatore() -> void:
 				"%s %.2f" % [in_pausa.sprite.animazione, in_pausa.sprite.modulate.a])
 		in_pausa.tregua(false)
 		_verifica("da giocatore: tolta la pausa torna normale", is_equal_approx(in_pausa.sprite.modulate.a, 1.0))
+	# Il bot ricomincia la stanza dietro il velo nero (prima sembrava teletrasportarsi).
+	var stanza_prima: Node = _principale.stanza
+	var velo := _principale.get("_velo") as ColorRect
+	var nero_visto := false
+	var attesa: Signal = get_tree().process_frame
+	_principale.ricomincia_con_velo("prova")
+	for i in 120:
+		await attesa
+		nero_visto = nero_visto or velo.color.a > 0.95
+	_verifica("da giocatore: la stanza ricomincia dietro il velo nero", nero_visto and _principale.stanza != stanza_prima
+			and velo.color.a < 0.05 and not bool(_principale.get("_in_transizione")), "velo %.2f" % velo.color.a)
+	stanza = _principale.stanza
 	# Personaggio e nemici non fanno ombra: le loro ombre erano strisce scure dalle torce.
 	var ombre := 0
 	for n: Node in [_g()] + get_tree().get_nodes_in_group("nemici"):
@@ -720,6 +732,26 @@ func _prova_da_giocatore() -> void:
 			if o is LightOccluder2D and (o as LightOccluder2D).occluder_light_mask != 0:
 				ombre += 1
 	_verifica("da giocatore: personaggi senza strisce d'ombra", ombre == 0, str(ombre))
+	# Neanche oggetti e meccanismi fanno ombra, e in automatico le torce non ne proiettano a nessun livello.
+	var ombre_oggetti: Array = []
+	for gruppo in ["rompibili", "casse", "interagibili"]:
+		for n: Node in get_tree().get_nodes_in_group(gruppo):
+			for o: Node in n.get_children():
+				if o is LightOccluder2D and (o as LightOccluder2D).occluder_light_mask != 0:
+					ombre_oggetti.append(n.name)
+	for n: Node in stanza.find_children("*", "", true, false):
+		if not (n is Struttura or n is Porta or n is EnigmaBracieri):
+			continue
+		for o: Node in n.get_children():
+			if o is LightOccluder2D and (o as LightOccluder2D).occluder_light_mask != 0:
+				ombre_oggetti.append(n.name)
+	_verifica("da giocatore: oggetti senza strisce d'ombra", ombre_oggetti.is_empty(), str(ombre_oggetti))
+	var profili_con_ombra: Array = []
+	for livello: String in Dispositivo.PROFILI:
+		if int((Dispositivo.PROFILI[livello] as Dictionary)["luci_con_ombra"]) > 0:
+			profili_con_ombra.append(livello)
+	_verifica("da giocatore: torce senza ombre in automatico", profili_con_ombra.is_empty()
+			and (Impostazioni.leggi("grafica/luci_ombra") != -1 or stanza.torce_con_ombra() == 0), str(profili_con_ombra))
 	# I messaggi stanno in alto e la frase del risveglio sopra il velo nero.
 	var hud: Hud = _principale.hud
 	var area: Vector2 = hud.get_viewport().get_visible_rect().size

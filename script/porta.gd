@@ -37,7 +37,7 @@ func _ready() -> void:
 		add_child(s)
 	else:
 		_disegna_pietra()
-	Effetti.occlusore(self, Rect2(-misura.x * 0.5 + 2.0, -misura.y + 2.0, misura.x - 4.0, misura.y - 4.0))
+	Effetti.occlusore(self, Rect2(-misura.x * 0.5 + 2.0, -misura.y + 2.0, misura.x - 4.0, misura.y - 4.0), false)   # niente ombra: strisce dalle torce
 	add_to_group("porte")
 
 

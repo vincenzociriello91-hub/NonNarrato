@@ -567,7 +567,7 @@ func _cassa(dove: Vector2) -> RigidBody2D:
 	forma.position = Vector2(0, -16)
 	cassa.add_child(forma)
 	_sprite("cassa", Vector2.ZERO, Effetti.L_DAVANTI, 0, cassa)
-	Effetti.occlusore(cassa, Rect2(-17, -32, 34, 32))
+	Effetti.occlusore(cassa, Rect2(-17, -32, 34, 32), false)   # niente ombra: strisce dalle torce
 	cassa.add_to_group("casse")
 	add_child(cassa)
 	return cassa

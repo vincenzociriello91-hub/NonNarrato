@@ -31,7 +31,7 @@ func _ready() -> void:
 		sprite.modulate = Color(1.12, 1.0, 0.78)
 	z_index = -1
 	_caso.seed = hash(nome) + int(Memoria.sogni) * 7919
-	Effetti.occlusore(self, Rect2(-14, -26, 28, 24))
+	Effetti.occlusore(self, Rect2(-14, -26, 28, 24), false)   # niente ombra: strisce dalle torce
 	add_to_group("interagibili")
 	add_to_group("forzieri")
 

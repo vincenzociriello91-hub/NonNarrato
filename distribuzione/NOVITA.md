@@ -1,5 +1,10 @@
 # Novità di NonNarrato
 
+## 0.1 — Niente più strisce dalle torce, il bot non si "teletrasporta"
+
+- **Basta strisce scure dalle torce**: le ombre delle torce sono spente in automatico a ogni livello di grafica, e casse, barili, forzieri, porte, bracieri e muri rompibili non fanno più ombra. Chi le vuole può accenderle a mano in Impostazioni > Grafica > "Torce con ombra" (le fanno solo muri e pilastri).
+- **Il bot non sparisce più da un punto per ricomparire all'inizio**: tra una prova e l'altra il bot rimette la stanza com'era (muri rotti, casse spostate, forzieri aperti) e lo riporta all'inizio. Prima succedeva di colpo e sembrava un teletrasporto. Ora lo schermo diventa nero per un attimo, con una scritta che dice cosa sta per provare ("Il bot prova il sotterraneo", "Partita libera: il bot gioca da solo"...). Per spostarsi nella stanza il bot cammina, salta, si arrampica e nuota sempre: non si teletrasporta mai.
+
 ## 0.1 — Quando gioca il bot si capisce quali nemici sono in pausa
 
 - **Nemici "bloccati e intoccabili" mentre gioca il bot**: nella prima parte, quella delle prove tecniche (movimento, casse, menu, sotterraneo, bottino...), il bot mette in pausa i nemici apposta per provare le cose con calma. Restavano però congelati a metà passo, sembravano camminare sul posto e si potevano attraversare: sembravano rotti. Ora in pausa stanno fermi in posa di riposo e semitrasparenti, e in alto la scritta del bot dice "nemici in pausa per le prove". Nella partita libera del bot e quando giochi tu i nemici sono sempre normali.

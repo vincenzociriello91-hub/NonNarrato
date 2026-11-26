@@ -1474,7 +1474,7 @@ func _esegui() -> void:
 	await _fotogrammi(60)
 	var g := _g()
 	_verifica("avvio: giocatore a terra", g.is_on_floor() and absf(g.position.y - Stanza.PAVIMENTO) < 2.0, str(g.position))
-	_verifica("avvio: qualità alta con ombre", Dispositivo.livello == "alta" and _principale.stanza.torce_con_ombra() > 0,
+	_verifica("avvio: qualità alta, ombre delle torce spente in automatico", Dispositivo.livello == "alta" and _principale.stanza.torce_con_ombra() == 0,
 			"%s, torce con ombra %d" % [Dispositivo.livello, _principale.stanza.torce_con_ombra()])
 	await _scatta("inizio")
 
@@ -1560,7 +1560,11 @@ func _qualita() -> void:
 	await _scatta("senza_palette")
 	Impostazioni.scrivi("grafica/palette", true)
 	await _fotogrammi(10)
-	_verifica("qualità alta: ombre accese", _principale.stanza.torce_con_ombra() > 0)
+	Impostazioni.scrivi("grafica/luci_ombra", 2)
+	await _fotogrammi(10)
+	_verifica("ombre delle torce solo se scelte a mano", _principale.stanza.torce_con_ombra() > 0)
+	Impostazioni.scrivi("grafica/luci_ombra", -1)
+	await _fotogrammi(10)
 
 
 func _tasti_a_schermo() -> void:
@@ -2002,7 +2006,7 @@ func _sotterraneo() -> void:
 	# col forziere, ripiano coi dardi, la vasca sotto l'arco (respiro), la risalita con una sosta sulla
 	# mensola (stamina) fino all'alcova, giù dalla botola, di nuovo a nuoto, oltre la fossa e su per il pozzo.
 	_nuova_fase("sotterraneo")
-	_principale.ricomincia_stanza()
+	await _principale.ricomincia_con_velo("Il bot prova il sotterraneo")
 	await _fotogrammi(30)
 	_tregua(true)
 	var stanza_fase: Node = _principale.stanza
@@ -2097,7 +2101,7 @@ func _sotterraneo() -> void:
 	await _vai_a(Vector2(400, Stanza.PAVIMENTO), 8.0)
 	_verifica("sotterraneo: la telecamera torna in superficie", not stanza.sotto_terra
 			and _nav.superficie_di(_g().global_position) == "pavimento", str(_g().global_position.round()))
-	_principale.ricomincia_stanza()
+	await _principale.ricomincia_con_velo("La stanza torna com'era")
 	await _fotogrammi(30)
 	_tregua(true)
 
@@ -2150,7 +2154,7 @@ func _bottino() -> void:
 	# Forzieri con oggetti a caso, pozioni che saltano fuori e si raccolgono, un mimic da battere che
 	# lascia pozioni migliori. Il bottino dei nemici forti secondo l'arma lo prova test/prova.gd (a caso).
 	_nuova_fase("bottino")
-	_principale.ricomincia_stanza()
+	await _principale.ricomincia_con_velo("Il bot prova forzieri e bottino")
 	await _fotogrammi(30)
 	_tregua(true)
 	var stanza_fase: Node = _principale.stanza
@@ -2210,7 +2214,7 @@ func _bottino() -> void:
 	_verifica("bottino: le pozioni del mimic si raccolgono", Rapporto.contatore("pozioni_bevute") >= bevute + mini(2, migliori.size()),
 			"bevute %d" % (Rapporto.contatore("pozioni_bevute") - bevute))
 	await _scatta("pozioni_in_corso")
-	_principale.ricomincia_stanza()
+	await _principale.ricomincia_con_velo("La stanza torna com'era")
 	await _fotogrammi(30)
 	_tregua(true)
 
@@ -2333,26 +2337,36 @@ func _armi_a_distanza() -> void:
 			"%s — %s" % [str(viste.keys()), hud.testo_armi()])
 
 	# Una freccia rompe un barile da lontano.
+	# Due tentativi: arrivando da sinistra il bot passa oltre il barile e lo rompe a spadate (_barile_davanti),
+	# allora se ne sceglie un altro (prova fallita del 26/11/2026).
 	var barile: Rompibile = null
-	for b: Node in get_tree().get_nodes_in_group("rompibili"):
-		var r := b as Rompibile
-		if is_instance_valid(r) and _nav.superficie_di(r.global_position) == "pavimento" \
-				and (barile == null or r.global_position.x > barile.global_position.x):
-			barile = r
 	var dal_ripiano := false
-	if barile == null:
-		# Rotti tutti quelli a terra: ci sono quelli sul ripiano, si tira dal suo bordo.
+	for tentativo in 2:
+		barile = null
+		dal_ripiano = false
 		for b: Node in get_tree().get_nodes_in_group("rompibili"):
-			if is_instance_valid(b) and _nav.superficie_di((b as Node2D).global_position) == "ripiano":
-				barile = b as Rompibile
-				dal_ripiano = true
-	if barile == null:
-		_verifica("c'è un barile per provare i tiri", false)
-	else:
+			var r := b as Rompibile
+			if is_instance_valid(r) and r.vita > 0 and _nav.superficie_di(r.global_position) == "pavimento" \
+					and (barile == null or r.global_position.x > barile.global_position.x):
+				barile = r
+		if barile == null:
+			# Rotti tutti quelli a terra: ci sono quelli sul ripiano, si tira dal suo bordo.
+			for b: Node in get_tree().get_nodes_in_group("rompibili"):
+				if is_instance_valid(b) and (b as Rompibile).vita > 0 and _nav.superficie_di((b as Node2D).global_position) == "ripiano":
+					barile = b as Rompibile
+					dal_ripiano = true
+		if barile == null:
+			break
 		if dal_ripiano:
 			await _vai_a(Vector2(196.0, 392.0), 4.0)
 		else:
 			await _vai_a(Vector2(barile.global_position.x + 84.0, Stanza.PAVIMENTO), 4.0)
+		if is_instance_valid(barile) and barile.vita > 0:
+			break
+		barile = null
+	if barile == null:
+		_verifica("c'è un barile per provare i tiri", false)
+	else:
 		await _scegli_arma_col_tasto("frecce")
 		await _guarda(-1)
 		var rotti := Rapporto.contatore("oggetti_rotti")
@@ -2483,7 +2497,7 @@ func _lascia_la_stanza_a_chi_gioca() -> void:
 	# senza i muri rotti, i mimic forzati e le casse spostate dal bot. Non conta come un sogno nuovo.
 	_tregua(false)
 	if not Dispositivo.in_prova and is_instance_valid(_principale.stanza):
-		_principale.ricomincia_stanza()
+		_principale.ricomincia_con_velo("Tocca a te")   # senza await: il bot ha finito
 
 
 func _aggiorna_scritta() -> void:
@@ -2505,7 +2519,7 @@ func _tregua(si: bool) -> void:
 
 func _partita() -> void:
 	_nuova_fase("partita")
-	_principale.ricomincia_stanza()
+	await _principale.ricomincia_con_velo("Partita libera: il bot gioca da solo")
 	await _fotogrammi(40)
 	Equipaggiamento.indossa("arma", "spada_viandante")
 	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
@@ -3076,7 +3090,7 @@ func _enigma_cassa() -> void:
 		await _cammina_verso(cassa.global_position.x + 26.0 * lato, 3.0, 600, false)
 		if _interrotta(stanza_fase):
 			return
-		await _guarda(-int(lato))
+		await _guarda(-1)
 		if _interrotta(stanza_fase):
 			return
 		Input.action_press("sinistra" if lato > 0.0 else "destra")

@@ -62,7 +62,7 @@ func _ready() -> void:
 	_bersaglio.add_child(fb)
 	add_child(_bersaglio)
 	if tipo == "muro":
-		_occlusore = Effetti.occlusore(self, Rect2(Vector2.ZERO, misura))
+		_occlusore = Effetti.occlusore(self, Rect2(Vector2.ZERO, misura), false)   # niente ombra: strisce dalle torce
 	add_to_group("strutture")
 
 

@@ -158,6 +158,27 @@ func ricomincia_stanza() -> void:
 	_nuova_stanza()
 
 
+func ricomincia_con_velo(testo: String = "") -> void:
+	# Come ricomincia_stanza, ma dietro il velo nero con una scritta: senza, chi guardava il bot lo vedeva
+	# "teletrasportarsi" all'inizio della stanza a ogni prova (segnalazione di Vincenzo del 26/11/2026).
+	if _in_transizione:
+		ricomincia_stanza()
+		return
+	_in_transizione = true
+	var tw := create_tween()
+	tw.tween_property(_velo, "color:a", 1.0, 0.35)
+	await tw.finished
+	_scritta_velo.text = testo
+	_scritta_velo.modulate.a = 1.0 if testo != "" else 0.0
+	ricomincia_stanza()
+	await get_tree().create_timer(0.7).timeout
+	var tw2 := create_tween()
+	tw2.tween_property(_scritta_velo, "modulate:a", 0.0, 0.3)
+	tw2.parallel().tween_property(_velo, "color:a", 0.0, 0.4)
+	await tw2.finished
+	_in_transizione = false
+
+
 func _alterna_pausa() -> void:
 	if menu.aperto:
 		menu.chiudi()
