@@ -210,3 +210,17 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Arrampicata: `sprite.position.x = -lato * SCOSTA_DAL_MURO` (5 px), azzerato appena non si è più in ARRAMPICATA.
 - Armi sopra al corpo: in `FiguraViva` i pezzi del posto "arma" e di `Giocatore.IN_MANO` usano shader con `depth_test_disabled, cull_back` e `render_priority` `PRIORITA_SOPRA` (colore e normali); in `render_sprite.gd` lo stesso per i pezzi "attacca" (voce `armi_sopra: false` per escluderli). Fogli dei nemici rigenerati.
 - Strumento di controllo fuori dal repository: `/home/claude/strumenti/controllo/foglio_armi.gd` (tutte le armi in tutti gli attacchi, fotogramma per fotogramma).
+
+## Controllo da giocatore prima di ogni versione (regola di Vincenzo, 26/11/2026)
+
+- Vincenzo non deve essere lui ad accorgersi dei difetti: tutto ciò che un giocatore esigente noterebbe va trovato e corretto prima di pubblicare, anche se nessuno l'ha chiesto. Le prove automatiche dicono se le cose funzionano, non se si vedono bene: servono entrambe.
+- Prima di ogni push: foto fotogramma per fotogramma delle cose nuove o toccate e una partita guardata con foto a intervalli, poi controllo di questo elenco:
+  - corpi, armi e oggetti che si compenetrano (personaggio, nemici, casse, barili, pareti, piattaforme);
+  - pezzi che spariscono o restano coperti, ordine di disegno sbagliato, contorni mancanti;
+  - animazioni che saltano, pose sbagliate, armi che passano nel corpo, sprite girati male;
+  - nemici fermi, bloccati, che camminano sul posto, che non vedono o non si feriscono; colpi che non arrivano;
+  - cose illeggibili al buio, sott'acqua o nella nebbia; telecamera che taglia o salta;
+  - testi tagliati o sovrapposti in HUD e menu, tasti a schermo sopra cose importanti;
+  - suoni mancanti o fuori posto; scatti e cali di FPS;
+  - stato lasciato sporco dal bot o da una prova.
+- Quello che si trova va corretto nella stessa versione o, se è grosso, proposto subito a Vincenzo.
