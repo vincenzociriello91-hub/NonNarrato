@@ -9,3 +9,6 @@ build/
 __pycache__/
 # Credenziali di esportazione: mai nel repository
 export_credentials.cfg
+# Compilazione Android (si rigenera nella compilazione su GitHub)
+android/
+addons/nonnarrato_android.jar
