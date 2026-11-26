@@ -293,7 +293,8 @@ func nemico_sconfitto(n: Node, famiglia_arma: String = "") -> String:
 		_metti(nuova)
 		Rapporto.evento("nemesi_nasce", {"nome": nome_completo(nuova), "motivo": "vendetta"})
 		_salva()
-		return "Qualcosa, nel sogno, giura vendetta."
+		# Con il nome: la stessa frase ripetuta a ogni vendetta stancava (controllo da giocatore, 0.1.23).
+		return "Qualcosa giura vendetta. Tornerà come %s." % nome_completo(nuova).strip_edges()
 	return ""
 
 

@@ -8,7 +8,7 @@ const SHADER := """
 shader_type canvas_item;
 render_mode unshaded;
 uniform vec4 colore_alto : source_color = vec4(0.16, 0.3, 0.4, 0.3);
-uniform vec4 colore_basso : source_color = vec4(0.04, 0.08, 0.16, 0.6);
+uniform vec4 colore_basso : source_color = vec4(0.05, 0.1, 0.18, 0.5);
 uniform vec2 misura = vec2(100.0, 100.0);
 void fragment() {
 	vec2 p = UV * misura;

@@ -75,6 +75,7 @@ func _costruisci() -> void:
 
 	var tema := Theme.new()
 	tema.default_font_size = 22
+	_icone_interruttori(tema)
 	_fondo.theme = tema
 
 	var centro := CenterContainer.new()
@@ -455,6 +456,76 @@ func _riempi_scelta(voce: Dictionary) -> void:
 		o.add_item(String(coppia[1]))
 
 
+static func _disegna_interruttore(acceso: bool, spento_del_tutto: bool) -> ImageTexture:
+	# Interruttore ben leggibile: quelli di serie erano un pallino grigio su un binario quasi invisibile.
+	var w := 56
+	var h := 30
+	var im := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var binario := Color(0.42, 0.34, 0.72) if acceso else Color(0.24, 0.23, 0.3)
+	var bordo := Color(0.82, 0.76, 1.0) if acceso else Color(0.52, 0.5, 0.6)
+	var pallino := Color(0.97, 0.95, 1.0) if acceso else Color(0.62, 0.6, 0.68)
+	if spento_del_tutto:
+		binario.a = 0.45
+		bordo.a = 0.45
+		pallino.a = 0.45
+	var r := h / 2.0
+	var centro_p := Vector2(w - r, r) if acceso else Vector2(r, r)
+	for y in h:
+		for x in w:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var cx := clampf(p.x, r, w - r)
+			var d := p.distance_to(Vector2(cx, r))
+			var c := Color(0, 0, 0, 0)
+			if d <= r:
+				c = bordo if d > r - 2.0 else binario
+			var dp := p.distance_to(centro_p)
+			if dp <= r - 5.0:
+				c = pallino
+			im.set_pixel(x, y, c)
+	return ImageTexture.create_from_image(im)
+
+
+static func _disegna_casella(spuntata: bool) -> ImageTexture:
+	var n := 28
+	var im := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var fondo := Color(0.42, 0.34, 0.72) if spuntata else Color(0.16, 0.15, 0.22)
+	var bordo := Color(0.82, 0.76, 1.0) if spuntata else Color(0.55, 0.53, 0.63)
+	for y in n:
+		for x in n:
+			var c := bordo if (x < 2 or y < 2 or x >= n - 2 or y >= n - 2) else fondo
+			im.set_pixel(x, y, c)
+	if spuntata:   # segno di spunta
+		var punti := [Vector2(7, 14), Vector2(12, 19), Vector2(21, 8)]
+		for i in 2:
+			var a: Vector2 = punti[i]
+			var b: Vector2 = punti[i + 1]
+			for k in 40:
+				var q := a.lerp(b, k / 39.0)
+				for oy in range(-1, 2):
+					for ox in range(-1, 2):
+						im.set_pixel(clampi(int(q.x) + ox, 0, n - 1), clampi(int(q.y) + oy, 0, n - 1), Color(1, 1, 1))
+	return ImageTexture.create_from_image(im)
+
+
+static func _icone_interruttori(tema: Theme) -> void:
+	tema.set_icon("checked", "CheckButton", _disegna_interruttore(true, false))
+	tema.set_icon("unchecked", "CheckButton", _disegna_interruttore(false, false))
+	tema.set_icon("checked_mirrored", "CheckButton", _disegna_interruttore(true, false))
+	tema.set_icon("unchecked_mirrored", "CheckButton", _disegna_interruttore(false, false))
+	tema.set_icon("checked_disabled", "CheckButton", _disegna_interruttore(true, true))
+	tema.set_icon("unchecked_disabled", "CheckButton", _disegna_interruttore(false, true))
+	tema.set_icon("checked_disabled_mirrored", "CheckButton", _disegna_interruttore(true, true))
+	tema.set_icon("unchecked_disabled_mirrored", "CheckButton", _disegna_interruttore(false, true))
+	tema.set_icon("checked", "CheckBox", _disegna_casella(true))
+	tema.set_icon("unchecked", "CheckBox", _disegna_casella(false))
+	# Il testo dell'interruttore parte dal bordo, come le altre voci (prima era rientrato).
+	var vuoto := StyleBoxEmpty.new()
+	vuoto.content_margin_left = 0
+	vuoto.content_margin_right = 4
+	for stato in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:   # "focus" resta: serve col controller
+		tema.set_stylebox(stato, "CheckButton", vuoto)
+
+
 func _interruttore(dove: Node, testo: String, chiave: String) -> CheckButton:
 	var c := CheckButton.new()
 	c.text = testo
@@ -772,8 +843,10 @@ func _testi_informativi() -> void:
 	var interna := d.risoluzione_interna(get_window().size)
 	var dim: Vector2i = interna["dimensione"]
 	var resa: Vector2i = interna["resa"]
-	var testo := "%s · schermo %d×%d · %s Hz · %d dpi%s" % [d.info.get("modello", "?"), schermo[0], schermo[1],
-			str(d.info.get("hz", "?")), int(d.info.get("dpi", 0)), " · HDR" if d.hdr else ""]
+	var hz_letti := float(d.info.get("hz", -1.0))
+	var testo_hz := ("%d Hz" % roundi(hz_letti)) if hz_letti > 0.0 else "frequenza non letta"
+	var testo := "%s · schermo %d×%d · %s · %d dpi%s" % [d.info.get("modello", "?"), schermo[0], schermo[1],
+			testo_hz, int(d.info.get("dpi", 0)), " · HDR" if d.hdr else ""]
 	testo += "\nMondo di gioco %d×%d ingrandito ×%s" % [dim.x, dim.y, str(snappedf(float(interna["scala"]), 0.01))]
 	if resa != dim:
 		testo += " (disegnato a %d×%d)" % [resa.x, resa.y]

@@ -298,6 +298,8 @@ func solido() -> bool:
 	return stato not in [Stato.MORTO, Stato.DORME] and tipo != "pipistrello" and not in_tregua and is_inside_tree()
 
 
+const FORZIERE_MEZZO := 15.0   # metà della larghezza visibile di un forziere (Forziere: occlusore 28 px)
+const CASSA_MEZZO := 17.0      # metà della cassa (Stanza._cassa: 34 px)
 const SPAZIO := {"scheletro": 14.0, "mago": 13.0, "arciere": 13.0, "bestione": 20.0, "saltatore": 12.0, "mimic": 19.0}
 
 
@@ -336,6 +338,36 @@ func _separa_dai_compagni() -> void:
 		if lato == 0.0:
 			lato = 1.0 if get_instance_id() > altro.get_instance_id() else -1.0
 		move_and_collide(Vector2(lato * (mezzo - absf(dx)) * 0.5, 0.0))
+
+
+func _scosta_dagli_oggetti(delta: float) -> void:
+	# Un nemico fermo non resta piantato dentro un forziere o una cassa (il mago della balconata
+	# stava sopra il forziere, l'arciere mezzo dentro la cassa):
+	# scivola piano di lato. Solo da fermo e a terra, mai verso un vuoto: chi cammina passa davanti
+	# al forziere come davanti a un mobile, senza fermarsi (niente "camminare sul posto").
+	if not solido() or tipo == "pipistrello" or not is_on_floor() or absf(velocity.x) > 8.0:
+		return
+	if stato == Stato.ATTACCO:
+		return
+	var oggetti: Array = get_tree().get_nodes_in_group("forzieri") + get_tree().get_nodes_in_group("casse")
+	for n: Node in oggetti:
+		var f := n as Node2D
+		if f == null or absf(f.global_position.y - global_position.y) > 12.0:
+			continue
+		var dx := global_position.x - f.global_position.x
+		var mezzo := mezza_larghezza() + (CASSA_MEZZO if n.is_in_group("casse") else FORZIERE_MEZZO)
+		if absf(dx) >= mezzo:
+			continue
+		var lato := signf(dx) if dx != 0.0 else -1.0
+		var passo := minf(mezzo - absf(dx), 60.0 * delta)
+		var da := global_position + Vector2(lato * (passo + mezza_larghezza()), -4.0)
+		var domanda := PhysicsRayQueryParameters2D.create(da, da + Vector2(0.0, 26.0),
+				Effetti.S_MONDO | Effetti.S_PIATTAFORME | Effetti.S_OGGETTI)
+		if get_world_2d().direct_space_state.intersect_ray(domanda).is_empty():
+			lato = -lato   # da quella parte c'è il vuoto: si va dall'altra
+			passo = minf(mezzo + absf(dx), 60.0 * delta)
+		move_and_collide(Vector2(lato * passo, 0.0))
+		return
 
 
 func _sfonda_barili() -> void:
@@ -469,6 +501,7 @@ func _physics_process(delta: float) -> void:
 	if stato != Stato.MORTO:
 		_sfonda_barili()
 		_separa_dai_compagni()
+		_scosta_dagli_oggetti(delta)
 	sprite.flip_h = verso < 0
 
 

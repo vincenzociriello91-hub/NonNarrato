@@ -216,6 +216,9 @@ func _esegui() -> void:
 	bot.chiudi_alla_fine = false
 	bot.scritta = false
 	bot.cartella_foto = _cartella
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--foto-ogni="):
+			bot.foto_ogni = int(arg.trim_prefix("--foto-ogni="))
 	bot.seme = 4242   # sul computer la partita libera va sempre allo stesso modo (sul telefono no)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--fasi="):
@@ -253,6 +256,7 @@ func _esegui() -> void:
 	await _prova_impostazioni_suoni_aggiornamenti()
 	await _prova_dispositivo()
 	await _prova_compenetrazioni()
+	await _prova_da_giocatore()
 	await _prova_sotterraneo()
 	await _prova_bottino()
 	await _prova_armi_e_bestione()
@@ -635,6 +639,81 @@ func _prova_impostazioni_suoni_aggiornamenti() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(prova_apk))
 	_verifica("aggiornamento: senza plugin sul computer (Android lo ha)", Aggiornatore.plugin == null and Aggiornatore.testo_pulsante() != "")
 	Impostazioni.ripristina()
+
+
+func _prova_da_giocatore() -> void:
+	# Le cose trovate guardando il gioco come un giocatore esigente (0.1.23).
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	_verifica("da giocatore: il riquadro tecnico parte spento", Impostazioni.PREDEFINITE["gioco/debug"] == false)
+	# Nessun nemico parte dentro un forziere.
+	var dentro := []
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var e := n as Nemico
+		for f: Node in get_tree().get_nodes_in_group("forzieri"):
+			var fz := f as Node2D
+			if absf(fz.global_position.y - e.global_position.y) < 12.0 \
+					and absf(fz.global_position.x - e.global_position.x) < e.mezza_larghezza() + Nemico.FORZIERE_MEZZO:
+				dentro.append("%s@%s" % [e.tipo, str(e.global_position.round())])
+	_verifica("da giocatore: nessun nemico parte dentro un forziere", dentro.is_empty(), str(dentro))
+	# Un nemico fermo dentro un forziere se ne scosta da solo.
+	var mago: Nemico = null
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if (n as Nemico).tipo == "mago" and (n as Nemico).global_position.x < 1000:
+			mago = n
+	var forziere := stanza.meccanismi["forziere_cripta"] as Node2D
+	_g().global_position = Vector2(2700, Stanza.PAVIMENTO)   # lontano: il mago resta fermo
+	mago.global_position = forziere.global_position + Vector2(4, 0)
+	mago.velocity = Vector2.ZERO
+	await _fotogrammi(90)
+	var distanza := absf(mago.global_position.x - forziere.global_position.x)
+	_verifica("da giocatore: un nemico fermo esce dal forziere", distanza >= mago.mezza_larghezza() + Nemico.FORZIERE_MEZZO - 1.0,
+			"%.1f px" % distanza)
+	# I messaggi stanno in alto e la frase del risveglio sopra il velo nero.
+	var hud: Hud = _principale.hud
+	var area: Vector2 = hud.get_viewport().get_visible_rect().size
+	var msg := hud.get("_messaggio") as Label
+	_verifica("da giocatore: i messaggi stanno in alto", msg.position.y < area.y * 0.2, "%.0f su %.0f" % [msg.position.y, area.y])
+	var scritta := _principale.get("_scritta_velo") as Label
+	_verifica("da giocatore: la frase del risveglio sta sopra il velo", scritta != null
+			and (scritta.get_parent() as CanvasLayer).layer > hud.layer)
+	# Interruttori del menu disegnati apposta (quelli di serie non si vedevano).
+	var tema := (_principale.menu.get("_fondo") as Control).theme
+	_verifica("da giocatore: interruttori del menu leggibili", tema.has_icon("checked", "CheckButton")
+			and tema.has_icon("unchecked", "CheckButton") and tema.has_icon("checked", "CheckBox"))
+	# La vendetta dice il nome di chi tornerà.
+	var prima_memoria := Memoria.stato()
+	var frase := ""
+	for i in 40:
+		var finto := Nemico.new()
+		finto.tipo = "scheletro"
+		frase = Memoria.nemico_sconfitto(finto, "spada")
+		finto.free()
+		if frase.begins_with("Qualcosa giura vendetta"):
+			break
+	_verifica("da giocatore: la vendetta dice il nome", frase.begins_with("Qualcosa giura vendetta. Tornerà come ")
+			and frase.length() > 40, frase)
+	Memoria.ripristina_stato(prima_memoria)
+	# Sotto terra le sagome della stanza spariscono (cadevano in mezzo al sotterraneo).
+	_g().global_position = Vector2(600, Stanza.PAVIMENTO_SOTTO - 2)
+	_g().velocity = Vector2.ZERO
+	await _fotogrammi(60)
+	var sopra: Array = stanza.get("_sagome_sopra")
+	var sotto: Array = stanza.get("_sagome_sotto")
+	_verifica("da giocatore: sotto terra le sagome della stanza spariscono", stanza.sotto_terra
+			and sopra.all(func(c: CanvasItem) -> bool: return not c.visible)
+			and sotto.all(func(c: CanvasItem) -> bool: return c.visible))
+	# Sott'acqua il personaggio si disegna sopra il velo dell'acqua.
+	var vasca: Rect2 = Stanza.ACQUE[0]["rett"]
+	_g().global_position = Vector2(vasca.get_center().x, vasca.end.y - 30.0)
+	_g().velocity = Vector2.ZERO
+	await _fotogrammi(4)
+	_verifica("da giocatore: sott'acqua il personaggio si vede", _g().sott_acqua and _g().z_index == Giocatore.Z_SOTT_ACQUA,
+			"sott'acqua %s, z %d" % [str(_g().sott_acqua), _g().z_index])
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	_verifica("da giocatore: fuori dall'acqua torna normale", _g().z_index == Giocatore.Z_NORMALE)
 
 
 func _prova_compenetrazioni() -> void:
@@ -1027,6 +1106,14 @@ func _prova_sotterraneo() -> void:
 	await _fotogrammi(100)
 	_verifica("acqua: a galla il respiro torna", not _g().sott_acqua and _g().respiro > 90.0, "%.0f" % _g().respiro)
 	_verifica("hud: barre di stamina e respiro", _principale.hud.fiato_visibile() or _g().respiro >= Giocatore.RESPIRO_MASSIMO)
+	# Tornati al pieno, le barre spariscono (prima la stamina restava appena sotto il pieno e la barra non spariva).
+	for parte: float in [0.99, 0.997]:
+		_g().stamina = Giocatore.STAMINA_MASSIMA * parte
+		await _fotogrammi(2)
+	_g().stamina = Giocatore.STAMINA_MASSIMA
+	_g().respiro = Giocatore.RESPIRO_MASSIMO
+	await _fotogrammi(3)
+	_verifica("hud: al pieno le barre spariscono", not _principale.hud.fiato_visibile())
 	# Assi di legno: si rompono e sotto c'è la fossa.
 	g = _g()
 	g.global_position = Vector2(316, Stanza.PAVIMENTO_SOTTO - 2)

@@ -61,25 +61,27 @@ func interagisci(g: Node) -> void:
 	_bagliore()
 	Rapporto.conta("forzieri_aperti")
 	Rapporto.evento("forziere", {"nome": nome, "oro": oro, "contenuto": contenuto})
-	var righe: Array = []
+	# Gli oggetti stanno su una riga sola, la storia sotto: prima ogni oggetto aveva la sua riga
+	# e il messaggio copriva mezzo schermo (controllo da giocatore, 0.1.23).
+	var oggetti := PackedStringArray()
 	if contenuto.has("vita"):
-		righe.append("+%d vita" % int(contenuto["vita"]))
-	var munizioni := PackedStringArray()
+		oggetti.append("+%d vita" % int(contenuto["vita"]))
 	for cosa: String in ["dardi", "frecce"]:
 		if contenuto.has(cosa):
-			munizioni.append("+%d %s" % [int(contenuto[cosa]), cosa])
-	if not munizioni.is_empty():
-		righe.append(", ".join(munizioni))
+			oggetti.append("+%d %s" % [int(contenuto[cosa]), cosa])
 	for voce: Dictionary in contenuto.get("pozioni", []):
-		var d := Bottino.descrizione(voce)
-		righe.append(d.left(1).to_upper() + d.substr(1))
+		oggetti.append(Bottino.descrizione(voce))
 	if contenuto.has("colore"):
-		righe.append("Nuovo colore: %s" % Equipaggiamento.COLORI[contenuto["colore"]][0])
+		oggetti.append("nuovo colore: %s" % Equipaggiamento.COLORI[contenuto["colore"]][0])
+	var righe: Array = []
+	if not oggetti.is_empty():
+		var riga := " · ".join(oggetti)
+		righe.append(riga.left(1).to_upper() + riga.substr(1))
 	if contenuto.has("frammento"):
 		righe.append(String(contenuto["frammento"]))
 	if righe.is_empty():
 		righe.append("Il forziere è vuoto. Qualcuno è arrivato prima di te.")
-	get_tree().call_group("hud", "messaggio", "\n".join(righe), 5.0)
+	get_tree().call_group("hud", "messaggio", "\n".join(righe), 5.0 if contenuto.has("frammento") else 3.0)
 	aperto_ora.emit(contenuto)
 
 

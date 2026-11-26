@@ -13,6 +13,7 @@ var bot: Bot
 var _vista: TextureRect
 var _filtro: ColorRect
 var _velo: ColorRect
+var _scritta_velo: Label
 var _scala := 3.0
 var _in_transizione := false
 var _materiale_vista: ShaderMaterial
@@ -70,6 +71,16 @@ func _ready() -> void:
 	_velo.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_velo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	strato_velo.add_child(_velo)
+	# La frase del risveglio sta sopra il velo nero: nell'HUD (sotto il velo) non si vedeva mai.
+	_scritta_velo = Label.new()
+	_scritta_velo.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_scritta_velo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_scritta_velo.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_scritta_velo.add_theme_font_size_override("font_size", 34)
+	_scritta_velo.add_theme_color_override("font_color", Color(0.82, 0.78, 0.92))
+	_scritta_velo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scritta_velo.modulate.a = 0.0
+	strato_velo.add_child(_scritta_velo)
 
 	menu = Menu.new()
 	menu.chiuso.connect(_riprendi)
@@ -325,11 +336,13 @@ func _su_morte() -> void:
 	var tw := create_tween()
 	tw.tween_property(_velo, "color:a", 1.0, 0.6)
 	await tw.finished
-	hud.messaggio("Il Dormiente ti sogna di nuovo.", 2.2)
+	_scritta_velo.text = "Il Dormiente ti sogna di nuovo."
 	Memoria.nuovo_sogno()
 	_nuova_stanza()
 	var tw2 := create_tween()
-	tw2.tween_interval(0.9)
+	tw2.tween_property(_scritta_velo, "modulate:a", 1.0, 0.4)
+	tw2.tween_interval(1.1)
+	tw2.tween_property(_scritta_velo, "modulate:a", 0.0, 0.4)
 	tw2.tween_property(_velo, "color:a", 0.0, 0.7)
 	await tw2.finished
 	_in_transizione = false

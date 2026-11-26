@@ -1,5 +1,17 @@
 # Novità di NonNarrato
 
+## 0.1 — Controllo da giocatore: tante piccole cose sistemate
+
+- **Sott'acqua il personaggio si vede bene**: prima spariva quasi nel velo scuro della vasca; ora resta davanti all'acqua, tinto di blu.
+- **Niente più colonne nere in mezzo al sotterraneo**: le sagome in primo piano della stanza cadevano proprio dentro il sotterraneo e coprivano la vista. Ora, quando scendi, lasciano il posto a quelle del sotterraneo, che stanno in basso.
+- **I nemici non stanno più dentro forzieri e casse**: il mago della balconata non sta più piantato sopra il forziere, lo scheletro addormentato della galleria non è più steso sopra il forziere accanto, e un nemico fermo si scosta da solo se è finito dentro un forziere o una cassa.
+- **Messaggi più comodi**: compaiono più in alto e più piccoli, così non coprono più il personaggio e i nemici. Aprendo un forziere gli oggetti stanno su una riga sola e la frase della storia sotto.
+- **Quando un nemico giura vendetta** il messaggio dice con quale nome tornerà, invece della stessa frase ogni volta.
+- **Quando muori** la scritta "Il Dormiente ti sogna di nuovo" ora si legge sullo schermo nero (prima restava nascosta).
+- **Cuori e scritte in alto a sinistra** hanno un'ombra leggera dietro: si leggono anche davanti a una torcia accesa.
+- **Menu**: gli interruttori acceso/spento sono ben visibili (prima erano un pallino grigio quasi invisibile) e le caselle più grandi. Se il telefono non dice la frequenza dello schermo il menu lo scrive a parole invece di "-1 Hz".
+- **Il riquadro con i dati tecnici** (FPS e dispositivo) ora parte spento: si accende da Impostazioni → Gioco.
+
 ## 0.1 — Niente più corpi che si attraversano
 
 - **Personaggio e nemici sono solidi**: non ti passano più attraverso e tu non passi attraverso loro, si spingono di lato. Il bestione è pesante e quasi non si sposta. Anche i nemici tra loro non stanno più uno dentro l'altro. Per passare oltre un nemico c'è il **rotolo** (o lo scatto): è fatto apposta per schivare.

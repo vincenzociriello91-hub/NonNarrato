@@ -158,6 +158,9 @@ var effetti := {}                       # pozioni attive: tipo -> {"forza", "tem
 var _cura_accumulata := 0.0
 var _t_scia := 0.0
 var sott_acqua := false             # la testa è sotto la superficie
+const Z_NORMALE := 10
+const Z_SOTT_ACQUA := 16                # sopra il velo dell'acqua (Acqua: z 15)
+const TINTA_SOTT_ACQUA := Color(0.95, 1.15, 1.35)   # oltre 1 schiarisce: la figura è scura
 var in_acqua := false
 var _esausto := false
 var _t_a_terra := 0.0
@@ -179,7 +182,7 @@ func _ready() -> void:
 	collision_layer = Effetti.S_GIOCATORE
 	collision_mask = Effetti.S_MONDO | Effetti.S_PIATTAFORME | Effetti.S_OGGETTI
 	floor_snap_length = 4.0
-	z_index = 10
+	z_index = Z_NORMALE
 
 	_rett = RectangleShape2D.new()
 	_forma = CollisionShape2D.new()
@@ -1310,6 +1313,10 @@ func _controlla_acqua() -> void:
 		_superficie = acqua["superficie"]
 	var testa := global_position.y - ALTO.y + 6.0
 	sott_acqua = in_acqua and testa > _superficie + 1.0
+	# Sott'acqua il personaggio si disegna sopra il velo dell'acqua (z 15), tinto di blu:
+	# sotto il velo scuro si vedeva appena (controllo da giocatore, 0.1.23).
+	z_index = Z_SOTT_ACQUA if sott_acqua else Z_NORMALE
+	sprite.self_modulate = TINTA_SOTT_ACQUA if sott_acqua else Color.WHITE
 	if in_acqua and not prima:
 		# Tuffo: schizzi e suono, il resto dello slancio si smorza.
 		Effetti.scoppio(get_parent(), Vector2(global_position.x, _superficie), Color(0.55, 0.7, 0.85, 0.8), 14,

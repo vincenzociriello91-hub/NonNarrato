@@ -20,6 +20,10 @@ var chiudi_alla_fine := true     # sul telefono: chiude il gioco dopo aver salva
 var scritta := true              # la scritta "Bot in azione" in alto
 var cartella_foto := ""          # solo nelle prove sul computer
 var solo_fasi: Array = []        # solo nelle prove sul computer: fa soltanto queste fasi (per correggere più in fretta)
+var _sovrapposti := {}            # coppie di corpi uno dentro l'altro adesso: secondi di fila
+var _sovrapposti_massimo := 0.0
+var _sovrapposti_chi := ""
+var foto_ogni := 0               # solo nelle prove: una foto ogni N fotogrammi ("controllo da giocatore")
 var falliti := 0
 var controlli: Array = []
 var fasi: Array = []
@@ -1315,6 +1319,38 @@ func _chiudi_fase() -> void:
 	_fase = {}
 
 
+func _controlla_sovrapposti() -> void:
+	# Controllo da giocatore: due nemici (o un nemico e chi gioca) che restano uno dentro l'altro.
+	# Ogni coppia sovrapposta per più di metà della distanza giusta conta il tempo; il massimo va nel rapporto.
+	var corpi: Array = []
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var e := n as Nemico
+		if e != null and e.solido():
+			corpi.append([e, e.mezza_larghezza(), e.estensione_verticale(), e.tipo])
+	var g := _g()
+	if g.stato not in [Giocatore.Stato.ROTOLATA, Giocatore.Stato.SCHIVATA, Giocatore.Stato.MORTO]:
+		corpi.append([g, Giocatore.SPAZIO, Vector2(g.global_position.y - 40.0, g.global_position.y), "giocatore"])
+	var viste := {}
+	for i in corpi.size():
+		for j in range(i + 1, corpi.size()):
+			var a: Array = corpi[i]
+			var b: Array = corpi[j]
+			var dx := absf((a[0] as Node2D).global_position.x - (b[0] as Node2D).global_position.x)
+			var va: Vector2 = a[2]
+			var vb: Vector2 = b[2]
+			if dx >= (float(a[1]) + float(b[1])) * 0.5 or va.y <= vb.x + 2.0 or vb.y <= va.x + 2.0:
+				continue
+			var chiave := "%d-%d" % [(a[0] as Node).get_instance_id(), (b[0] as Node).get_instance_id()]
+			viste[chiave] = true
+			_sovrapposti[chiave] = float(_sovrapposti.get(chiave, 0.0)) + 0.25
+			if float(_sovrapposti[chiave]) > _sovrapposti_massimo:
+				_sovrapposti_massimo = float(_sovrapposti[chiave])
+				_sovrapposti_chi = "%s+%s a %s" % [a[3], b[3], str((a[0] as Node2D).global_position.round())]
+	for chiave: String in _sovrapposti.keys():
+		if not viste.has(chiave):
+			_sovrapposti.erase(chiave)
+
+
 func _process(delta: float) -> void:
 	# Le ondate restano ferme finché il bot prova enigmi e meccanismi; le affronta nella sua fase.
 	if in_corso and is_instance_valid(_principale.stanza) and _principale.stanza.ondate_attive != _ondate_permesse:
@@ -1336,6 +1372,10 @@ func _process(delta: float) -> void:
 				_fermate.append({"obiettivo": _obiettivo_ora, "x": roundi(qui.x), "y": roundi(qui.y)})
 				if Dispositivo.in_prova:
 					print("PROVA fermo da 20 s: %s a %s, %s" % [_obiettivo_ora, str(qui.round()), Giocatore.Stato.keys()[_g().stato]])
+	if _in_partita and Engine.get_process_frames() % 15 == 0 and not get_tree().paused:
+		_controlla_sovrapposti()
+	if foto_ogni > 0 and in_corso and Engine.get_physics_frames() % foto_ogni == 0 and not get_tree().paused:
+		_scatta("giro_" + fase_nome)
 	if Dispositivo.in_prova and in_corso and Engine.get_process_frames() % 600 == 0 and _principale.stanza != null:
 		var g := _g()
 		print("PROVA traccia: %s %s %s" % [fase_nome, str(g.global_position.round()), Giocatore.Stato.keys()[g.stato]])
@@ -2462,13 +2502,16 @@ func _partita() -> void:
 	_verifica("partita: esplora la stanza", viste * 2 >= da_vedere.size(), "%d su %d" % [viste, da_vedere.size()])
 	_verifica("partita: non resta mai bloccato", _stallo_massimo < 90.0, "fermo al massimo %.0f s" % _stallo_massimo)
 	_verifica("partita: impara quale arma usare contro chi", not _esito_armi.is_empty(), str(_esito_armi))
+	_verifica("partita: nessun corpo resta dentro un altro", _sovrapposti_massimo < 3.0,
+			"%.1f s di fila (%s)" % [_sovrapposti_massimo, _sovrapposti_chi])
 	_partita_finale = {
 		"carattere": _umore, "obiettivi": _obiettivi, "diario": _diario.slice(-60), "esiti": _esiti_partita,
 		"zone_viste": "%d su %d" % [viste, da_vedere.size()], "uccisi": Rapporto.contatore("nemici_uccisi") - uccisi_prima,
 		"morti": Rapporto.contatore("morti") - morti_prima, "ondate": Rapporto.contatore("ondate") - ondate_prima,
 		"sogno_completato": _principale.stanza.sogno_completato, "armi_provate": _armi_provate.keys(),
 		"esito_armi": _esito_armi, "pericolosi": _pericolosi, "fermo_massimo_s": snappedf(_stallo_massimo, 0.1),
-		"fermate_lunghe": _fermate,
+		"fermate_lunghe": _fermate, "sovrapposti_massimo_s": snappedf(_sovrapposti_massimo, 0.25),
+		"sovrapposti_chi": _sovrapposti_chi,
 	}
 	if Dispositivo.in_prova:
 		print("PROVA partita libera: %s" % JSON.stringify(_partita_finale))

@@ -85,6 +85,7 @@ var _etichetta_sogno: Label
 var _armi: Label
 var _debug: Label
 var _messaggio: Label
+var _velo: TextureRect
 var _touch: Control
 var _leva: VirtualJoystick
 var _pulsanti := {}
@@ -107,6 +108,25 @@ func _ready() -> void:
 	_radice.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_radice.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_radice)
+
+	# Velo scuro sfumato dietro cuori e scritte in alto a sinistra: sopra una torcia accesa
+	# le scritte piccole non si leggevano (controllo da giocatore, 0.1.23).
+	_velo = TextureRect.new()
+	var sfumatura := GradientTexture2D.new()
+	var g := Gradient.new()
+	g.set_color(0, Color(0.0, 0.0, 0.02, 0.5))
+	g.set_color(1, Color(0.0, 0.0, 0.02, 0.0))
+	sfumatura.gradient = g
+	sfumatura.fill = GradientTexture2D.FILL_RADIAL
+	sfumatura.fill_from = Vector2(0.0, 0.0)
+	sfumatura.fill_to = Vector2(1.0, 1.0)
+	sfumatura.width = 128
+	sfumatura.height = 64
+	_velo.texture = sfumatura
+	_velo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_velo.stretch_mode = TextureRect.STRETCH_SCALE
+	_velo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_radice.add_child(_velo)
 
 	_cuori = Cuori.new()
 	_cuori.size = Vector2(170, 30)
@@ -138,7 +158,8 @@ func _ready() -> void:
 	_debug.add_theme_stylebox_override("normal", sfondo)
 	_radice.add_child(_debug)
 
-	_messaggio = _etichetta(34, Color(0.9, 0.88, 0.96))
+	_messaggio = _etichetta(30, Color(0.9, 0.88, 0.96))
+	_messaggio.add_theme_constant_override("outline_size", 6)
 	_messaggio.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_messaggio.modulate.a = 0.0
 	_radice.add_child(_messaggio)
@@ -247,6 +268,8 @@ func _disponi() -> void:
 		return
 	var area := get_viewport().get_visible_rect().size
 	var m := _margini()
+	_velo.position = Vector2(m[0], m[1])
+	_velo.size = Vector2(560.0, 130.0)
 	_cuori.position = Vector2(m[0] + 16.0, m[1] + 14.0)
 	_fiato.position = Vector2(m[0] + 270.0, m[1] + 16.0)
 	_pozioni.position = Vector2(m[0] + 410.0, m[1] + 10.0)
@@ -256,7 +279,8 @@ func _disponi() -> void:
 	_debug.position = Vector2(m[0] + 16.0, m[1] + 100.0)
 	_debug.visible = Impostazioni.leggi("gioco/debug")
 	# Le frasi lunghe (per esempio quelle delle nemesi) vanno a capo restando al centro.
-	_messaggio.position = Vector2(area.x * 0.12, area.y * 0.26)
+	# In alto, sotto la barra: al 26% copriva il personaggio e i nemici per secondi (controllo da giocatore).
+	_messaggio.position = Vector2(area.x * 0.12, maxf(area.y * 0.12, m[1] + 96.0))
 	_messaggio.size = Vector2(area.x * 0.76, 170.0)
 	_messaggio.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
@@ -443,7 +467,9 @@ func _process(delta: float) -> void:
 		var g := _stanza.giocatore
 		var st := g.stamina / Giocatore.STAMINA_MASSIMA
 		var re := g.respiro / Giocatore.RESPIRO_MASSIMO
-		if absf(st - _fiato.stamina) > 0.004 or absf(re - _fiato.respiro) > 0.004 or _fiato.esausto != g.get("_esausto"):
+		# Anche quando si arriva al pieno: con il solo scarto minimo la barra restava a 0,996 e non spariva più.
+		var pieni_cambiati := (st >= 0.999) != (_fiato.stamina >= 0.999) or (re >= 0.999) != (_fiato.respiro >= 0.999)
+		if pieni_cambiati or absf(st - _fiato.stamina) > 0.004 or absf(re - _fiato.respiro) > 0.004 or _fiato.esausto != g.get("_esausto"):
 			_fiato.stamina = st
 			_fiato.respiro = re
 			_fiato.esausto = g.get("_esausto")

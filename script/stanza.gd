@@ -94,6 +94,8 @@ const ONDATE := 4                  # in ogni sogno i caduti si rialzano tre volt
 const ATTESA_ONDATA := 4.0
 var ondata := 1
 var sogno_completato := false
+var _sagome_sopra: Array = []      # sagome in primo piano della stanza e del sotterraneo (vedi _primo_piano)
+var _sagome_sotto: Array = []
 var _posti: Array = []             # i posti dei nemici: {tipo, dove, dorme, verso, id}
 var _t_ondata := -1.0              # conto alla rovescia verso la prossima ondata (-1 = nessuno)
 var _t_controllo_ondata := 0.0
@@ -163,6 +165,7 @@ func _zona_telecamera() -> void:
 	if sotto == sotto_terra:
 		return
 	sotto_terra = sotto
+	_sagome_per_zona(sotto)
 	giocatore.camera.limit_smoothed = true
 	if sotto:
 		giocatore.limiti(Rect2i(0, 400, LARGHEZZA_SOTTO, FONDO_SOTTO - 400), false)
@@ -693,7 +696,7 @@ func _forzieri_a_caso() -> void:
 	# Due forzieri senza storia, solo oggetti a caso: a ogni sogno ognuno può essere un mimic.
 	var caso := RandomNumberGenerator.new()
 	caso.seed = int(Memoria.sogni) * 104729 + 17
-	for voce: Array in [["forziere_cripta", Vector2(724, 290)], ["forziere_galleria", Vector2(1520, PAVIMENTO)]]:
+	for voce: Array in [["forziere_cripta", Vector2(724, 290)], ["forziere_galleria", Vector2(1544, PAVIMENTO)]]:
 		var f := _forziere(voce[0], voce[1], false, true)
 		f.mimic = caso.randf() < Bottino.MIMIC_PROBABILITA
 
@@ -731,11 +734,14 @@ func _nemici() -> void:
 		da_mettere[tipo] = Memoria.nemesi_per(tipo)
 	_nemico("scheletro", Vector2(940, PAVIMENTO), false, -1, da_mettere)
 	_nemico("scheletro", Vector2(640, PAVIMENTO), true, -1, da_mettere)
-	_nemico("mago", Vector2(700, 290), false, -1, da_mettere)
+	# Il mago della balconata sta lontano dal forziere (prima ci stava davanti, dentro il forziere);
+	# l'id resta quello di prima, così i veterani di quel posto non si perdono.
+	_nemico("mago", Vector2(656, 290), false, -1, da_mettere, "mago@700,290")
 	# Galleria: uno scheletro e un pipistrello addormentati sotto la terrazza, un saltatore sullo scalino
 	# della torre, un bestione nella sala, un arciere sulla balconata e un pipistrello appeso sotto di lei,
 	# un mago nel salone.
-	_nemico("scheletro", Vector2(1480, PAVIMENTO), true, -1, da_mettere)
+	# Steso a terra lontano dal forziere (prima ci stava sopra); l'id resta quello di prima per i veterani.
+	_nemico("scheletro", Vector2(1462, PAVIMENTO), true, -1, da_mettere, "scheletro@1480,%d" % roundi(PAVIMENTO))
 	_nemico("pipistrello", Vector2(1420, 434), true, -1, da_mettere)
 	_nemico("saltatore", Vector2(2048, 312), false, -1, da_mettere)
 	_nemico("bestione", Vector2(2500, PAVIMENTO), false, -1, da_mettere)
@@ -758,6 +764,8 @@ func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int, nemesi
 	var n := Nemico.new()
 	if id == "":
 		id = "%s@%d,%d" % [tipo, roundi(dove.x), roundi(dove.y)]
+	if not id.begins_with("sotto:") and not _posti.any(func(q: Dictionary) -> bool: return q["id"] == id):
+		# quelli del sotterraneo non tornano con le ondate; chi rinasce in un'ondata è già nell'elenco
 		_posti.append({"tipo": tipo, "dove": dove, "dorme": addormentato, "verso": verso, "id": id})
 	n.id_posto = id
 	var libere: Array = nemesi_libere.get(tipo, [])
@@ -930,11 +938,33 @@ func _primo_piano() -> void:
 		drappo.material = Effetti.materiale_piatto()
 		drappo.modulate = Color(0.03, 0.03, 0.05)
 		drappo.scale = Vector2(1.7, 1.6)
+	# I capitelli in basso della stanza cadono in mezzo al sotterraneo: quando la telecamera scende
+	# spariscono e compaiono quelli in fondo al sotterraneo (prima due colonne nere coprivano la vista).
 	for x: float in [140.0, 640.0, 1180.0, 1600.0, 2150.0, 2700.0, 3250.0, 3800.0]:
 		var sagoma := _sprite("pilastro", Vector2(x, FONDO + 152), 0, 0, strato)
 		sagoma.material = Effetti.materiale_piatto()
 		sagoma.modulate = Color(0.03, 0.03, 0.05)
 		sagoma.scale = Vector2(1.6, 1.7)
+		_sagome_sopra.append(sagoma)
+	for x: float in [140.0, 760.0, 1380.0]:
+		var sagoma := _sprite("pilastro", Vector2(x, FONDO_SOTTO + 152), 0, 0, strato)
+		sagoma.material = Effetti.materiale_piatto()
+		sagoma.modulate = Color(0.03, 0.03, 0.05, 0.0)
+		sagoma.scale = Vector2(1.6, 1.7)
+		sagoma.visible = false
+		_sagome_sotto.append(sagoma)
+
+
+func _sagome_per_zona(sotto: bool) -> void:
+	for gruppo: Array in [[_sagome_sopra, not sotto], [_sagome_sotto, sotto]]:
+		for sagoma: CanvasItem in gruppo[0]:
+			var mostra: bool = gruppo[1]
+			if mostra:
+				sagoma.visible = true
+			var tw := sagoma.create_tween()
+			tw.tween_property(sagoma, "modulate:a", 1.0 if mostra else 0.0, 0.35)
+			if not mostra:
+				tw.tween_callback(sagoma.hide)
 
 
 func _sprite(nome: String, dove: Vector2, maschera: int, z: int, genitore: Node = self) -> SpriteAnimato:

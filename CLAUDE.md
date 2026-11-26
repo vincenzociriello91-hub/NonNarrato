@@ -224,3 +224,17 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
   - suoni mancanti o fuori posto; scatti e cali di FPS;
   - stato lasciato sporco dal bot o da una prova.
 - Quello che si trova va corretto nella stessa versione o, se è grosso, proposto subito a Vincenzo.
+
+## Controllo da giocatore (0.1.23)
+
+- Foto a intervalli durante il bot: `-- --prova --schermate=DIR --foto-ogni=200` (`Bot.foto_ogni`). Il giro completo con foto dura più di 40 minuti: per controllare poche cose usare `--fasi=`. I nomi dei file vanno ordinati per numero (`100_` viene prima di `11_` in ordine alfabetico).
+- Mai due prove di Godot insieme: usano la stessa cartella `user://` (impostazioni, `bot_in_corso.txt`).
+- Sott'acqua il giocatore passa a `Z_SOTT_ACQUA` (sopra il velo `Acqua`, z 15) con `TINTA_SOTT_ACQUA`; fuori torna a `Z_NORMALE`.
+- Sagome in primo piano: `_sagome_sopra` (stanza) e `_sagome_sotto` (in fondo al sotterraneo) si scambiano in `Stanza._sagome_per_zona` quando cambia `sotto_terra`.
+- Nemici e oggetti: `Nemico._scosta_dagli_oggetti` sposta un nemico fermo (non chi cammina) fuori da forzieri e casse, mai verso un vuoto. Posti iniziali lontani dai forzieri; se si sposta un nemico, passare l'id vecchio a `Stanza._nemico` per non perdere i veterani (l'elenco `_posti` delle ondate non deve avere doppioni).
+- Bot, partita: `_controlla_sovrapposti` misura due corpi uno dentro l'altro; controllo "nessun corpo resta dentro un altro" (< 3 s di fila), valori nel rapporto.
+- HUD: messaggi in alto (12%) e più piccoli; velo sfumato dietro l'angolo in alto a sinistra; la barra della stamina si aggiorna anche quando arriva al pieno (prima restava a 0,996 e non spariva). Il messaggio del forziere mette gli oggetti su una riga.
+- La frase del risveglio dopo la morte sta in `Principale._scritta_velo`, sopra il velo nero (l'HUD è sotto il velo).
+- Menu: icone degli interruttori e delle caselle disegnate in `Menu._icone_interruttori` (quelle di serie non si vedevano sul fondo scuro). `gioco/debug` parte spento.
+- La vendetta di un nemico normale dice il nome della nuova nemesi.
+- Prova: `_prova_da_giocatore` in `test/prova.gd`.

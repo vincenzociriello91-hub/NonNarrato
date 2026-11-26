@@ -19,7 +19,7 @@ const PREDEFINITE := {
 	"controlli/forza_vibrazione": 1.0,
 	"gioco/numeri_danno": false,         # numeri dei danni sopra i nemici
 	"gioco/messaggi": true,              # frasi delle nemesi e messaggi della storia
-	"gioco/debug": true,                 # schermata con FPS e dati del dispositivo
+	"gioco/debug": false,                # schermata con FPS e dati del dispositivo (copre l'angolo: spenta di base)
 	"gioco/controlla_aggiornamenti": true,
 	# --- Schermo
 	"schermo/scala": 0,                  # 0 = automatica; altrimenti pixel dello schermo per pixel del gioco
