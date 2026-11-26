@@ -238,3 +238,13 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Menu: icone degli interruttori e delle caselle disegnate in `Menu._icone_interruttori` (quelle di serie non si vedevano sul fondo scuro). `gioco/debug` parte spento.
 - La vendetta di un nemico normale dice il nome della nuova nemesi.
 - Prova: `_prova_da_giocatore` in `test/prova.gd`.
+
+## Nemici che camminavano sul posto (0.1.24)
+
+- Bug del 26/11/2026 (Vincenzo, sul Pixel con la 0.1.23): coi corpi solidi della 0.1.22 alcune scelte dei nemici davano per scontato di poter attraversare chi gioca o i compagni. Saltatore "zig" sotto i 40 px camminava contro di te all'infinito; chi stava dietro un compagno lo spingeva; `_accerchia` cercava di passarti attraverso; la ronda si girava a ogni fotogramma se chiusa da due parti.
+- `Nemico._corpo_davanti()` (chi gioca se `Giocatore.solido_per_i_nemici()`, o un compagno solido a contatto nella direzione `verso`): ferma `_cammina`, gira la ronda, interrompe la carica e annulla l'accerchiamento.
+- La ronda (`PATTUGLIA`) non sfonda i barili: li tratta come muri. Inseguendo sì.
+- Ultima difesa: `Nemico._controlla_incastro` (dopo `move_and_slide`): se vuole camminare ma per 0,4 s non si sposta, la ronda si gira e chi insegue fa una pausa di 0,6 s (`_t_pausa`, che ora ferma anche `_cammina`) e smette di cercare l'ultimo posto visto. Conta `nemici_incastrati` nel rapporto. `_cammina` si ferma contro un muro anche in aria (normale del muro opposta a `verso`). Caso visto nella partita del bot: scheletro che cercava chi gioca contro una cassa, bestione fermo accanto al barile della sala.
+- Strumento fuori dal repository: `/home/claude/strumenti/controllo/sul_posto.gd -- --dove=x,y` (gioco normale, cerca nemici con animazione di camminata che non si spostano).
+- Controlli: `_prova_sul_posto` in `test/prova.gd` (saltatore vicino, nemico dietro un compagno) e nella partita del bot "nessun nemico cammina sul posto" (< 1,5 s di fila, `sul_posto_massimo_s` nel rapporto).
+- Lezione: quando si cambia una regola fisica (corpi solidi), ripassare ogni ramo dell'IA dei nemici che muove il corpo, non solo il bot.

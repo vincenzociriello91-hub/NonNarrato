@@ -22,6 +22,10 @@ var cartella_foto := ""          # solo nelle prove sul computer
 var solo_fasi: Array = []        # solo nelle prove sul computer: fa soltanto queste fasi (per correggere più in fretta)
 var _sovrapposti := {}            # coppie di corpi uno dentro l'altro adesso: secondi di fila
 var _sovrapposti_massimo := 0.0
+var _posti_nemici := {}           # dove stava ogni nemico al controllo precedente (0,25 s fa)
+var _sul_posto := {}              # nemici che camminano senza spostarsi: secondi di fila
+var _sul_posto_massimo := 0.0
+var _sul_posto_chi := ""
 var _sovrapposti_chi := ""
 var foto_ogni := 0               # solo nelle prove: una foto ogni N fotogrammi ("controllo da giocatore")
 var falliti := 0
@@ -1323,10 +1327,53 @@ func _controlla_sovrapposti() -> void:
 	# Controllo da giocatore: due nemici (o un nemico e chi gioca) che restano uno dentro l'altro.
 	# Ogni coppia sovrapposta per più di metà della distanza giusta conta il tempo; il massimo va nel rapporto.
 	var corpi: Array = []
+	var visti_ora := {}
 	for n: Node in get_tree().get_nodes_in_group("nemici"):
 		var e := n as Nemico
 		if e != null and e.solido():
 			corpi.append([e, e.mezza_larghezza(), e.estensione_verticale(), e.tipo])
+		# Nemici che "camminano sul posto": animazione di camminata e velocità, ma non si spostano.
+		if e != null and e.stato != Nemico.Stato.MORTO and not e.in_tregua:
+			var id := e.get_instance_id()
+			visti_ora[id] = true
+			var cammina := e.sprite.animazione == "cammina" and absf(e.velocity.x) > 5.0
+			# Si guarda dove era un secondo fa (4 controlli): contro una cassa il corpo trema ma non avanza.
+			var storia: Array = _posti_nemici.get(id, [])
+			var prima: Vector2 = storia[0] if storia.size() >= 4 else e.global_position + Vector2(99, 0)
+			if cammina and absf(prima.x - e.global_position.x) < 3.0:
+				_sul_posto[id] = float(_sul_posto.get(id, 0.0)) + 0.25
+				if Dispositivo.in_prova and is_equal_approx(float(_sul_posto[id]), 1.0):
+					var urto := ""
+					for i in e.get_slide_collision_count():
+						var c := e.get_slide_collision(i)
+						urto += "%s(%s n%s) " % [str((c.get_collider() as Node).get_path()), str((c.get_collider() as Node).get_parent().name), str(c.get_normal().snapped(Vector2(0.01, 0.01)))]
+					print("PROVA sul posto: %s a %s stato %s tattica %s verso %d vel %s muro %s vuoto %s corpo %s anim %s urti %s giocatore %s %s fisica %s incastro %.2f pausa %.2f può %s modo %d padre %s t_stato %.2f id %d stanza %s" % [
+						e.tipo, str(e.global_position.round()), Nemico.Stato.keys()[e.stato], e.tattica, e.verso,
+						str(e.velocity.round()), e.is_on_wall(), e._vuoto_davanti(), e._corpo_davanti(), e.sprite.animazione,
+						urto, str(_g().global_position.round()), Giocatore.Stato.keys()[_g().stato],
+						e.is_physics_processing(), e._t_incastrato, e._t_pausa, e.can_process(), e.process_mode,
+						str(e.get_parent()), e._t_stato, e.get_instance_id(), str(_principale.stanza)])
+					for o: Node in get_tree().get_nodes_in_group("nemici"):
+						var vicino := o as Nemico
+						if vicino != e and vicino.global_position.distance_to(e.global_position) < 50.0:
+							print("PROVA   vicino: %s a %s stato %s solido %s tregua %s" % [vicino.tipo,
+								str(vicino.global_position), Nemico.Stato.keys()[vicino.stato], vicino.solido(), vicino.in_tregua])
+					for f: Node in get_tree().get_nodes_in_group("forzieri") + get_tree().get_nodes_in_group("casse"):
+						if (f as Node2D).global_position.distance_to(e.global_position) < 60.0:
+							print("PROVA   oggetto vicino: %s a %s" % [f.name, str((f as Node2D).global_position)])
+				if float(_sul_posto[id]) > _sul_posto_massimo:
+					_sul_posto_massimo = float(_sul_posto[id])
+					_sul_posto_chi = "%s a %s (%s)" % [e.tipo, str(e.global_position.round()), Nemico.Stato.keys()[e.stato]]
+			else:
+				_sul_posto.erase(id)
+			storia.append(e.global_position)
+			if storia.size() > 4:
+				storia.pop_front()
+			_posti_nemici[id] = storia
+	for id: int in _posti_nemici.keys():
+		if not visti_ora.has(id):
+			_posti_nemici.erase(id)
+			_sul_posto.erase(id)
 	var g := _g()
 	if g.stato not in [Giocatore.Stato.ROTOLATA, Giocatore.Stato.SCHIVATA, Giocatore.Stato.MORTO]:
 		corpi.append([g, Giocatore.SPAZIO, Vector2(g.global_position.y - 40.0, g.global_position.y), "giocatore"])
@@ -2504,6 +2551,8 @@ func _partita() -> void:
 	_verifica("partita: impara quale arma usare contro chi", not _esito_armi.is_empty(), str(_esito_armi))
 	_verifica("partita: nessun corpo resta dentro un altro", _sovrapposti_massimo < 3.0,
 			"%.1f s di fila (%s)" % [_sovrapposti_massimo, _sovrapposti_chi])
+	_verifica("partita: nessun nemico cammina sul posto", _sul_posto_massimo < 1.5,
+			"%.2f s di fila (%s)" % [_sul_posto_massimo, _sul_posto_chi])
 	_partita_finale = {
 		"carattere": _umore, "obiettivi": _obiettivi, "diario": _diario.slice(-60), "esiti": _esiti_partita,
 		"zone_viste": "%d su %d" % [viste, da_vedere.size()], "uccisi": Rapporto.contatore("nemici_uccisi") - uccisi_prima,
@@ -2511,7 +2560,8 @@ func _partita() -> void:
 		"sogno_completato": _principale.stanza.sogno_completato, "armi_provate": _armi_provate.keys(),
 		"esito_armi": _esito_armi, "pericolosi": _pericolosi, "fermo_massimo_s": snappedf(_stallo_massimo, 0.1),
 		"fermate_lunghe": _fermate, "sovrapposti_massimo_s": snappedf(_sovrapposti_massimo, 0.25),
-		"sovrapposti_chi": _sovrapposti_chi,
+		"sovrapposti_chi": _sovrapposti_chi, "sul_posto_massimo_s": snappedf(_sul_posto_massimo, 0.25),
+		"sul_posto_chi": _sul_posto_chi,
 	}
 	if Dispositivo.in_prova:
 		print("PROVA partita libera: %s" % JSON.stringify(_partita_finale))

@@ -1,5 +1,12 @@
 # Novità di NonNarrato
 
+## 0.1 — Corretto: nemici che camminavano sul posto
+
+- **I nemici non camminano più sul posto.** Da quando i corpi sono solidi, alcuni nemici continuavano a camminarti contro (o contro un compagno davanti a loro) senza mai attaccare: il saltatore, che prima ti passava attraverso per prendere la rincorsa, restava incollato a te; chi stava dietro un compagno lo spingeva all'infinito; chi provava a girarti attorno restava bloccato. Ora il saltatore salta indietro e ti balza addosso, chi è chiuso da un compagno o da te aspetta il suo turno, e chi non può girarti attorno combatte da dove si trova.
+- **Chi fa la ronda non sfonda più i barili** senza motivo appena inizia il sogno: torna indietro. I barili si rompono ancora quando un nemico ti insegue.
+- Un nemico chiuso fra due ostacoli resta fermo invece di girarsi di continuo.
+- In più, se per qualunque altro motivo un nemico prova a camminare senza riuscire a spostarsi (contro una cassa, in un angolo), dopo mezzo secondo smette e cambia idea.
+
 ## 0.1 — Controllo da giocatore: tante piccole cose sistemate
 
 - **Sott'acqua il personaggio si vede bene**: prima spariva quasi nel velo scuro della vasca; ora resta davanti all'acqua, tinto di blu.

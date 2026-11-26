@@ -1469,11 +1469,16 @@ func _su_piattaforma() -> bool:
 	return false
 
 
+func solido_per_i_nemici() -> bool:
+	# Stessi casi di _separa_dai_nemici: rotolo, scatto, parete, acqua e scavalco passano attraverso.
+	return stato not in [Stato.ROTOLATA, Stato.SCHIVATA, Stato.MORTO, Stato.ARRAMPICATA, Stato.NUOTO, Stato.SCAVALCO]
+
+
 func _separa_dai_nemici() -> void:
 	# Personaggio e nemici non si compenetrano: si spingono di lato (il bestione, pesante, quasi non si
 	# sposta). Il rotolo e lo scatto passano attraverso apposta (servono a schivare); chi dorme a terra,
 	# chi vola e chi è in tregua (prove del bot) non conta. Sopra la testa di un nemico si scivola giù.
-	if stato in [Stato.ROTOLATA, Stato.SCHIVATA, Stato.MORTO, Stato.ARRAMPICATA, Stato.NUOTO, Stato.SCAVALCO]:
+	if not solido_per_i_nemici():
 		return
 	var mio_alto := global_position.y - ALTO.y
 	for n: Node in get_tree().get_nodes_in_group("nemici"):

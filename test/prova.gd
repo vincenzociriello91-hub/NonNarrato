@@ -670,6 +670,9 @@ func _prova_da_giocatore() -> void:
 	var distanza := absf(mago.global_position.x - forziere.global_position.x)
 	_verifica("da giocatore: un nemico fermo esce dal forziere", distanza >= mago.mezza_larghezza() + Nemico.FORZIERE_MEZZO - 1.0,
 			"%.1f px" % distanza)
+	# Nessun nemico cammina sul posto contro un corpo (bug del 26/11/2026, dopo i corpi solidi della 0.1.22).
+	await _prova_sul_posto(stanza)
+	stanza = _principale.stanza   # la prova ricomincia la stanza
 	# I messaggi stanno in alto e la frase del risveglio sopra il velo nero.
 	var hud: Hud = _principale.hud
 	var area: Vector2 = hud.get_viewport().get_visible_rect().size
@@ -716,6 +719,70 @@ func _prova_da_giocatore() -> void:
 	_verifica("da giocatore: fuori dall'acqua torna normale", _g().z_index == Giocatore.Z_NORMALE)
 
 
+func _secondi_sul_posto(n: Nemico, fotogrammi: int) -> float:
+	# Quanto tempo, al massimo di fila, il nemico ha l'animazione di camminata senza spostarsi.
+	var di_fila := 0
+	var massimo := 0
+	var prima := n.global_position
+	for i in fotogrammi:
+		await _fotogrammi(1)
+		if not is_instance_valid(n):
+			break
+		var cammina := n.sprite.animazione == "cammina" and absf(n.velocity.x) > 5.0
+		if cammina and n.global_position.distance_to(prima) < 0.2:
+			di_fila += 1
+			massimo = maxi(massimo, di_fila)
+		else:
+			di_fila = 0
+		prima = n.global_position
+	return massimo / 60.0
+
+
+func _prova_sul_posto(stanza: Stanza) -> void:
+	var tutti: Array = get_tree().get_nodes_in_group("nemici")
+	for n: Nemico in tutti:
+		n.tregua(true)
+	var g := _g()
+	g.global_position = Vector2(700, Stanza.PAVIMENTO)
+	g.velocity = Vector2.ZERO
+	await _fotogrammi(10)
+	# Saltatore attaccato a chi gioca con la tattica "zig": prima ci camminava contro all'infinito.
+	var saltatore: Nemico = null
+	var scheletri: Array = []
+	for n: Nemico in tutti:
+		if n.tipo == "saltatore" and saltatore == null:
+			saltatore = n
+		if n.tipo == "scheletro" and n.global_position.y < 500.0:
+			scheletri.append(n)
+	saltatore.tregua(false)
+	saltatore.global_position = Vector2(724, Stanza.PAVIMENTO)
+	saltatore.velocity = Vector2.ZERO
+	saltatore.tattica = "zig"
+	saltatore._t_tattica = 0.0
+	var fermo_saltatore := await _secondi_sul_posto(saltatore, 180)
+	_verifica("da giocatore: il saltatore vicino non cammina sul posto", fermo_saltatore < 0.5, "%.2f s" % fermo_saltatore)
+	saltatore.tregua(true)
+	saltatore.global_position = Vector2(2048, 312)
+	# Due scheletri in fila: quello dietro non spinge sul posto quello davanti.
+	if scheletri.size() >= 2:
+		var davanti: Nemico = scheletri[0]
+		var dietro: Nemico = scheletri[1]
+		davanti.tregua(false)
+		dietro.tregua(false)
+		davanti.global_position = Vector2(740, Stanza.PAVIMENTO)
+		davanti.set_physics_process(false)   # fermo, col suo corpo
+		dietro.global_position = Vector2(800, Stanza.PAVIMENTO)
+		dietro.dorme = false
+		dietro.stato = Nemico.Stato.INSEGUE
+		dietro.tattica = "finta"
+		var fermo_dietro := await _secondi_sul_posto(dietro, 180)
+		_verifica("da giocatore: un nemico dietro un compagno non cammina sul posto", fermo_dietro < 0.5,
+				"%.2f s" % fermo_dietro)
+		davanti.set_physics_process(true)
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+
+
 func _prova_compenetrazioni() -> void:
 	# Personaggio, nemici e barili non si attraversano; il rotolo sì; l'arma si disegna sopra al corpo.
 	_principale.ricomincia_stanza()
@@ -753,17 +820,21 @@ func _prova_compenetrazioni() -> void:
 	secondo.stato = Nemico.Stato.FERMO
 	secondo.set_physics_process(true)
 	scheletro.set_physics_process(true)
-	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	await _sposta(Vector2(1040, Stanza.PAVIMENTO), 1)   # dalla parte senza barili (inseguendo lo sfonderebbe)
 	secondo.global_position = scheletro.global_position + Vector2(2, 0)
 	await _fotogrammi(20)
 	var fra_loro := absf(secondo.global_position.x - scheletro.global_position.x)
 	_verifica("compenetrazioni: due nemici non stanno uno dentro l'altro", fra_loro >= scheletro.mezza_larghezza() * 2.0 - 2.0, "%.1f" % fra_loro)
 	secondo.tregua(true)
+	scheletro.set_physics_process(false)
 	# Barile solido: non si attraversa; un nemico che ci finisce contro lo sfonda.
+	# Il barile a terra più vicino a 812 ancora intero (inseguendo, uno scheletro può averlo già sfondato).
 	var barile: Rompibile = null
 	for b: Node in get_tree().get_nodes_in_group("rompibili"):
-		if absf((b as Node2D).global_position.x - 812.0) < 2.0:
-			barile = b
+		var r := b as Rompibile
+		if r.vita > 0 and absf(r.global_position.y - Stanza.PAVIMENTO) < 2.0 and r.global_position.x < 1200.0 \
+				and (barile == null or absf(r.global_position.x - 812.0) < absf(barile.global_position.x - 812.0)):
+			barile = r
 	var bx := barile.global_position.x
 	scheletro.set_physics_process(false)   # intanto lo scheletro non si muove (lo sfonderebbe lui)
 	scheletro.global_position = Vector2(bx + 120.0, Stanza.PAVIMENTO)

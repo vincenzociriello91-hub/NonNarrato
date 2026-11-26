@@ -88,6 +88,12 @@ var _t_ricarica := 1.0
 var _t_senza_vista := 0.0
 var _t_tattica := 0.0
 var _t_pausa := 0.0
+var _t_incastrato := 0.0          # cammina ma non si sposta (vedi _controlla_incastro)
+var _x_prima := 0.0
+var _x_inizio_incastro := 0.0
+var _segno_incastro := 0.0
+var _t_cassa_davanti := 0.0       # ha appena urtato una cassa nella direzione in cui va
+var _verso_cassa := 0
 var _t_balzo := 0.0
 var _t_finestra := 0.0           # chi gioca ha appena finito un rotolo/uno scatto: è il momento
 var _t_schiva := 0.0
@@ -370,8 +376,24 @@ func _scosta_dagli_oggetti(delta: float) -> void:
 		return
 
 
+func _guarda_casse(delta: float) -> void:
+	# Una cassa davanti fa da muro per un attimo: il contatto con un corpo rigido va e viene,
+	# e prima il nemico ci tremava contro camminando sul posto.
+	_t_cassa_davanti = maxf(0.0, _t_cassa_davanti - delta)
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		var corpo := c.get_collider() as Node
+		if corpo != null and corpo.is_in_group("casse") and signf(c.get_normal().x) == -float(verso):
+			_t_cassa_davanti = 0.3
+			_verso_cassa = verso
+
+
 func _sfonda_barili() -> void:
 	# Un barile sulla strada: il nemico lo sfonda passando (invece di restarci incastrato o di attraversarlo).
+	# Chi è di ronda invece torna indietro (_pattuglia lo vede come un muro): prima scheletro e bestione
+	# rompevano i barili vicini appena partito il sogno, senza motivo.
+	if stato == Stato.PATTUGLIA:
+		return
 	for i in get_slide_collision_count():
 		var corpo := get_slide_collision(i).get_collider() as Node
 		if corpo != null and corpo.get_parent() is Rompibile and absf(get_slide_collision(i).get_normal().x) > 0.5:
@@ -497,11 +519,14 @@ func _physics_process(delta: float) -> void:
 					if sprite.modulate.a <= 0.0:
 						queue_free()
 
+	_x_prima = global_position.x
 	move_and_slide()
 	if stato != Stato.MORTO:
 		_sfonda_barili()
+		_guarda_casse(delta)
 		_separa_dai_compagni()
 		_scosta_dagli_oggetti(delta)
+		_controlla_incastro(delta)
 	sprite.flip_h = verso < 0
 
 
@@ -573,10 +598,17 @@ func _risvegliati() -> void:
 
 func _pattuglia(allerta: bool) -> void:
 	velocity.x = verso * float(_dati["passo"])
-	sprite.riproduci("cammina")
-	if is_on_floor() and (is_on_wall() or _vuoto_davanti()):
-		verso = -verso
+	var chiuso := false
+	if is_on_floor() and (is_on_wall() or _vuoto_davanti() or _corpo_davanti()):
+		verso = -verso   # anche contro un compagno: si torna indietro invece di spingerlo sul posto
 		velocity.x = verso * float(_dati["passo"])
+		if _vuoto_davanti() or _corpo_davanti() or test_move(global_transform, Vector2(verso * 2.0, 0.0)):
+			# Chiuso da tutte e due le parti (fra un barile e chi gioca, per esempio): si sta fermi
+			# invece di girarsi a ogni fotogramma camminando sul posto.
+			verso = -verso
+			velocity.x = 0.0
+			chiuso = true
+	sprite.riproduci("fermo" if chiuso else "cammina")
 	if allerta:
 		_cambia(Stato.FERMO if tipo in TIRATORI else Stato.INSEGUE)
 
@@ -637,7 +669,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 		_colpisci_a_contatto(g, 1, 260.0)
 		velocity.x = verso * 165.0
 		sprite.riproduci("cammina", false, 2.2)
-		if _t_tattica > 0.9 or is_on_wall() or _vuoto_davanti() or _colpo_dato:
+		if _t_tattica > 0.9 or is_on_wall() or _vuoto_davanti() or _colpo_dato or _corpo_davanti():
 			_carica = false
 			_t_pausa = 0.5        # dopo la carica resta scoperto un attimo
 			_verifica_attacco()
@@ -718,12 +750,72 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 
 
 func _cammina(velocita_voluta: float) -> void:
-	if is_on_floor() and (is_on_wall() or _vuoto_davanti()):
+	var muro_davanti := (is_on_wall() and signf(get_wall_normal().x) == -float(verso)) \
+			or (_t_cassa_davanti > 0.0 and verso == _verso_cassa)
+	if _t_pausa > 0.0 or muro_davanti or (is_on_floor() and (_vuoto_davanti() or _corpo_davanti())):
 		velocity.x = 0.0
 		sprite.riproduci("fermo")
 		return
 	velocity.x = verso * velocita_voluta
 	sprite.riproduci("cammina", false, 1.6 if velocita_voluta > float(_dati["passo"]) * 1.2 else 1.0)
+
+
+func _controlla_incastro(delta: float) -> void:
+	# Ultima difesa contro il "camminare sul posto": se vuole camminare ma per 0,4 s non si sposta
+	# (un angolo, una cassa, un corpo che le altre regole non vedono), smette: la ronda si gira,
+	# chi insegue si ferma un attimo a guardare invece di pestare i piedi.
+	# Si misura lo spostamento su tutta la finestra: contro una cassa il corpo trema avanti e indietro
+	# (si sposta un po' a ogni fotogramma) ma in mezzo secondo non va da nessuna parte.
+	var vuole := absf(velocity.x) > 5.0 and sprite.animazione == "cammina" and is_on_floor()
+	if not vuole or signf(velocity.x) != _segno_incastro:
+		# Anche quando cambia direzione: una ronda che si gira contro un muro non è incastrata
+		# (prima la finestra scavalcava la svolta e il bestione della sala faceva avanti e indietro sul posto).
+		_t_incastrato = 0.0
+		_segno_incastro = signf(velocity.x) if vuole else 0.0
+		if not vuole:
+			return
+	if _t_incastrato == 0.0:
+		_x_inizio_incastro = _x_prima
+	_t_incastrato += delta
+	if _t_incastrato < 0.4:
+		return
+	var fermo := absf(global_position.x - _x_inizio_incastro) < 3.0
+	_t_incastrato = 0.0
+	if not fermo:
+		return
+	Rapporto.conta("nemici_incastrati")
+	if stato == Stato.PATTUGLIA:
+		verso = -verso
+	else:
+		_t_pausa = maxf(_t_pausa, 0.6)
+		_ha_ricordo = false   # se cercava dove ti aveva visto, lì non ci arriva: smette di cercare
+	velocity.x = 0.0
+	sprite.riproduci("fermo")
+
+
+func _corpo_davanti() -> bool:
+	# Dalla 0.1.22 i corpi sono solidi: chi gioca o un compagno fermo davanti, a contatto, non si attraversano.
+	# Camminarci contro voleva dire "camminare sul posto" (bug del 26/11/2026): ci si ferma.
+	if not solido():
+		return false
+	var mio := estensione_verticale()
+	var g := get_tree().get_first_node_in_group("giocatore") as Giocatore
+	if g != null and g.solido_per_i_nemici():
+		var dx := g.global_position.x - global_position.x
+		if signf(dx) == float(verso) and absf(dx) <= mezza_larghezza() + Giocatore.SPAZIO + 3.0 \
+				and g.global_position.y > mio.x + 2.0 and g.global_position.y - 40.0 < mio.y - 2.0:
+			return true
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var altro := n as Nemico
+		if altro == null or altro == self or not altro.solido():
+			continue
+		var dx := altro.global_position.x - global_position.x
+		if signf(dx) != float(verso) or absf(dx) > mezza_larghezza() + altro.mezza_larghezza() + 3.0:
+			continue
+		var v := altro.estensione_verticale()
+		if global_position.y > v.x + 2.0 and mio.x < v.y - 2.0:
+			return true
+	return false
 
 
 func _inizia_attacco(affondo: bool, finta: bool, concatenato: bool = false) -> void:
@@ -867,6 +959,16 @@ func _saltatore(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -
 					_t_ricarica = 0.35
 				else:
 					_inizia_balzo(g, false)
+			elif distanza <= 40.0:
+				# Troppo vicino per il saltello: prima ti passava attraverso, coi corpi solidi restava
+				# a camminarti contro all'infinito. Ora salta indietro per prendere la rincorsa, o morde.
+				if pronto and absf(dy) < 60.0:
+					velocity = Vector2(-verso * 140.0, -220.0)
+					_t_tattica = 0.8
+					_t_ricarica = 0.35
+				else:
+					velocity.x = 0.0
+					sprite.riproduci("fermo")
 			else:
 				_cammina(float(_dati["corsa"]))
 		_:
@@ -1158,7 +1260,13 @@ func _accerchia(g: Giocatore, dx: float) -> bool:
 	if _fianco == 0 or mio_lato == _fianco:
 		return false
 	var meta := g.global_position.x + _fianco * 40.0
+	var verso_prima := verso
 	verso = 1 if meta > global_position.x else -1
+	if _corpo_davanti():
+		# Coi corpi solidi non si passa attraverso chi gioca o un compagno: niente giro, si combatte da qui.
+		verso = verso_prima
+		_fianco = 0
+		return false
 	_cammina(float(_dati["corsa"]) * 1.15)
 	return true
 
