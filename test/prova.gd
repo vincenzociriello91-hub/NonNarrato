@@ -673,6 +673,38 @@ func _prova_da_giocatore() -> void:
 	# Nessun nemico cammina sul posto contro un corpo (bug del 26/11/2026, dopo i corpi solidi della 0.1.22).
 	await _prova_sul_posto(stanza)
 	stanza = _principale.stanza   # la prova ricomincia la stanza
+	# Frecce e dardi: puntano dove volano e, mirando, arrivano sul bersaglio nonostante la caduta.
+	for tipo_colpo: String in ["freccia", "dardo", "freccia_eroe"]:
+		var g_tiro := Proiettile.gravita_di(tipo_colpo)
+		var da := Vector2(100, 400)
+		var meta := Vector2(260, 330)
+		var v := Proiettile.lancio(da, meta, 300.0, g_tiro)
+		var p := da
+		var migliore := 9999.0
+		for passo in 120:
+			v.y += g_tiro / 60.0
+			p += v / 60.0
+			migliore = minf(migliore, p.distance_to(meta))
+		_verifica("da giocatore: %s arriva dove mira" % tipo_colpo, g_tiro > 0.0 and migliore < 6.0, "%.1f px" % migliore)
+	var freccia := Proiettile.new()
+	freccia.tipo = "freccia"
+	freccia.autore = _g()
+	freccia.velocita = Vector2(-200, 150)
+	freccia.position = Vector2(300, 200)
+	stanza.add_child(freccia)
+	await _fotogrammi(2)
+	if is_instance_valid(freccia):
+		var punta := Vector2.LEFT.rotated(freccia.rotation)
+		_verifica("da giocatore: la freccia nemica punta dove vola", punta.dot(freccia.velocita.normalized()) > 0.98,
+				"%.2f" % punta.dot(freccia.velocita.normalized()))
+		freccia.queue_free()
+	# Personaggio e nemici non fanno ombra: le loro ombre erano strisce scure dalle torce.
+	var ombre := 0
+	for n: Node in [_g()] + get_tree().get_nodes_in_group("nemici"):
+		for o: Node in n.get_children():
+			if o is LightOccluder2D and (o as LightOccluder2D).occluder_light_mask != 0:
+				ombre += 1
+	_verifica("da giocatore: personaggi senza strisce d'ombra", ombre == 0, str(ombre))
 	# I messaggi stanno in alto e la frase del risveglio sopra il velo nero.
 	var hud: Hud = _principale.hud
 	var area: Vector2 = hud.get_viewport().get_visible_rect().size
@@ -779,6 +811,38 @@ func _prova_sul_posto(stanza: Stanza) -> void:
 		_verifica("da giocatore: un nemico dietro un compagno non cammina sul posto", fermo_dietro < 0.5,
 				"%.2f s" % fermo_dietro)
 		davanti.set_physics_process(true)
+	# Contro una cassa o un compagno non trema: niente camminata/fermo alternati a ogni fotogramma.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		(n as Nemico).tregua(true)
+	var cassa: RigidBody2D = null
+	for c: Node in get_tree().get_nodes_in_group("casse"):
+		if (c as Node2D).global_position.y > 400.0 and (c as Node2D).global_position.x < 1200.0:
+			cassa = c
+	var sch: Nemico = null
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if (n as Nemico).tipo == "scheletro" and sch == null:
+			sch = n
+	_g().global_position = Vector2(cassa.global_position.x + 60.0, Stanza.PAVIMENTO)
+	sch.tregua(false)
+	sch.dorme = false
+	sch.stato = Nemico.Stato.INSEGUE
+	sch.tattica = "diretto"
+	sch.global_position = Vector2(cassa.global_position.x - 60.0, Stanza.PAVIMENTO)
+	var cambi := 0
+	var prima_anim := sch.sprite.animazione
+	var prima_giro := sch.sprite.flip_h
+	for i in 180:
+		await _fotogrammi(1)
+		if not is_instance_valid(sch):
+			break
+		var a := sch.sprite.animazione
+		if (a == "cammina" and prima_anim == "fermo") or (a == "fermo" and prima_anim == "cammina") or sch.sprite.flip_h != prima_giro:
+			cambi += 1
+		prima_anim = a
+		prima_giro = sch.sprite.flip_h
+	_verifica("da giocatore: contro una cassa il nemico non trema", cambi <= 6, "%d cambi in 3 s" % cambi)
 	_principale.ricomincia_stanza()
 	await _fotogrammi(20)
 

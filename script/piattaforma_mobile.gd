@@ -43,7 +43,7 @@ func _ready() -> void:
 		catena.z_index = -1
 		add_child(catena)
 		_catene.append(catena)
-	Effetti.occlusore(self, Rect2(-LARGHEZZA * 0.5, 0, LARGHEZZA, 6))
+	Effetti.occlusore(self, Rect2(-LARGHEZZA * 0.5, 0, LARGHEZZA, 6), false)
 	_t = fase
 	position.y = quota_a(_t)
 	_catene_a_posto()

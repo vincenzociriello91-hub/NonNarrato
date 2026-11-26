@@ -8,6 +8,10 @@ extends Area2D
 const COLORE := Color(0.42, 0.86, 1.0)
 const COLORE_MAGIA := Color(0.74, 0.52, 1.0)
 const AMICI := ["magia_eroe", "dardo", "freccia_eroe"]
+# Frecce e dardi cadono un po' mentre volano (traiettoria a parabola) e puntano sempre dove vanno.
+# Le sfere di magia volano dritte. Le balestre murate (senza autore) tirano dritto.
+const GRAVITA_TIPO := {"freccia": 150.0, "dardo": 90.0, "freccia_eroe": 140.0}
+const LUNGHI := ["freccia", "dardo", "freccia_eroe"]
 
 var tipo := "sfera"               # "sfera", "freccia", oppure di chi gioca: "magia_eroe", "dardo", "freccia_eroe"
 var velocita := Vector2.ZERO
@@ -16,14 +20,27 @@ var autore: Node                  # chi l'ha lanciata: saprà se è andata a seg
 var tattica := ""
 var raggio_esplosione := 0.0      # magia caricata: esplode e colpisce tutti attorno
 var perfora := 0                  # freccia a carica piena: quanti altri nemici può ancora attraversare
+var gravita := -1.0               # -1 = quella del tipo (GRAVITA_TIPO); 0 = dritto
 var _gia_colpiti: Array = []
 var _vita := 3.5
 var _spenta := false
 var _colpito := false
 
 
+static func gravita_di(tipo_colpo: String) -> float:
+	return float(GRAVITA_TIPO.get(tipo_colpo, 0.0))
+
+
+static func lancio(da: Vector2, a: Vector2, velocita_tiro: float, g: float) -> Vector2:
+	# Velocità di partenza per arrivare in "a" cadendo con gravità g: un po' più in alto della linea dritta.
+	var tempo := maxf(da.distance_to(a) / maxf(velocita_tiro, 1.0), 0.01)
+	return (a - da) / tempo - Vector2(0.0, 0.5 * g * tempo)
+
+
 func _ready() -> void:
 	z_index = 12
+	if gravita < 0.0:
+		gravita = gravita_di(tipo) if (amico() or autore != null) else 0.0
 	if amico():
 		collision_layer = Effetti.S_COLPI_GIOCATORE
 		collision_mask = Effetti.S_MONDO | Effetti.S_BERSAGLI
@@ -108,8 +125,8 @@ func _aspetto_freccia() -> void:
 	s.carica("freccia")
 	s.light_mask = Effetti.L_DAVANTI
 	s.set_process(false)
-	s.flip_h = velocita.x > 0.0     # lo sprite guarda a sinistra
 	add_child(s)
+	rotation = (-velocita).angle()   # lo sprite guarda a sinistra: punta dove vola (prima restava orizzontale)
 
 
 func _aspetto_lungo(foglio: String, misura: Vector2) -> void:
@@ -128,7 +145,10 @@ func _aspetto_lungo(foglio: String, misura: Vector2) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	velocita.y += gravita * delta
 	position += velocita * delta
+	if LUNGHI.has(tipo) and velocita.length_squared() > 1.0:
+		rotation = (-velocita).angle()
 	_vita -= delta
 	if _vita <= 0.0:
 		_svanisci()

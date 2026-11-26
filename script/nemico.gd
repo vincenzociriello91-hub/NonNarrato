@@ -94,6 +94,9 @@ var _x_inizio_incastro := 0.0
 var _segno_incastro := 0.0
 var _t_cassa_davanti := 0.0       # ha appena urtato una cassa nella direzione in cui va
 var _verso_cassa := 0
+var _blocchi_di_fila := 0
+var _t_salto_cassa := 0.0
+var _t_ultimo_blocco := -99.0
 var _t_balzo := 0.0
 var _t_finestra := 0.0           # chi gioca ha appena finito un rotolo/uno scatto: è il momento
 var _t_schiva := 0.0
@@ -238,7 +241,7 @@ func _ready() -> void:
 	_colpo.add_child(_forma_colpo)
 	add_child(_colpo)
 
-	_ombra = Effetti.occlusore(self, Rect2(-5, -6, 10, 10) if vola else Rect2(-5, -corpo.y + 2.0, 10, corpo.y - 4.0))
+	_ombra = Effetti.occlusore(self, Rect2(-5, -6, 10, 10) if vola else Rect2(-5, -corpo.y + 2.0, 10, corpo.y - 4.0), false)
 	if not nemesi.is_empty():
 		_aspetto_nemesi()
 	elif livello >= 5 and Dispositivo.profilo.get("luci_doppie", true):
@@ -304,6 +307,8 @@ func solido() -> bool:
 	return stato not in [Stato.MORTO, Stato.DORME] and tipo != "pipistrello" and not in_tregua and is_inside_tree()
 
 
+const SALTA_CASSE := ["scheletro", "saltatore", "mimic"]   # il bestione è troppo pesante
+const PAUSA_OSTACOLO := 0.35   # quanto resta fermo dopo aver trovato la strada chiusa (contro il tremolio)
 const FORZIERE_MEZZO := 15.0   # metà della larghezza visibile di un forziere (Forziere: occlusore 28 px)
 const CASSA_MEZZO := 17.0      # metà della cassa (Stanza._cassa: 34 px)
 const SPAZIO := {"scheletro": 14.0, "mago": 13.0, "arciere": 13.0, "bestione": 20.0, "saltatore": 12.0, "mimic": 19.0}
@@ -430,6 +435,7 @@ func _physics_process(delta: float) -> void:
 	_t_tattica += delta
 	_t_ricarica = maxf(0.0, _t_ricarica - delta)
 	_t_pausa = maxf(0.0, _t_pausa - delta)
+	_t_salto_cassa = maxf(0.0, _t_salto_cassa - delta)
 	_t_balzo = maxf(0.0, _t_balzo - delta)
 	_t_finestra = maxf(0.0, _t_finestra - delta)
 	_t_schiva = maxf(0.0, _t_schiva - delta)
@@ -597,6 +603,13 @@ func _risvegliati() -> void:
 
 
 func _pattuglia(allerta: bool) -> void:
+	if allerta:
+		_cambia(Stato.FERMO if tipo in TIRATORI else Stato.INSEGUE)
+		return
+	if _t_pausa > 0.0:
+		velocity.x = 0.0
+		sprite.riproduci("fermo")
+		return
 	velocity.x = verso * float(_dati["passo"])
 	var chiuso := false
 	if is_on_floor() and (is_on_wall() or _vuoto_davanti() or _corpo_davanti()):
@@ -608,9 +621,8 @@ func _pattuglia(allerta: bool) -> void:
 			verso = -verso
 			velocity.x = 0.0
 			chiuso = true
+			_t_pausa = 1.0   # chiuso da due parti: resta fermo davvero, poi riprova
 	sprite.riproduci("fermo" if chiuso else "cammina")
-	if allerta:
-		_cambia(Stato.FERMO if tipo in TIRATORI else Stato.INSEGUE)
 
 
 func _scegli_tattica() -> void:
@@ -752,9 +764,28 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 func _cammina(velocita_voluta: float) -> void:
 	var muro_davanti := (is_on_wall() and signf(get_wall_normal().x) == -float(verso)) \
 			or (_t_cassa_davanti > 0.0 and verso == _verso_cassa)
+	if _t_salto_cassa > 0.0 and not is_on_floor():
+		velocity.x = verso * 95.0   # in volo sopra la cassa: avanti senza fermarsi contro il suo fianco
+		return
+	if _t_pausa <= 0.0 and _t_cassa_davanti > 0.0 and verso == _verso_cassa and is_on_floor() \
+			and stato == Stato.INSEGUE and tipo in SALTA_CASSE:
+		# Una cassa fra lui e chi gioca: ci salta sopra (come i mob di Minecraft con un blocco),
+		# invece di sbatterci contro di continuo.
+		velocity = Vector2(verso * 95.0, -360.0)
+		_t_cassa_davanti = 0.0
+		_t_salto_cassa = 0.8
+		Rapporto.conta("casse_saltate_dai_nemici")
+		return
 	if _t_pausa > 0.0 or muro_davanti or (is_on_floor() and (_vuoto_davanti() or _corpo_davanti())):
 		velocity.x = 0.0
 		sprite.riproduci("fermo")
+		if _t_pausa <= 0.0:
+			# Fermo per un attimo vero: il contatto con muro, cassa o corpo va e viene a ogni fotogramma
+			# (fermo -> nessun contatto -> cammina -> contatto) e il nemico tremava come una gif impazzita.
+			# Se la strada resta chiusa, aspetta sempre di più prima di riprovare (fino a 2 s).
+			_blocchi_di_fila = _blocchi_di_fila + 1 if _t_vivo - _t_ultimo_blocco < 1.5 else 0
+			_t_pausa = minf(PAUSA_OSTACOLO * (1.0 + _blocchi_di_fila), 2.0)
+			_t_ultimo_blocco = _t_vivo + _t_pausa
 		return
 	velocity.x = verso * velocita_voluta
 	sprite.riproduci("cammina", false, 1.6 if velocita_voluta > float(_dati["passo"]) * 1.2 else 1.0)
@@ -1138,6 +1169,7 @@ func _tira(g: Giocatore) -> void:
 			var tempo := da.distance_to(mira) / velocita
 			mira += Vector2(g.velocity.x, clampf(g.velocity.y, -200.0, 200.0)) * tempo * 0.85
 	var direzione := (mira - da).normalized()
+	var arco := Proiettile.gravita_di("freccia") if tipo == "arciere" else 0.0
 	var angoli := [0.0]
 	if tipo == "mago" and tattica == "raffica":
 		angoli = [-0.2, 0.0, 0.2]
@@ -1146,6 +1178,8 @@ func _tira(g: Giocatore) -> void:
 		colpo.tipo = "freccia" if tipo == "arciere" else "sfera"
 		colpo.position = da
 		colpo.velocita = direzione.rotated(a) * velocita
+		if arco > 0.0:
+			colpo.velocita = Proiettile.lancio(da, mira, velocita, arco)   # la freccia cade: si mira più in alto
 		colpo.autore = self
 		colpo.tattica = tattica
 		get_parent().add_child(colpo)

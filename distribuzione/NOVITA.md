@@ -1,5 +1,12 @@
 # Novità di NonNarrato
 
+## 0.1 — Nemici che non tremano, ombre pulite, frecce vere
+
+- **I nemici non tremano più** quando urtano te, un compagno, una cassa o un muro: prima si fermavano e ripartivano a ogni fotogramma, come una gif impazzita. Ora, se la strada è chiusa, restano fermi davvero e riprovano dopo un po' (sempre più tardi se la strada resta chiusa).
+- **Gli scheletri, i saltatori e i mimic saltano sopra le casse** che li separano da te, invece di sbatterci contro. Il bestione è troppo pesante: aspetta.
+- **Niente più strisce scure dalle torce**: le ombre del personaggio, dei nemici e delle balconate viste di taglio diventavano lunghe strisce che partivano dalle fiamme. Ora fanno ombra solo pilastri, casse, barili, forzieri e muri, con ombre più morbide e non nere del tutto.
+- **Frecce e dardi volano davvero**: puntano sempre nella direzione in cui vanno (la freccia dell'arciere prima restava orizzontale anche quando scendeva in diagonale) e cadono un po' durante il volo, con una parabola. Chi tira, tu o l'arciere, mira un po' più in alto per arrivare sul bersaglio. La magia vola dritta.
+
 ## 0.1 — Corretto: nemici che camminavano sul posto
 
 - **I nemici non camminano più sul posto.** Da quando i corpi sono solidi, alcuni nemici continuavano a camminarti contro (o contro un compagno davanti a loro) senza mai attaccare: il saltatore, che prima ti passava attraverso per prendere la rincorsa, restava incollato a te; chi stava dietro un compagno lo spingeva all'infinito; chi provava a girarti attorno restava bloccato. Ora il saltatore salta indietro e ti balza addosso, chi è chiuso da un compagno o da te aspetta il suo turno, e chi non può girarti attorno combatte da dove si trova.

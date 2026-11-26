@@ -408,7 +408,9 @@ func _blocco(rett: Rect2, con_lastra: bool, fa_ombra: bool) -> void:
 	_riempi("fondamenta", pieno, Effetti.L_DAVANTI, -10)
 	if con_lastra:
 		_lastre(rett.position.x, rett.end.x, rett.position.y, -9)
-	if fa_ombra:
+	if fa_ombra and rett.size.y > 60.0:
+		# Solo i muri alti fanno ombra: lastre e balconate viste di taglio facevano strisce scure
+		# dalla torcia fino al soffitto.
 		Effetti.occlusore(self, rett)
 
 
@@ -425,8 +427,7 @@ func _piattaforma(x: float, y: float, larghezza: float) -> void:
 	forma.one_way_collision_margin = 4.0
 	corpo.add_child(forma)
 	add_child(corpo)
-	_lastre(x, x + larghezza, y, -8)
-	Effetti.occlusore(self, Rect2(x, y, larghezza, 10.0))
+	_lastre(x, x + larghezza, y, -8)   # niente ombra: vista di taglio era una striscia scura
 
 
 func _lastre(x0: float, x1: float, y: float, z: int) -> void:
@@ -987,8 +988,9 @@ func _applica_profilo() -> void:
 	for t: Dictionary in _torce:
 		var muro: PointLight2D = t["muro"]
 		var davanti: PointLight2D = t["davanti"]
-		muro.shadow_filter = Light2D.SHADOW_FILTER_PCF5 if morbide else Light2D.SHADOW_FILTER_NONE
-		muro.shadow_filter_smooth = 1.5
+		muro.shadow_filter = Light2D.SHADOW_FILTER_PCF13 if morbide else Light2D.SHADOW_FILTER_PCF5
+		muro.shadow_filter_smooth = 2.5
+		muro.shadow_color = Color(0.0, 0.0, 0.02, 0.6)   # ombre morbide e non nere del tutto
 		muro.range_item_cull_mask = Effetti.L_SFONDO if doppie else (Effetti.L_SFONDO | Effetti.L_DAVANTI)
 		davanti.visible = doppie
 	for velo: ColorRect in _nebbie:

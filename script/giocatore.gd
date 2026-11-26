@@ -236,7 +236,7 @@ func _ready() -> void:
 	aura.position = Vector2(0, -26)
 	add_child(aura)
 
-	Effetti.occlusore(self, Rect2(-5, -40, 10, 38))
+	Effetti.occlusore(self, Rect2(-5, -40, 10, 38), false)   # niente ombra: vedi Effetti.occlusore
 
 
 func limiti(riquadro: Rect2i, di_colpo: bool = true) -> void:
@@ -945,7 +945,12 @@ func _spara() -> void:
 			if _carica_piena:
 				colpo.perfora = 2   # a carica piena trapassa fino a tre nemici
 				Rapporto.conta("tiri_carichi")
-	colpo.velocita = direzione_tiro(_mira_in_alto) * velocita
+	var bersaglio := bersaglio_tiro(_mira_in_alto)
+	if bersaglio != null and Proiettile.gravita_di(colpo.tipo) > 0.0:
+		# Frecce e dardi cadono: si mira un po' più in alto per arrivare sul bersaglio.
+		colpo.velocita = Proiettile.lancio(bocca(), bersaglio.centro(), velocita, Proiettile.gravita_di(colpo.tipo))
+	else:
+		colpo.velocita = direzione_tiro(_mira_in_alto) * velocita
 	colpo.position = bocca()
 	colpo.autore = self
 	get_parent().add_child(colpo)

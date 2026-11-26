@@ -249,3 +249,11 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Controlli: `_prova_sul_posto` in `test/prova.gd` (saltatore vicino, nemico dietro un compagno) e nella partita del bot "nessun nemico cammina sul posto" (< 1,5 s di fila, `sul_posto_massimo_s` nel rapporto).
 - Lezione: quando si cambia una regola fisica (corpi solidi), ripassare ogni ramo dell'IA dei nemici che muove il corpo, non solo il bot.
 - Bot, partita: ogni scelta dura almeno un fotogramma (`_partita` aspetta se `_agisci` torna subito) e "raccogli" considera solo oggetti raggiungibili, lasciando stare per 20 s quelli mancati (`_pacchi_ignorati`). Sulla compilazione 24 una pozione irraggiungibile faceva scegliere "raccogli" all'infinito nello stesso fotogramma: prova bloccata, registro di 1,4 milioni di righe.
+
+## Tremolio, ombre, frecce (0.1.26)
+
+- Segnalazione di Vincenzo (26/11/2026, foto dal Pixel): nemici che "tremano come gif" contro oggetti e personaggio, strisce d'ombra dalle torce, frecce e dardi che volano orizzontali.
+- Tremolio: il contatto con muro/cassa/corpo va e viene a ogni fotogramma. `_cammina` bloccato mette `_t_pausa` = `PAUSA_OSTACOLO` (0,35 s) che cresce se la strada resta chiusa (`_blocchi_di_fila`, fino a 2 s); la ronda chiusa da due parti aspetta 1 s. Scheletro, saltatore e mimic (`SALTA_CASSE`) saltano le casse (`_t_salto_cassa`: in volo avanti senza fermarsi). Strumento: `/home/claude/strumenti/controllo/tremolio.gd -- --dove=x,y`.
+- Ombre: `Effetti.occlusore(..., fa_ombra)`; personaggio, nemici e piattaforme non fanno ombra; i blocchi solo se alti più di 60 px. `shadow_color` con alfa 0,6, PCF13/PCF5. Sul computer le ombre si vedono solo forzando `grafica/qualita` "alta" (consigliata "bassa" su 2 core): `/home/claude/strumenti/controllo/foto_punto.gd -- --dove=x,y --file=...` con Vulkan (lavapipe).
+- Frecce: `Proiettile.GRAVITA_TIPO` (freccia 150, dardo 90, freccia_eroe 140; balestre murate e magia dritte), rotazione verso la velocità a ogni passo, `Proiettile.lancio(da, a, v, g)` per mirare compensando la caduta (giocatore con bersaglio e arciere).
+- Prove in `_prova_da_giocatore` / `_prova_sul_posto`: tremolio contro la cassa, frecce che arrivano dove mirano, freccia nemica orientata, personaggi senza occlusori attivi.

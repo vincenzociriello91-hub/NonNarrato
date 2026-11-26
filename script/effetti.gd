@@ -118,15 +118,16 @@ static func fermo_immagine(nodo: Node, durata: float) -> void:
 	Engine.time_scale = velocita_base()
 
 
-static func occlusore(genitore: Node, rett: Rect2) -> LightOccluder2D:
-	# Sagoma che proietta ombra sul muro di fondo.
+static func occlusore(genitore: Node, rett: Rect2, fa_ombra: bool = true) -> LightOccluder2D:
+	# Sagoma che proietta ombra sul muro di fondo. fa_ombra = false: il nodo c'è ma non fa ombra
+	# (personaggi e nemici: le loro ombre erano lunghe strisce che partivano dalle torce).
 	var forma := OccluderPolygon2D.new()
 	forma.polygon = PackedVector2Array([
 		rett.position, Vector2(rett.end.x, rett.position.y), rett.end, Vector2(rett.position.x, rett.end.y),
 	])
 	var o := LightOccluder2D.new()
 	o.occluder = forma
-	o.occluder_light_mask = L_SFONDO
+	o.occluder_light_mask = L_SFONDO if fa_ombra else 0
 	genitore.add_child(o)
 	return o
 

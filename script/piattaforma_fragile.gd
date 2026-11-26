@@ -45,7 +45,7 @@ func _ready() -> void:
 	f2.position = Vector2(0, -3)
 	_sopra.add_child(f2)
 	add_child(_sopra)
-	Effetti.occlusore(self, Rect2(-LARGHEZZA * 0.5, 0, LARGHEZZA, 8))
+	Effetti.occlusore(self, Rect2(-LARGHEZZA * 0.5, 0, LARGHEZZA, 8), false)
 	add_to_group("fragili")
 
 
