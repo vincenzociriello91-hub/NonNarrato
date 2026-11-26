@@ -1,0 +1,38 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mexport[22m | Started Exporting for Android (105 steps)[39m[0m
+0 param: --xr_mode_regular
+1 param: --xr-mode
+2 param: off
+3 param: --fullscreen
+4 param: --background_color
+5 param: #000000
+[92m[ DONE ][39m [1mexport[22m
+[0m
+WARNING: Scan thread aborted...
+     at: _notification (editor/file_system/editor_file_system.cpp:1757)
+cannot connect to daemon at tcp:5037: Connection refused
+WARNING: 1 ObjectDB instance was leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+V2 Signer: certificate DN: CN=NonNarrato chiave di prova, O=NonNarrato
+V2 Signer: certificate SHA-256 digest: 57eed1815af1ddbf28d98da39fcbb2be65188256e74dfb25cda8214e2be0c2c7
+V2 Signer: certificate SHA-1 digest: 37c3b904cde86aa57487db710b1bce93168aeb6f
+V2 Signer: certificate MD5 digest: 35f7683e89486ef19ca4127d4b6f9483
+package: name='com.vincenzo.nonnarrato' versionCode='1' versionName='0.1.1' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+targetSdkVersion:'36'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.VIBRATE'
+uses-permission: name='android.permission.REQUEST_INSTALL_PACKAGES'
+uses-permission: name='android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION'
+        A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.permission.REQUEST_INSTALL_PACKAGES" (Raw: "android.permission.REQUEST_INSTALL_PACKAGES")
+        A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" (Raw: "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION")
+            A: http://schemas.android.com/apk/res/android:name(0x01010003)="org.godotengine.plugin.v2.NonNarratoAndroid" (Raw: "org.godotengine.plugin.v2.NonNarratoAndroid")
