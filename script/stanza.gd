@@ -533,7 +533,7 @@ func _oggetti() -> void:
 	_cassa(Vector2(770, PAVIMENTO))
 	var barili := [
 		["barile", Vector2(432, PAVIMENTO), 1], ["barile", Vector2(461, PAVIMENTO), 1], ["barile", Vector2(812, PAVIMENTO), 1],
-		["barile_grande", Vector2(118, 392), 2], ["barile", Vector2(162, 392), 1], ["barile", Vector2(1226, PAVIMENTO), 1],
+		["barile_grande", Vector2(118, 392), 2], ["barile", Vector2(162, 392), 1],   # quello dell'alcova non c'è più: solido, chiudeva la risalita dal pilastro
 	]
 	for voce: Array in barili:
 		var b := Rompibile.new()
@@ -656,7 +656,7 @@ func _galleria() -> void:
 
 	# Barili.
 	for voce: Array in [["barile", Vector2(2150, 384), 1], ["barile", Vector2(2460, PAVIMENTO), 1],
-			["barile_grande", Vector2(2742, 120), 2], ["barile", Vector2(2752, PAVIMENTO), 1]]:
+			["barile", Vector2(2742, 120), 1], ["barile", Vector2(2752, PAVIMENTO), 1]]:   # nel salone uno piccolo: si scavalca
 		var b := Rompibile.new()
 		b.foglio = voce[0]
 		b.vita = voce[2]

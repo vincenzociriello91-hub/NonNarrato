@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Niente più corpi che si attraversano
+
+- **Personaggio e nemici sono solidi**: non ti passano più attraverso e tu non passi attraverso loro, si spingono di lato. Il bestione è pesante e quasi non si sposta. Anche i nemici tra loro non stanno più uno dentro l'altro. Per passare oltre un nemico c'è il **rotolo** (o lo scatto): è fatto apposta per schivare.
+- **I barili sono ostacoli veri**: non si attraversano più; li rompi con un colpo, e i nemici che ci finiscono contro li sfondano. Il barile che stava nell'alcova non c'è più, perché avrebbe chiuso la risalita dal pilastro.
+- **Sulle pareti** mani e piedi toccano la roccia invece di entrarci.
+- **Le armi non passano più dentro testa e busto**: l'arma in mano (anche la balestra e i dardi da lanciare) si disegna sempre davanti al corpo, sia per il personaggio sia per i nemici (lama degli scheletri, ascia del bestione, bastone del mago).
+- Forzieri, leve e piastre restano oggetti davanti ai quali si passa, disegnati dietro al personaggio.
+
 ## 0.1 — Correzione: nemici bloccati dopo il bot
 
 - **Corretto**: se fermavi il bot con la pausa mentre faceva le sue prove, i nemici restavano bloccati: camminavano sul posto, non ti vedevano e non si potevano ferire. Ora, quando il bot si ferma (o finisce), i nemici tornano normali e la stanza ricomincia pulita, senza i muri rotti e le casse spostate dal bot. Non conta come un sogno nuovo.

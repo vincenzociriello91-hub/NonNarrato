@@ -47,6 +47,10 @@ var _vp: SubViewport
 var _camera: Camera3D
 var _shader_colore: Shader
 var _shader_normali: Shader
+# Armi attaccate alla mano ("attacca"): disegnate sopra al corpo, senza prova di profondità,
+# perché nelle animazioni la lama passava dentro testa e busto.
+var _shader_colore_sopra: Shader
+var _shader_normali_sopra: Shader
 
 
 func _initialize() -> void:
@@ -71,6 +75,10 @@ func _avvia() -> void:
 	_shader_colore.code = SHADER_COLORE
 	_shader_normali = Shader.new()
 	_shader_normali.code = SHADER_NORMALI
+	_shader_colore_sopra = Shader.new()
+	_shader_colore_sopra.code = SHADER_COLORE.replace("cull_disabled;", "cull_back, depth_test_disabled;")
+	_shader_normali_sopra = Shader.new()
+	_shader_normali_sopra.code = SHADER_NORMALI.replace("cull_disabled;", "cull_back, depth_test_disabled;")
 
 	_vp = SubViewport.new()
 	_vp.own_world_3d = true
@@ -491,10 +499,13 @@ func _materiali(modello: Node3D, voce: Dictionary, normali: bool) -> void:
 			su = su.get_parent()
 		for s in mi.mesh.get_surface_count():
 			var mat := ShaderMaterial.new()
+			var sopra: bool = attaccato and bool(voce.get("armi_sopra", true))
+			if sopra:
+				mat.render_priority = 10
 			if normali:
-				mat.shader = _shader_normali
+				mat.shader = _shader_normali_sopra if sopra else _shader_normali
 			else:
-				mat.shader = _shader_colore
+				mat.shader = _shader_colore_sopra if sopra else _shader_colore
 				var originale := mi.mesh.surface_get_material(s) as BaseMaterial3D
 				if originale != null and originale.albedo_texture != null:
 					var tex: Texture2D = originale.albedo_texture

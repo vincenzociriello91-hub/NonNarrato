@@ -252,6 +252,7 @@ func _esegui() -> void:
 	_verifica("bot fermato: i nemici tornano a muoversi e a farsi colpire", fermi.is_empty(), str(fermi))
 	await _prova_impostazioni_suoni_aggiornamenti()
 	await _prova_dispositivo()
+	await _prova_compenetrazioni()
 	await _prova_sotterraneo()
 	await _prova_bottino()
 	await _prova_armi_e_bestione()
@@ -636,6 +637,87 @@ func _prova_impostazioni_suoni_aggiornamenti() -> void:
 	Impostazioni.ripristina()
 
 
+func _prova_compenetrazioni() -> void:
+	# Personaggio, nemici e barili non si attraversano; il rotolo sì; l'arma si disegna sopra al corpo.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	stanza.ondate_attive = false
+	var scheletro: Nemico = null
+	var altri: Array = []
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var nemico := n as Nemico
+		if nemico.tipo == "scheletro" and nemico.stato != Nemico.Stato.DORME and scheletro == null and nemico.global_position.y < 500:
+			scheletro = nemico
+		else:
+			altri.append(nemico)
+	for n: Nemico in altri:
+		n.tregua(true)
+	scheletro.global_position = Vector2(900, Stanza.PAVIMENTO)
+	scheletro.set_physics_process(false)   # fermo, ma col suo corpo
+	await _sposta(Vector2(880, Stanza.PAVIMENTO), 1)
+	var g := _g()
+	Input.action_press("destra")
+	await _fotogrammi(40)
+	Input.action_release("destra")
+	var distanza := absf(scheletro.global_position.x - g.global_position.x)
+	_verifica("compenetrazioni: il personaggio non entra nel nemico", distanza >= Giocatore.SPAZIO + scheletro.mezza_larghezza() - 1.5, "distanza %.1f" % distanza)
+	await _scatta("contro_il_nemico")
+	await _sposta(Vector2(scheletro.global_position.x - 40.0, Stanza.PAVIMENTO), 1)
+	await _tocca("rotola")
+	await _fotogrammi(40)
+	_verifica("compenetrazioni: col rotolo gli si passa attraverso", _g().global_position.x > scheletro.global_position.x + 10.0,
+			"%.0f contro %.0f" % [_g().global_position.x, scheletro.global_position.x])
+	# Due nemici nello stesso punto si separano.
+	var secondo := altri.filter(func(n: Nemico) -> bool: return n.tipo == "scheletro")[0] as Nemico
+	secondo.tregua(false)
+	secondo.stato = Nemico.Stato.FERMO
+	secondo.set_physics_process(true)
+	scheletro.set_physics_process(true)
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	secondo.global_position = scheletro.global_position + Vector2(2, 0)
+	await _fotogrammi(20)
+	var fra_loro := absf(secondo.global_position.x - scheletro.global_position.x)
+	_verifica("compenetrazioni: due nemici non stanno uno dentro l'altro", fra_loro >= scheletro.mezza_larghezza() * 2.0 - 2.0, "%.1f" % fra_loro)
+	secondo.tregua(true)
+	# Barile solido: non si attraversa; un nemico che ci finisce contro lo sfonda.
+	var barile: Rompibile = null
+	for b: Node in get_tree().get_nodes_in_group("rompibili"):
+		if absf((b as Node2D).global_position.x - 812.0) < 2.0:
+			barile = b
+	var bx := barile.global_position.x
+	scheletro.set_physics_process(false)   # intanto lo scheletro non si muove (lo sfonderebbe lui)
+	scheletro.global_position = Vector2(bx + 120.0, Stanza.PAVIMENTO)
+	await _sposta(Vector2(bx - 30.0, Stanza.PAVIMENTO), 1)
+	Input.action_press("destra")
+	await _fotogrammi(40)
+	Input.action_release("destra")
+	_verifica("compenetrazioni: il barile non si attraversa", is_instance_valid(barile) and _g().global_position.x < barile.global_position.x - 12.0,
+			"%.0f" % _g().global_position.x)
+	await _sposta(Vector2(bx - 70.0, Stanza.PAVIMENTO), 1)
+	scheletro.global_position = Vector2(bx + 30.0, Stanza.PAVIMENTO)
+	scheletro.stato = Nemico.Stato.INSEGUE
+	scheletro.set_physics_process(true)
+	for i in 240:
+		await _fotogrammi(1)
+		if not is_instance_valid(barile) or barile.vita <= 0:
+			break
+	_verifica("compenetrazioni: il nemico sfonda il barile sulla sua strada", not is_instance_valid(barile) or barile.vita <= 0)
+	# L'arma in mano si disegna sopra al corpo (anche nelle normali).
+	var figura := _g().sprite as FiguraViva
+	var pezzi: Dictionary = figura.get("_pezzi")
+	var arma_ok := false
+	for nome: String in pezzi:
+		if figura.pezzo_sopra(nome):
+			var coppia: Array = pezzi[nome]
+			arma_ok = (coppia[0] as MeshInstance3D).material_override.render_priority == FiguraViva.PRIORITA_SOPRA \
+					and (coppia[1] as MeshInstance3D).material_override.render_priority == FiguraViva.PRIORITA_SOPRA
+			break
+	_verifica("compenetrazioni: l'arma si disegna sopra a testa e busto", arma_ok and not figura.pezzo_sopra("Viandante__Rogue_Body"))
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+
+
 func _prova_dispositivo() -> void:
 	# Riconoscimento del dispositivo: livello consigliato, nome del processore, dati del plugin, energia.
 	var d := Dispositivo
@@ -891,6 +973,8 @@ func _prova_sotterraneo() -> void:
 	Input.action_release("destra")
 	g = _g()
 	_verifica("arrampicata: ci si aggrappa saltando verso la parete", g.stato == Giocatore.Stato.ARRAMPICATA, Giocatore.Stato.keys()[g.stato])
+	_verifica("arrampicata: mani e piedi toccano la parete, non ci entrano", is_equal_approx(g.sprite.position.x, -Giocatore.SCOSTA_DAL_MURO),
+			"%.1f" % g.sprite.position.x)
 	var prima := g.stamina
 	await _fotogrammi(60)
 	var appeso := prima - g.stamina

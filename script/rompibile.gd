@@ -7,6 +7,7 @@ var foglio := "barile"
 var vita := 1
 var silenzioso := false   # per il preriscaldamento all'avvio: niente rapporto né vibrazione
 var sprite: SpriteAnimato
+var _corpo: StaticBody2D
 
 
 func _ready() -> void:
@@ -29,6 +30,18 @@ func _ready() -> void:
 	forma.shape = rett
 	forma.position = Vector2(0.0, -misura.y * 0.5)
 	add_child(forma)
+	# Un corpo vero: personaggio e nemici non ci passano attraverso (chi gioca lo scavalca o lo rompe,
+	# i nemici lo sfondano). Sparisce quando va in pezzi.
+	_corpo = StaticBody2D.new()
+	_corpo.collision_layer = Effetti.S_OGGETTI
+	_corpo.collision_mask = 0
+	var forma_corpo := CollisionShape2D.new()
+	var rett_corpo := RectangleShape2D.new()
+	rett_corpo.size = Vector2(misura.x - 8.0, misura.y - 8.0)
+	forma_corpo.shape = rett_corpo
+	forma_corpo.position = Vector2(0.0, -(misura.y - 8.0) * 0.5)
+	_corpo.add_child(forma_corpo)
+	add_child(_corpo)
 	Effetti.occlusore(self, Rect2(-misura.x * 0.5 + 3.0, -misura.y + 6.0, misura.x - 6.0, misura.y - 8.0))
 
 
@@ -43,6 +56,8 @@ func subisci(danno: int, da: Vector2, _spinta: float) -> bool:
 		tw.tween_property(sprite, "rotation", 0.0, 0.12)
 		return true
 	set_deferred("monitorable", false)
+	if _corpo != null:
+		_corpo.set_deferred("process_mode", Node.PROCESS_MODE_DISABLED)   # niente più ostacolo, subito
 	_rompi.call_deferred(da)   # i pezzi nascono fuori dal passo della fisica (un tiro lo rompe dentro)
 	return true
 

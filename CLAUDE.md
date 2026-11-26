@@ -51,6 +51,8 @@ Odin 2 Portal, 25/11/2026, versione 0.1.4 (prova fatta a distanza col connettore
 
 Pixel 8 Pro, 25/11/2026, versioni 0.1.7 e 0.1.8 (bot completo): Mali-G715, Vulkan Mobile, qualità "alta" da sola, tela 748x336 ×4, 60 FPS fissi in ogni fase, nessun errore, stato termico 0. Con limite 120 lo schermo passava a 120 Hz ma il gioco restava a 60: causa probabile il frame pacing di Android (Swappy), fissato a 60 alla creazione dello schermo; dalla 0.1.9 è spento (`enable_frame_pacing=false`) e la frequenza la gestisce `Dispositivo._richiedi_frequenza`. Da verificare nel prossimo rapporto.
 
+Pixel 8 Pro, 26/11/2026, versioni 0.1.18 e 0.1.20 (rapporti da Drive): con limite 120 il gioco va davvero a 120 FPS (risolto il problema di Swappy). Il plugin legge tutto: Tensor G3 (Android dice soc_modello "Tensor G3", produttore "Google"), 9 core fino a 2,91 GHz, 11,3 GB di RAM, Android 17, classe di prestazioni 34, giroscopio, vibrazione dosabile. Bot 0.1.20: 13 fasi tecniche senza errori, poi fermato con la pausa → nemici rimasti in tregua (corretto nella 0.1.21).
+
 Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il gioco e rispegnere lo schermo):
 `curl` dell'APK in `/data/local/tmp`, `pm install -r`, `am start -n com.vincenzo.nonnarrato/com.godot.game.GodotApp`,
 `input keyevent`/`input tap`/`input swipe` per i comandi, foto con `odin_schermo`, rapporto in Download,
@@ -198,3 +200,13 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - `Dispositivo._unisci_info` mette i dati del plugin in `info` (quindi nel rapporto); `nome_processore()` traduce le sigle comuni (`NOMI_PROCESSORI`); `consiglia_da(info)` = [livello, motivo], statico e provato con dati finti.
 - `aggiorna_energia(risparmio, modo)`: risparmio energetico o modalità "batteria" (3) = `riduzione_energia` 1 (un livello in meno e 30 FPS, solo con qualità e limite FPS automatici); la modalità "prestazioni" (2) vince sul risparmio.
 - Menu: scheda Gioco, sezione "Il tuo dispositivo" (`_testo_dispositivo`); in Grafica il motivo del livello consigliato.
+
+## Compenetrazioni (0.1.22)
+
+- Decisione di Vincenzo (26/11/2026): niente compenetrazioni fra personaggio, nemici, oggetti; mani sulla parete; armi che non passano nel corpo.
+- Distanze "visive" (sprite larghi più del corpo fisico): `Giocatore.SPAZIO` 14, `Nemico.SPAZIO` per tipo (scheletro 14, mago e arciere 13, bestione 20, saltatore 12, mimic 19). Faccia a faccia si toccano braccia e armi, non i corpi. Il bot attacca quando la distanza è `SPAZIO + mezza_larghezza() + 6` (con la vecchia soglia fissa di 30 px restava a spingere senza colpire: stallo).
+- `Giocatore._separa_dai_nemici()` dopo `move_and_slide`: spinta orizzontale di metà ciascuno (bestione 85% al giocatore), velocità verso il nemico azzerata; niente in ROTOLATA/SCHIVATA (passano attraverso apposta), ARRAMPICATA, NUOTO, SCAVALCO. `Nemico.solido()`: non morto, non DORME (steso a terra), non pipistrello, non `in_tregua`. `Nemico._separa_dai_compagni()` e `spingi()` con `move_and_collide` (mai dentro i muri).
+- Barili (`Rompibile`): `StaticBody2D` su `S_OGGETTI` (tolto quando si rompono); i nemici li sfondano (`_sfonda_barili` dalle collisioni di `move_and_slide`); il bot li rompe con un colpo (`_barile_davanti`). Mai un barile davanti all'uscita di una parete da scalare o di un cunicolo (`_appiglio` fallisce e la stamina si esaurisce).
+- Arrampicata: `sprite.position.x = -lato * SCOSTA_DAL_MURO` (5 px), azzerato appena non si è più in ARRAMPICATA.
+- Armi sopra al corpo: in `FiguraViva` i pezzi del posto "arma" e di `Giocatore.IN_MANO` usano shader con `depth_test_disabled, cull_back` e `render_priority` `PRIORITA_SOPRA` (colore e normali); in `render_sprite.gd` lo stesso per i pezzi "attacca" (voce `armi_sopra: false` per escluderli). Fogli dei nemici rigenerati.
+- Strumento di controllo fuori dal repository: `/home/claude/strumenti/controllo/foglio_armi.gd` (tutte le armi in tutti gli attacchi, fotogramma per fotogramma).

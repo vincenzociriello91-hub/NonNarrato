@@ -7,6 +7,10 @@ extends SpriteAnimato
 # Due SubViewport minuscoli condividono un solo mondo 3D: uno vede i pezzi col colore
 # (strato 1), l'altro gli stessi pezzi con le normali (strato 2). Si ridisegnano solo
 # quando cambia il fotogramma o l'aspetto.
+#
+# L'arma in mano (e quello che si tiene per un attimo: balestra, dardo) si disegna sempre sopra al corpo
+# (niente prova di profondità): nelle animazioni dei modelli la lama passava dentro testa e busto.
+# Sta nella mano rivolta verso chi guarda, quindi davanti è quasi sempre giusto.
 
 const MANICHINO := "res://modelli/manichino.scn"
 const STRATO_COLORE := 1
@@ -28,6 +32,8 @@ void fragment() {
 	ALBEDO = c * mix(1.0 - forma, 1.0, l);
 }
 "
+
+const PRIORITA_SOPRA := 10         # i pezzi "sopra" si disegnano dopo il corpo, senza prova di profondità
 
 const SHADER_NORMALI := "
 shader_type spatial;
@@ -68,6 +74,8 @@ void fragment() {
 static var _shader_colore: Shader
 static var _shader_normali: Shader
 static var _mat_normali: ShaderMaterial
+static var _shader_colore_sopra: Shader
+static var _mat_normali_sopra: ShaderMaterial
 static var _mat_sprite: ShaderMaterial
 static var _mat_sprite_piatto: ShaderMaterial
 
@@ -360,8 +368,11 @@ func _prepara_pezzi() -> void:
 		if mi.mesh == null:
 			continue
 		var originale := mi.mesh.surface_get_material(0) as BaseMaterial3D
+		var sopra := pezzo_sopra(String(mi.name))
 		var mat := ShaderMaterial.new()
-		mat.shader = _shader_colore
+		mat.shader = _shader_colore_sopra if sopra else _shader_colore
+		if sopra:
+			mat.render_priority = PRIORITA_SOPRA
 		if originale != null and originale.albedo_texture != null:
 			mat.set_shader_parameter("tex", originale.albedo_texture)
 		mat.set_shader_parameter("forma", forma)
@@ -370,12 +381,22 @@ func _prepara_pezzi() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var n := mi.duplicate() as MeshInstance3D
 		n.name = String(mi.name) + "_n"
-		n.material_override = _mat_normali
+		n.material_override = _mat_normali_sopra if sopra else _mat_normali
 		n.layers = STRATO_NORMALI
 		mi.get_parent().add_child(n)
 		if mi.skin != null:
 			n.skeleton = mi.skeleton
 		_pezzi[String(mi.name)] = [mi, n]
+
+
+func pezzo_sopra(nome: String) -> bool:
+	# L'arma della mano destra e gli oggetti tenuti in mano per un attimo (Giocatore.IN_MANO).
+	if _colore_di.get(nome, "") == "arma":
+		return true
+	for elenco: Array in Giocatore.IN_MANO.values():
+		if elenco.has(nome):
+			return true
+	return false
 
 
 var armi_riposte := false        # arrampicandosi e nuotando le armi spariscono (riposte)
@@ -478,6 +499,14 @@ static func _prepara_shader() -> void:
 	_shader_normali.code = SHADER_NORMALI
 	_mat_normali = ShaderMaterial.new()
 	_mat_normali.shader = _shader_normali
+	# Varianti "sopra" per l'arma: senza prova di profondità, facce dietro scartate (resta pulita).
+	_shader_colore_sopra = Shader.new()
+	_shader_colore_sopra.code = SHADER_COLORE.replace("render_mode unshaded, cull_disabled;", "render_mode unshaded, cull_back, depth_test_disabled;")
+	var normali_sopra := Shader.new()
+	normali_sopra.code = SHADER_NORMALI.replace("render_mode unshaded, cull_disabled;", "render_mode unshaded, cull_back, depth_test_disabled;")
+	_mat_normali_sopra = ShaderMaterial.new()
+	_mat_normali_sopra.shader = normali_sopra
+	_mat_normali_sopra.render_priority = PRIORITA_SOPRA
 	var s := Shader.new()
 	s.code = SHADER_SPRITE % ""
 	_mat_sprite = ShaderMaterial.new()

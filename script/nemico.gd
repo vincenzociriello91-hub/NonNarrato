@@ -129,6 +129,8 @@ var _ultima_famiglia := ""
 var _t_bloccato := 0.0
 var _ultima_arma := ""             # con cosa è arrivato l'ultimo colpo: decide il bottino
 var bottino_lasciato: Array = []   # cosa ha lasciato morendo (per il rapporto e le prove)
+var in_tregua := false             # prove del bot: fermo, intoccabile e senza corpo per gli altri
+var _corpo := Vector2(14, 40)
 
 
 func _ready() -> void:
@@ -183,6 +185,7 @@ func _ready() -> void:
 			corpo = Vector2(30, 24)
 			bersaglio = Vector2(34, 28)
 			colpo = Vector2(40, 30)
+	_corpo = corpo
 	var vola := tipo == "pipistrello"
 	if vola:
 		motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
@@ -281,12 +284,67 @@ func tempi_attacco() -> Array:
 
 func tregua(si: bool) -> void:
 	# Per le prove tecniche del bot: fermo e intoccabile (poi torna com'era).
+	in_tregua = si
 	set_physics_process(not si)
 	if stato == Stato.MORTO:
 		return
 	_bersaglio.set_deferred("monitorable", not si and stato not in [Stato.DORME, Stato.RISVEGLIO] or (not si and tipo == "pipistrello"))
 	if si:
 		velocity = Vector2.ZERO
+
+
+func solido() -> bool:
+	# Ha un corpo che non si attraversa: non chi è morto, chi dorme a terra, chi vola, chi è in tregua.
+	return stato not in [Stato.MORTO, Stato.DORME] and tipo != "pipistrello" and not in_tregua and is_inside_tree()
+
+
+const SPAZIO := {"scheletro": 14.0, "mago": 13.0, "arciere": 13.0, "bestione": 20.0, "saltatore": 12.0, "mimic": 19.0}
+
+
+func mezza_larghezza() -> float:
+	# Quanto è largo da vedere (armi e mantelli compresi): due sprite a questa distanza non si coprono.
+	return float(SPAZIO.get(tipo, _corpo.x * 0.5 + 3.0))
+
+
+func estensione_verticale() -> Vector2:
+	# [alto, basso] del corpo nel mondo (la posizione è ai piedi).
+	return Vector2(global_position.y - _corpo.y, global_position.y)
+
+
+func spingi(dx: float) -> void:
+	# Spinto di lato da chi gioca o da un compagno: si sposta, ma non dentro i muri.
+	if absf(dx) > 0.01:
+		move_and_collide(Vector2(dx, 0.0))
+
+
+func _separa_dai_compagni() -> void:
+	# Due nemici non stanno uno dentro l'altro: ognuno si sposta di metà.
+	if not solido():
+		return
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var altro := n as Nemico
+		if altro == null or altro == self or not altro.solido():
+			continue
+		var dx := global_position.x - altro.global_position.x
+		var mezzo := mezza_larghezza() + altro.mezza_larghezza()
+		if absf(dx) >= mezzo:
+			continue
+		var v := altro.estensione_verticale()
+		if global_position.y <= v.x + 2.0 or global_position.y - _corpo.y >= v.y - 2.0:
+			continue
+		var lato := signf(dx)
+		if lato == 0.0:
+			lato = 1.0 if get_instance_id() > altro.get_instance_id() else -1.0
+		move_and_collide(Vector2(lato * (mezzo - absf(dx)) * 0.5, 0.0))
+
+
+func _sfonda_barili() -> void:
+	# Un barile sulla strada: il nemico lo sfonda passando (invece di restarci incastrato o di attraversarlo).
+	for i in get_slide_collision_count():
+		var corpo := get_slide_collision(i).get_collider() as Node
+		if corpo != null and corpo.get_parent() is Rompibile and absf(get_slide_collision(i).get_normal().x) > 0.5:
+			(corpo.get_parent() as Rompibile).subisci(1, global_position, 0.0)
+			Rapporto.conta("barili_sfondati")
 
 
 func sta_parando() -> bool:
@@ -408,6 +466,9 @@ func _physics_process(delta: float) -> void:
 						queue_free()
 
 	move_and_slide()
+	if stato != Stato.MORTO:
+		_sfonda_barili()
+		_separa_dai_compagni()
 	sprite.flip_h = verso < 0
 
 

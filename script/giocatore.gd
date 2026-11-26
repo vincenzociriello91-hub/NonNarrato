@@ -79,6 +79,8 @@ const STAMINA_RECUPERO := 45.0      # al secondo, con i piedi a terra
 const STAMINA_ATTESA := 0.35        # a terra da almeno tanto prima di recuperare
 const STAMINA_RIPRESA := 25.0       # senza fiato non ci si riaggrappa finché non torna a questo livello
 const ARRAMPICATA_VELOCITA := 74.0
+const SPAZIO := 14.0                   # mezza larghezza "visiva" (mantello compreso): più del corpo fisico, perché gli sprite non si coprano
+const SCOSTA_DAL_MURO := 5.0           # sulla parete lo sprite si stacca un po': mani e piedi toccano la roccia, non ci entrano
 const SALTO_MURO := Vector2(165.0, 330.0)
 # Nuoto (Stanza.ACQUE) e respiro.
 const RESPIRO_MASSIMO := 100.0
@@ -293,6 +295,7 @@ func _physics_process(delta: float) -> void:
 	_velocita_caduta = velocity.y
 	move_and_slide()
 	_spingi_oggetti(delta)
+	_separa_dai_nemici()
 	if is_on_floor() and not a_terra:
 		_atterrato()
 	_aggiorna_aspetto()
@@ -320,6 +323,8 @@ func _scorri_tempi(delta: float) -> void:
 	_t_stacco = maxf(0.0, _t_stacco - delta)
 	_aggiorna_fiato(delta)
 	_aggiorna_effetti(delta)
+	if stato != Stato.ARRAMPICATA and sprite.position.x != 0.0:
+		sprite.position.x = 0.0   # lasciata la parete in qualunque modo (in cima, colpiti, in acqua)
 	if _t_attraversa > 0.0:
 		_t_attraversa -= delta
 		if _t_attraversa <= 0.0:
@@ -1216,6 +1221,7 @@ func _inizia_arrampicata() -> void:
 	stato = Stato.ARRAMPICATA
 	_t_stato = 0.0
 	velocity = Vector2.ZERO
+	sprite.position.x = -_lato_muro * SCOSTA_DAL_MURO
 	sprite.riponi_armi(true)
 	sprite.riproduci("appeso", true)
 	Suoni.suona("presa", global_position, -4.0)
@@ -1283,6 +1289,7 @@ func _arrampicata(delta: float) -> void:
 
 func _stacca(salto: bool) -> void:
 	stato = Stato.NORMALE
+	sprite.position.x = 0.0
 	_t_stacco = 0.28 if salto else 0.22
 	sprite.velocita = 1.0
 	sprite.riponi_armi(false)
@@ -1453,6 +1460,36 @@ func _su_piattaforma() -> bool:
 		if corpo != null and (corpo.collision_layer & Effetti.S_PIATTAFORME) != 0:
 			return true
 	return false
+
+
+func _separa_dai_nemici() -> void:
+	# Personaggio e nemici non si compenetrano: si spingono di lato (il bestione, pesante, quasi non si
+	# sposta). Il rotolo e lo scatto passano attraverso apposta (servono a schivare); chi dorme a terra,
+	# chi vola e chi è in tregua (prove del bot) non conta. Sopra la testa di un nemico si scivola giù.
+	if stato in [Stato.ROTOLATA, Stato.SCHIVATA, Stato.MORTO, Stato.ARRAMPICATA, Stato.NUOTO, Stato.SCAVALCO]:
+		return
+	var mio_alto := global_position.y - ALTO.y
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var nemico := n as Nemico
+		if nemico == null or not nemico.solido():
+			continue
+		var dx := global_position.x - nemico.global_position.x
+		var mezzo := SPAZIO + nemico.mezza_larghezza()
+		if absf(dx) >= mezzo:
+			continue
+		var verticale := nemico.estensione_verticale()
+		if global_position.y <= verticale.x + 2.0 or mio_alto >= verticale.y - 2.0:
+			continue
+		var lato := signf(dx)
+		if lato == 0.0:
+			lato = -float(verso)
+		var dentro := mezzo - absf(dx)
+		var mia_parte := dentro * (0.85 if nemico.tipo == "bestione" else 0.5)
+		move_and_collide(Vector2(lato * mia_parte, 0.0))
+		nemico.spingi(-lato * (dentro - mia_parte))
+		if signf(velocity.x) == -lato:
+			velocity.x = 0.0   # contro un nemico non si cammina dentro
+		Rapporto.conta("separazioni")
 
 
 func _spingi_oggetti(delta: float) -> void:
