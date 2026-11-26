@@ -30,6 +30,7 @@ func scatta() -> void:
 		return
 	_t_ricarica = RICARICA
 	# Il clic del meccanismo, un attimo per reagire, poi la freccia.
+	Suoni.suona("piastra", position, -4.0, 1.4)
 	Effetti.scoppio(get_parent(), position + Vector2(verso * 8.0, -6.0), Color(1.0, 0.8, 0.5), 4, 30.0, 0.2, 0.0)
 	await get_tree().create_timer(0.25, false).timeout
 	if not is_instance_valid(self):
@@ -39,5 +40,6 @@ func scatta() -> void:
 	freccia.velocita = Vector2(verso * VELOCITA_FRECCIA, 0.0)
 	freccia.position = position + Vector2(verso * 14.0, 0.0)
 	get_parent().add_child(freccia)
+	Suoni.suona("balestra", position)
 	Rapporto.conta("frecce_scoccate")
 	Effetti.scoppio(get_parent(), position + Vector2(verso * 12.0, 0.0), Color(0.6, 0.55, 0.5, 0.6), 5, 40.0, 0.25, 0.0, false)

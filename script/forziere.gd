@@ -42,6 +42,7 @@ func interagisci(g: Node) -> void:
 	aperto = true
 	sprite.riproduci("apre", true)
 	Controlli.vibra(0.35, 0.1)
+	Suoni.suona("forziere", global_position)
 	await get_tree().create_timer(0.35, false).timeout
 	if not is_instance_valid(self):
 		return

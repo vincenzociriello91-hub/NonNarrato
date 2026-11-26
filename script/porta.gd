@@ -79,6 +79,7 @@ func apri() -> void:
 	aperta = true
 	_voluta = 1.0
 	_scossa()
+	Suoni.suona("porta", global_position)
 	Rapporto.evento("porta", {"nome": nome, "aperta": true})
 	cambiata.emit(true)
 
@@ -89,6 +90,7 @@ func chiudi() -> void:
 	aperta = false
 	_voluta = 0.0
 	_scossa()
+	Suoni.suona("porta", global_position, 0.0, 0.85)
 	Rapporto.evento("porta", {"nome": nome, "aperta": false})
 	cambiata.emit(false)
 

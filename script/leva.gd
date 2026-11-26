@@ -32,6 +32,7 @@ func interagisci(_g: Node) -> void:
 	sprite.riproduci("tira" if accesa else "rilascia", true)
 	Rapporto.conta("leve_tirate")
 	Rapporto.evento("leva", {"nome": nome, "accesa": accesa})
+	Suoni.suona("leva", global_position)
 	Controlli.vibra(0.3, 0.06)
 	if bersaglio != null:
 		if accesa:

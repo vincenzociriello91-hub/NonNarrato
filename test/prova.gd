@@ -173,6 +173,33 @@ func _solo_foto() -> void:
 		await _fotogrammi(30)
 		await _scatta("aspetto_%d" % seme)
 	Equipaggiamento.ripristina()
+	# Ingrandimento: risoluzione interna al 50% con i tre filtri, poi contorni, didascalie e numeri dei danni.
+	await _sposta(Vector2(420, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(20)
+	Impostazioni.scrivi("grafica/risoluzione", 0.5)
+	for filtro in ["nitido", "liscio", "sgsr"]:
+		Impostazioni.scrivi("grafica/filtro", filtro)
+		await _fotogrammi(4)
+		await _scatta("risoluzione_50_" + filtro)
+	Impostazioni.ripristina_scheda("grafica")
+	Impostazioni.scrivi("grafica/qualita", "alta")
+	Impostazioni.scrivi("schermo/adatta", "riempi")
+	Impostazioni.scrivi("grafica/filtro", "sgsr")
+	await _fotogrammi(4)
+	await _scatta("sempre_360_righe_sgsr")
+	Impostazioni.ripristina_scheda("schermo")
+	Impostazioni.scrivi("acc/contorni", true)
+	Impostazioni.scrivi("acc/didascalie", true)
+	Impostazioni.scrivi("gioco/numeri_danno", true)
+	await _sposta(Vector2(1950, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(10)
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var nemico := n as Nemico
+		if nemico.global_position.distance_to(_g().global_position) < 260.0:
+			nemico.subisci(1, _g().global_position, 0.0)
+	Suoni.suona("ruggito", _g().global_position + Vector2(160, 0))
+	await _fotogrammi(8)
+	await _scatta("contorni_didascalie_danni")
 	Impostazioni.ripristina()
 	print("PROVA FINE falliti: 0")
 	get_tree().quit(0)
@@ -209,6 +236,7 @@ func _esegui() -> void:
 	_verifica("il bot rimette impostazioni e aspetto di prima", not FileAccess.file_exists(Bot.SEGNO) and dopo == prima,
 			str(dopo) if dopo != prima else "")
 	_prova_lezione_fallita()
+	await _prova_impostazioni_suoni_aggiornamenti()
 	await _prova_armi_e_bestione()
 	await _prova_nemesi_e_veterani()
 	await _prova_meccanismi()
@@ -481,3 +509,111 @@ func _prova_lezione_fallita() -> void:
 			raffiche += 1
 	_verifica("la lezione che fallisce sempre viene lasciata", raffiche < 30, "raffica %d su 200" % raffiche)
 	Memoria.ripristina_stato(salvata)
+
+
+func _prova_impostazioni_suoni_aggiornamenti() -> void:
+	# Impostazioni (schede, valori consigliati, effetti sul gioco), suoni e aggiornamento dall'app.
+	Impostazioni.ripristina()
+	var senza_scheda: Array = []
+	for chiave: String in Impostazioni.PREDEFINITE:
+		if Impostazioni.scheda_di(chiave) == "":
+			senza_scheda.append(chiave)
+	_verifica("impostazioni: ogni chiave sta in una scheda", senza_scheda.is_empty(), str(senza_scheda))
+	var menu: Menu = _principale.menu
+	var senza_controllo: Array = []
+	for chiave: String in Impostazioni.PREDEFINITE:
+		if not (menu.get("_controlli") as Dictionary).has(chiave):
+			senza_controllo.append(chiave)
+	_verifica("impostazioni: ogni chiave ha il suo controllo nel menu", senza_controllo.is_empty(), str(senza_controllo))
+	Impostazioni.scrivi("audio/musica", 0.1)
+	Impostazioni.scrivi("acc/danni", 0.5)
+	Impostazioni.ripristina_scheda("audio")
+	_verifica("impostazioni: il ripristino di una scheda tocca solo quella", is_equal_approx(Impostazioni.leggi("audio/musica"), 0.55)
+			and is_equal_approx(Impostazioni.leggi("acc/danni"), 0.5))
+	# Danni ricevuti a metà: due colpi da 1 tolgono un cuore solo.
+	var g := _g()
+	if g.stato == Giocatore.Stato.MORTO:
+		await _fotogrammi(200)
+		g = _g()
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	g.vita = Giocatore.VITA_MASSIMA
+	g.set("_resto_danni", 0.0)
+	g.subisci(1, g.global_position + Vector2(30, 0), 0.0)
+	g.set("_t_protetto", 0.0)
+	g.stato = Giocatore.Stato.NORMALE
+	g.subisci(1, g.global_position + Vector2(30, 0), 0.0)
+	_verifica("accessibilità: danni a metà", g.vita == Giocatore.VITA_MASSIMA - 1, "vita %d" % g.vita)
+	Impostazioni.scrivi("acc/danni", 0.0)
+	g.set("_t_protetto", 0.0)
+	g.stato = Giocatore.Stato.NORMALE
+	g.subisci(3, g.global_position + Vector2(30, 0), 0.0)
+	_verifica("accessibilità: invincibile", g.vita == Giocatore.VITA_MASSIMA - 1, "vita %d" % g.vita)
+	Impostazioni.ripristina_scheda("accessibilita")
+	g.vita = Giocatore.VITA_MASSIMA
+	g.vita_cambiata.emit(g.vita, Giocatore.VITA_MASSIMA)
+	await _fotogrammi(40)
+	Impostazioni.scrivi("acc/mira", 0)
+	_verifica("accessibilità: mira assistita spenta", g.cono_mira() == 0.0 and g.bersaglio_tiro(false) == null)
+	Impostazioni.scrivi("acc/mira", 2)
+	_verifica("accessibilità: mira assistita forte", g.cono_mira() > Giocatore.MIRA_CONO)
+	Impostazioni.scrivi("acc/contorni", true)
+	var senza_contorno := 0
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if (n as Nemico).stato != Nemico.Stato.MORTO and (n as Nemico).sprite.material == null:
+			senza_contorno += 1
+	_verifica("accessibilità: contorni chiari sui nemici", senza_contorno == 0, "senza contorno %d" % senza_contorno)
+	Impostazioni.ripristina_scheda("accessibilita")
+	# Risoluzione interna e grandezza del mondo.
+	var finestra := Vector2i(2992, 1344)
+	var base := Dispositivo.risoluzione_interna(finestra)
+	_verifica("schermo: Pixel 8 Pro a ×4 come prima", int(base["scala"]) == 4 and base["dimensione"] == Vector2i(748, 336), str(base))
+	Impostazioni.scrivi("schermo/scala", 3)
+	var tre := Dispositivo.risoluzione_interna(finestra)
+	_verifica("schermo: grandezza ×3 scelta a mano", int(tre["scala"]) == 3 and (tre["dimensione"] as Vector2i).y == 448, str(tre))
+	Impostazioni.scrivi("schermo/proporzioni", "16:9")
+	var bande := Dispositivo.risoluzione_interna(finestra)
+	_verifica("schermo: 16:9 con bande", (bande["area"] as Vector2i) == Vector2i(2389, 1344), str(bande))
+	Impostazioni.scrivi("grafica/risoluzione", 0.5)
+	var meta := Dispositivo.risoluzione_interna(finestra)
+	_verifica("grafica: risoluzione interna 50%", (meta["resa"] as Vector2i) * 2 - (meta["dimensione"] as Vector2i) == Vector2i.ZERO
+			or ((meta["resa"] as Vector2i) * 2 - (meta["dimensione"] as Vector2i)).length() <= 2.0, str(meta))
+	Impostazioni.ripristina_scheda("schermo")
+	Impostazioni.ripristina_scheda("grafica")
+	_verifica("schermo: limiti FPS sempre con 30 e 60", Dispositivo.fps_possibili().has(30) and Dispositivo.fps_possibili().has(60))
+	# Suoni: ogni file c'è, i canali esistono, suonare conta, le didascalie compaiono.
+	var mancanti: Array = []
+	for nome in ["passo", "salto", "fendente", "colpo", "colpito", "magia", "esplosione", "forziere", "porta", "ondata", "musica", "ambiente", "ui_tocco"]:
+		if not ResourceLoader.exists(Suoni.CARTELLA + nome + ".wav"):
+			mancanti.append(nome)
+	_verifica("suoni: file presenti", mancanti.is_empty(), str(mancanti))
+	var canali := ["Musica", "Effetti", "Ambiente", "Interfaccia"].all(func(b: String) -> bool: return AudioServer.get_bus_index(b) > 0)
+	_verifica("suoni: canali musica, effetti, ambiente, interfaccia", canali)
+	var prima: int = Suoni.suonati
+	await _tocca("salta")
+	await _fotogrammi(30)
+	g.position.x += 1.0
+	Suoni.suona("forziere", g.global_position)
+	_verifica("suoni: si sentono salto e forziere", Suoni.suonati > prima and Suoni.ultimi.has("salto") and Suoni.ultimi.has("forziere"),
+			str(Suoni.ultimi.slice(-6)))
+	Impostazioni.scrivi("acc/didascalie", true)
+	Suoni.suona("crollo", g.global_position + Vector2(200, 0))
+	await _fotogrammi(2)
+	_verifica("accessibilità: didascalia con la direzione", _principale.hud.didascalie_visibili() > 0)
+	Impostazioni.ripristina_scheda("accessibilita")
+	Impostazioni.scrivi("audio/generale", 0.0)
+	_verifica("audio: generale a zero = tutto muto", AudioServer.is_bus_mute(0))
+	Impostazioni.ripristina_scheda("audio")
+	_verifica("audio: modalità notte automatica solo sul telefono", Suoni.notte_attiva() == false)
+	# Aggiornamento: confronto delle versioni e controllo dell'impronta del file scaricato.
+	_verifica("aggiornamento: confronto delle versioni", Aggiornatore.confronta("0.1.17", "0.1.9") > 0
+			and Aggiornatore.confronta("0.1.16", "0.1.16") == 0 and Aggiornatore.confronta("0.1.2", "0.1.10") < 0)
+	var prova_apk := "user://prova_impronta.bin"
+	var f := FileAccess.open(prova_apk, FileAccess.WRITE)
+	f.store_string("NonNarrato")
+	f.close()
+	var giusta := FileAccess.get_sha256(prova_apk)
+	_verifica("aggiornamento: impronta giusta accettata, sbagliata rifiutata", Aggiornatore.impronta_valida(prova_apk, giusta)
+			and not Aggiornatore.impronta_valida(prova_apk, "0".repeat(64)))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(prova_apk))
+	_verifica("aggiornamento: senza plugin sul computer (Android lo ha)", Aggiornatore.plugin == null and Aggiornatore.testo_pulsante() != "")
+	Impostazioni.ripristina()

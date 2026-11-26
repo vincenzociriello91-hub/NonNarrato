@@ -62,6 +62,7 @@ func _physics_process(delta: float) -> void:
 				sprite.riproduci("avviso")
 			"fuori":
 				sprite.riproduci("esce", true)
+				Suoni.suona("spuntoni", global_position, -6.0)
 				Effetti.scoppio(get_parent(), global_position + Vector2(0, -4), Color(0.6, 0.6, 0.66, 0.6), 6, 50.0, 0.3, 120.0, false)
 			"dentro":
 				sprite.riproduci("rientra", true)

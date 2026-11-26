@@ -17,8 +17,11 @@ L'elenco di ciò che c'è è in [distribuzione/NOVITA.md](distribuzione/NOVITA.m
 L'ultima versione di prova è sempre qui:
 https://github.com/vincenzociriello91-hub/NonNarrato/releases/latest
 
-Si scarica `NonNarrato.apk` e si installa sopra la versione precedente. Dal menu di pausa il gioco stesso avvisa
-quando c'è una versione nuova.
+Si scarica `NonNarrato.apk` e si installa sopra la versione precedente. Dalla versione 0.1.17 il gioco si aggiorna da
+solo: menu di pausa, scheda **Gioco**, tasto "Aggiorna". Scarica l'APK da GitHub, controlla l'impronta SHA-256
+(`NonNarrato.apk.sha256`, pubblicata con ogni versione), pacchetto e firma, poi lo installa con una sessione di
+PackageInstaller. Su Android 12 e successivi un'app che aggiorna sé stessa non deve chiedere conferme: serve solo, la
+prima volta, il permesso "Installa app sconosciute". Il lavoro lo fa il plugin Android in `android_plugin/`.
 
 ## Comandi
 
@@ -38,7 +41,31 @@ quando c'è una versione nuova.
 | Pausa e impostazioni | Start | II | Esc |
 | Schermata di debug | Select | dal menu | F3 |
 
-I tasti a schermo compaiono appena si tocca lo schermo e spariscono appena si usa un controller.
+I tasti a schermo compaiono appena si tocca lo schermo e spariscono appena si usa un controller (si può anche fissare
+un tipo di comandi nelle impostazioni). Nel menu di pausa LB e RB (E e I) cambiano scheda.
+
+## Impostazioni
+
+Cinque schede nel menu di pausa (`script/menu.gd`, chiavi in `script/impostazioni.gd`, convenzione: -1 o "auto" =
+scelta del gioco in base al dispositivo):
+
+- **Gioco**: tipo di comandi, tasti a schermo (grandezza, visibilità, mancini), zona morta, vibrazione, numeri dei
+  danni, frasi delle nemesi, debug, aggiornamenti.
+- **Schermo**: dati del pannello letti da Android (modi, frequenze, HDR), grandezza del mondo (scala intera), pixel
+  perfetti o sempre 360 righe, 16:9, risoluzione del pannello, limite FPS (solo quelli possibili), V-Sync, luminosità,
+  contrasto, margini, orientamento, schermo acceso.
+- **Grafica**: livello e singoli dettagli (un dettaglio scelto a mano vince sul livello; il calore abbassa comunque),
+  riduzione automatica, risoluzione interna (100/75/50%) e filtro di ingrandimento: nitido, liscio, SGSR
+  (`shader/vista.gdshader`).
+- **Audio**: cinque canali (generale, musica, effetti, ambiente, interfaccia), modalità notte, bassi, mono, silenzio
+  con il telefono silenzioso. Uscita (altoparlante, cuffie, Bluetooth, USB) e suoneria li legge il plugin Android.
+- **Accessibilità**: velocità, danni ricevuti, mira, tiri da caricare con due tocchi, grandezza dei testi, scosse,
+  lampi, contorni chiari, daltonismo, didascalie dei suoni.
+
+## Suoni
+
+Tutti sintetizzati da `strumenti/genera_suoni.py` (rumore, toni e filtri: nessuna registrazione, CC0), file in
+`arte/suoni/`. Li suona l'autoload `Suoni` (`script/suoni.gd`), con suoni posizionali nel mondo e didascalie.
 
 ## Come nasce la grafica
 
@@ -135,8 +162,9 @@ fa giocare al bot solo alcune fasi.
 
 ## Pubblicazione
 
-Ogni modifica su `main` fa partire `.github/workflows/android.yml`: prova automatica, APK firmato, nuova versione
-`prova-0.1.N` nelle Release. Le note della versione sono la prima sezione di `distribuzione/NOVITA.md`.
+Ogni modifica su `main` fa partire `.github/workflows/android.yml`: prova automatica, plugin Android compilato
+(`strumenti/compila_plugin.sh`, finisce in `addons/nonnarrato_android.jar`), APK firmato con la compilazione Gradle
+di Godot, impronta SHA-256, nuova versione `prova-0.1.N` nelle Release. Le note della versione sono la prima sezione di `distribuzione/NOVITA.md`.
 I registri dell'ultima compilazione sono nel ramo `log-compilazione`.
 
 ### Firma

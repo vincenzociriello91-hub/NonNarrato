@@ -45,7 +45,8 @@ var _leva: VirtualJoystick
 var _pulsanti := {}
 var _t_debug := 0.0
 var _tela := Vector2i(640, 360)
-var _scala := 3
+var _scala := 3.0
+var _didascalie: VBoxContainer
 var _pausa := false
 var _avviso_messaggio: Tween
 
@@ -80,6 +81,12 @@ func _ready() -> void:
 	_messaggio.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_messaggio.modulate.a = 0.0
 	_radice.add_child(_messaggio)
+
+	# Didascalie dei suoni (accessibilità): in basso al centro, spariscono da sole.
+	_didascalie = VBoxContainer.new()
+	_didascalie.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_didascalie.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_radice.add_child(_didascalie)
 
 	_crea_touch()
 	get_viewport().size_changed.connect(_disponi)
@@ -157,16 +164,20 @@ func _cerchio(pieno: float) -> ImageTexture:
 
 func _margini() -> Array:
 	# Spazio da lasciare libero per notch e bordi curvi: sinistra, alto, destra, basso.
+	# "Margini" nelle impostazioni dello schermo: -1 = area sicura del telefono, altrimenti una quota in più.
+	var area := get_viewport().get_visible_rect().size
+	var extra: float = Impostazioni.leggi("schermo/margini")
+	var aggiunta := maxf(0.0, extra) * area.x
 	if not OS.has_feature("mobile"):
-		return [0.0, 0.0, 0.0, 0.0]
+		return [aggiunta, aggiunta * 0.5, aggiunta, aggiunta * 0.5]
 	var finestra := Vector2(get_window().size)
 	var sicura := DisplayServer.get_display_safe_area()
-	var fattore := finestra.x / maxf(1.0, get_viewport().get_visible_rect().size.x)
+	var fattore := finestra.x / maxf(1.0, area.x)
 	return [
-		maxf(0.0, sicura.position.x) / fattore,
-		maxf(0.0, sicura.position.y) / fattore,
-		maxf(0.0, finestra.x - sicura.end.x) / fattore,
-		maxf(0.0, finestra.y - sicura.end.y) / fattore,
+		maxf(0.0, sicura.position.x) / fattore + aggiunta,
+		maxf(0.0, sicura.position.y) / fattore + aggiunta * 0.5,
+		maxf(0.0, finestra.x - sicura.end.x) / fattore + aggiunta,
+		maxf(0.0, finestra.y - sicura.end.y) / fattore + aggiunta * 0.5,
 	]
 
 
@@ -186,9 +197,12 @@ func _disponi() -> void:
 	_messaggio.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	var k := Dispositivo.scala_touch()
+	var mancino: bool = Impostazioni.leggi("controlli/mancino")
 	_touch.modulate.a = Impostazioni.leggi("controlli/opacita_touch")
-	_leva.position = Vector2(m[0], area.y * 0.36)
-	_leva.size = Vector2(area.x * 0.42 - m[0], area.y * 0.64 - m[3])
+	_leva.deadzone_ratio = clampf(Impostazioni.leggi("controlli/zona_morta"), 0.05, 0.9)
+	# Per chi è mancino la leva va a destra e i tasti a sinistra (disposizione specchiata).
+	_leva.position = Vector2(area.x * 0.58 if mancino else m[0], area.y * 0.36)
+	_leva.size = Vector2(area.x * 0.42 - (m[2] if mancino else m[0]), area.y * 0.64 - m[3])
 	_leva.joystick_size = 150.0 * k
 	_leva.tip_size = 64.0 * k
 	var bx: float = area.x - m[2]
@@ -203,6 +217,14 @@ func _disponi() -> void:
 		"cambia_arma": Vector2(bx - 112.0 * k, by - 306.0 * k),
 		"pausa": Vector2(bx - 44.0, m[1] + 44.0),
 	}
+	if mancino:
+		for azione: String in posti:
+			if azione != "pausa":
+				var p: Vector2 = posti[azione]
+				posti[azione] = Vector2(m[0] + (bx - p.x), p.y)
+	# In alto al centro, sotto la riga della vita: non coprono mai il personaggio.
+	_didascalie.position = Vector2(area.x * 0.25, m[1] + 12.0)
+	_didascalie.size = Vector2(area.x * 0.5, area.y * 0.18)
 	_centri = posti
 	for azione: String in _pulsanti:
 		var voce: Dictionary = _pulsanti[azione]
@@ -217,7 +239,7 @@ func _aggiorna_touch() -> void:
 	_touch.visible = Controlli.touch and not _pausa
 
 
-func misure(tela: Vector2i, scala: int) -> void:
+func misure(tela: Vector2i, scala: float) -> void:
 	_tela = tela
 	_scala = scala
 
@@ -288,7 +310,39 @@ func _su_vita(vita: int, massima: int) -> void:
 	_cuori.queue_redraw()
 
 
-func messaggio(testo: String, durata: float) -> void:
+func didascalia(testo: String, colore: Color = Color(0.95, 0.92, 0.8)) -> void:
+	# Scritta per un suono importante (attivabile in Accessibilità). Restano al massimo 3 righe.
+	if not Impostazioni.leggi("acc/didascalie") or _didascalie == null:
+		return
+	for vecchia in _didascalie.get_children():
+		if (vecchia as Label).text == testo:
+			vecchia.queue_free()
+	var e := _etichetta(20, colore)
+	e.text = testo
+	e.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var sfondo := StyleBoxFlat.new()
+	sfondo.bg_color = Color(0.02, 0.02, 0.04, 0.55)
+	sfondo.set_content_margin_all(4)
+	sfondo.set_corner_radius_all(4)
+	e.add_theme_stylebox_override("normal", sfondo)
+	_didascalie.add_child(e)
+	while _didascalie.get_child_count() > 3:
+		var prima := _didascalie.get_child(0)
+		_didascalie.remove_child(prima)
+		prima.queue_free()
+	var tw := e.create_tween()
+	tw.tween_interval(1.6)
+	tw.tween_property(e, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(e.queue_free)
+
+
+func didascalie_visibili() -> int:
+	return _didascalie.get_child_count() if _didascalie != null else 0
+
+
+func messaggio(testo: String, durata: float, storia: bool = false) -> void:
+	if storia and not Impostazioni.leggi("gioco/messaggi"):
+		return  # frasi delle nemesi spente; restano i messaggi che servono per giocare
 	_messaggio.text = testo
 	if _avviso_messaggio != null and _avviso_messaggio.is_valid():
 		_avviso_messaggio.kill()
@@ -322,7 +376,7 @@ func _process(delta: float) -> void:
 	var ombre := 0
 	if is_instance_valid(_stanza):
 		ombre = _stanza.torce_con_ombra()
-	righe.append("Tela %dx%d ×%d   torce con ombra: %d" % [_tela.x, _tela.y, _scala, ombre])
+	righe.append("Tela %dx%d ×%s   torce con ombra: %d" % [_tela.x, _tela.y, str(snappedf(_scala, 0.01)), ombre])
 	righe.append("Comandi: %s %s" % [Controlli.nome_modo(), Controlli.controller])
 	if is_instance_valid(_stanza) and is_instance_valid(_stanza.giocatore):
 		var g := _stanza.giocatore

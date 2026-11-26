@@ -75,6 +75,7 @@ func _crolla() -> void:
 	_sprite.position.x = 0.0
 	Rapporto.conta("piattaforme_crollate")
 	Rapporto.evento("crollo", {"nome": nome})
+	Suoni.suona("crollo", global_position, -2.0)
 	Effetti.scoppio(get_parent(), global_position + Vector2(0, 4), Color(0.5, 0.47, 0.45, 0.8), 14, 60.0, 0.6, 300.0, false)
 	var tw := _sprite.create_tween()
 	tw.tween_property(_sprite, "position:y", 48.0, 0.45).set_ease(Tween.EASE_IN)

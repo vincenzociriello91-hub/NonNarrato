@@ -117,6 +117,7 @@ func avvia() -> void:
 		f.store_string(var_to_str(_stato_utente))
 		f.close()
 	Dispositivo.bot_attivo = true
+	Effetti.applica_velocita()
 	Rapporto.evento("bot_inizio")
 	if scritta:
 		_crea_scritta()
@@ -1291,6 +1292,7 @@ func _menu_e_aspetto() -> void:
 		prima = figura.immagine()
 		_verifica("aspetto: la figura è disegnata", _pixel_pieni(prima) > 120, "pixel %d" % _pixel_pieni(prima))
 	var menu: Menu = _principale.menu
+	menu.mostra_scheda("aspetto")   # come chi gioca: tasto "Aspetto e mosse"
 	var scelta: OptionButton = menu.get("_scelte_oggetto")["copricapo"]
 	var foto := figura.disegni
 	for i in scelta.item_count:
@@ -1369,9 +1371,104 @@ func _menu_e_aspetto() -> void:
 	Equipaggiamento.ripristina()
 	await _fotogrammi_in_pausa(2)
 	_verifica("aspetto: ripristino", Equipaggiamento.indossati == Equipaggiamento.PREDEFINITO and _pezzi_figura() == _pezzi_attesi())
+	await _menu_impostazioni(menu)
 	_principale._alterna_pausa()
 	await _fotogrammi(5)
 	_verifica("ripresa dal menu", not _principale.menu.aperto and not get_tree().paused)
+
+
+func _menu_impostazioni(menu: Menu) -> void:
+	# Le cinque schede delle impostazioni, usate come le userebbe chi gioca (linguette, voci, cursori).
+	_nuova_fase("menu_impostazioni")
+	var minimi := {"gioco": 14, "schermo": 12, "grafica": 14, "audio": 10, "accessibilita": 10}
+	for coppia: Array in Menu.SCHEDE:
+		var nome: String = coppia[0]
+		(menu.get("_linguette")[nome] as Button).pressed.emit()
+		await _fotogrammi_in_pausa(2)
+		_verifica("menu: scheda %s aperta dalla linguetta" % nome, menu.pagina_visibile(nome) and menu.scheda == nome)
+		_verifica("menu: scheda %s con i suoi controlli" % nome, menu.controlli_scheda(nome) >= int(minimi[nome]), str(menu.controlli_scheda(nome)))
+		await _scatta("menu_" + nome)
+	var vista: TextureRect = _principale.get("_vista")
+	var mondo: SubViewport = _principale.mondo
+	# Schermo: le grandezze del mondo vengono dal dispositivo; "Sempre 360 righe" cambia la tela.
+	menu.mostra_scheda("schermo")
+	_verifica("schermo: grandezze proposte dal dispositivo", menu.opzioni_di("schermo/scala").size() >= 2, str(menu.opzioni_di("schermo/scala")))
+	_verifica("schermo: limiti FPS proposti", menu.opzioni_di("grafica/limite_fps").size() >= 3, str(menu.opzioni_di("grafica/limite_fps")))
+	_verifica("schermo: descrizione dello schermo", menu.testo_info("schermo").contains("Mondo di gioco"), menu.testo_info("schermo"))
+	menu.scegli("schermo/adatta", "riempi")
+	await _fotogrammi_in_pausa(2)
+	var tela: Vector2i = mondo.size_2d_override if mondo.size_2d_override != Vector2i.ZERO else mondo.size
+	var finestra := get_window().size
+	_verifica("schermo: sempre 360 righe", absi(tela.y - Dispositivo.ALTEZZA_BASE) <= 1 or finestra.y < 300, str(tela))
+	menu.scegli("schermo/adatta", "intera")
+	menu.scegli("schermo/luminosita", 1.3)
+	await _fotogrammi_in_pausa(2)
+	_verifica("schermo: luminosità sull'immagine", vista.material != null)
+	menu.scegli("schermo/luminosita", 1.0)
+	# Grafica: risoluzione interna al 50% con SGSR, livello, dettaglio a mano, ripristino.
+	menu.mostra_scheda("grafica")
+	await _fotogrammi_in_pausa(1)
+	var prima: Vector2i = mondo.size
+	menu.scegli("grafica/risoluzione", 0.5)
+	menu.scegli("grafica/filtro", "sgsr")
+	await _fotogrammi_in_pausa(3)
+	_verifica("grafica: risoluzione interna al 50%", mondo.size.y <= prima.y / 2 + 1 and mondo.size_2d_override == prima,
+			"%s -> %s (%s)" % [prima, mondo.size, mondo.size_2d_override])
+	var filtro_vista: int = int((vista.material as ShaderMaterial).get_shader_parameter("filtro")) if vista.material != null else -1
+	_verifica("grafica: filtro SGSR sull'immagine", filtro_vista == 2, str(filtro_vista))
+	await _scatta("grafica_sgsr_50")
+	menu.scegli("grafica/qualita", "bassa")
+	await _fotogrammi_in_pausa(2)
+	_verifica("grafica: livello basso dal menu", Dispositivo.livello == "bassa" and not bool(Dispositivo.profilo.get("nebbia")))
+	menu.scegli("grafica/nebbia", 1)
+	await _fotogrammi_in_pausa(2)
+	_verifica("grafica: il dettaglio scelto a mano vince sul livello", bool(Dispositivo.profilo.get("nebbia")) and Impostazioni.personalizzata())
+	Impostazioni.ripristina_scheda("grafica")
+	await _fotogrammi_in_pausa(2)
+	_verifica("grafica: ripristino dei valori consigliati", mondo.size == prima and vista.material == null and not Impostazioni.personalizzata())
+	Impostazioni.scrivi("grafica/qualita", "alta")   # come all'inizio del bot (misure confrontabili)
+	# Audio: volumi sui canali, mono, ripristino.
+	menu.mostra_scheda("audio")
+	var musica := AudioServer.get_bus_index(&"Musica")
+	var master := AudioServer.get_bus_index(&"Master")
+	menu.scegli("audio/musica", 0.0)
+	menu.scegli("audio/mono", true)
+	await _fotogrammi_in_pausa(1)
+	_verifica("audio: musica a zero = canale muto", AudioServer.is_bus_mute(musica))
+	_verifica("audio: mono acceso", AudioServer.is_bus_effect_enabled(master, 2))
+	_verifica("audio: dice dove esce il suono", menu.testo_info("audio").contains("Il suono esce da"), menu.testo_info("audio"))
+	Impostazioni.ripristina_scheda("audio")
+	await _fotogrammi_in_pausa(1)
+	_verifica("audio: ripristino", not AudioServer.is_bus_mute(musica) and not AudioServer.is_bus_effect_enabled(master, 2))
+	# Accessibilità: didascalie dei suoni e correzione dei colori.
+	menu.mostra_scheda("accessibilita")
+	menu.scegli("acc/didascalie", true)
+	Suoni.suona("ondata")
+	await _fotogrammi_in_pausa(2)
+	_verifica("accessibilità: didascalia del suono", _principale.hud.didascalie_visibili() > 0)
+	menu.scegli("acc/daltonismo", "deuteranopia")
+	menu.scegli("acc/contorni", true)
+	await _fotogrammi_in_pausa(2)
+	var dalto: int = int((vista.material as ShaderMaterial).get_shader_parameter("daltonismo")) if vista.material != null else -1
+	_verifica("accessibilità: correzione per il daltonismo", dalto == 2, str(dalto))
+	await _scatta("accessibilita_colori")
+	Impostazioni.ripristina_scheda("accessibilita")
+	await _fotogrammi_in_pausa(1)
+	_verifica("accessibilità: ripristino", vista.material == null and not Impostazioni.leggi("acc/contorni"))
+	# Con un controller RB passa alla scheda dopo.
+	menu.mostra_scheda("gioco")
+	var tasto := InputEventAction.new()
+	tasto.action = &"tira"
+	tasto.pressed = true
+	Input.parse_input_event(tasto)
+	await _fotogrammi_in_pausa(2)
+	var lascia := InputEventAction.new()
+	lascia.action = &"tira"
+	lascia.pressed = false
+	Input.parse_input_event(lascia)
+	await _fotogrammi_in_pausa(1)
+	_verifica("menu: RB passa alla scheda dopo", menu.scheda == "schermo", menu.scheda)
+	_verifica("aggiornamenti: pulsante nel menu", (menu.get("_aggiorna") as Button).text != "")
 
 
 func _mosse_in_partita() -> void:
@@ -2545,6 +2642,7 @@ func _concludi(motivo: String) -> void:
 		_rimetti(_stato_utente)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SEGNO))
 	Dispositivo.bot_attivo = false
+	Effetti.applica_velocita()
 	Rapporto.sezione("bot", _esito(motivo))
 	Rapporto.evento("bot_fine", {"falliti": falliti, "controlli": controlli.size()})
 	var testo := Rapporto.salva(motivo)

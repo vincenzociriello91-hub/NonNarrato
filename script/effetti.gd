@@ -17,6 +17,7 @@ const S_BERSAGLIO_GIOCATORE := 256
 const L_SFONDO := 1
 const L_DAVANTI := 2
 
+static var _contorni := {}
 static var _luce: GradientTexture2D
 static var _luminoso: CanvasItemMaterial
 static var _piatto: CanvasItemMaterial
@@ -96,13 +97,25 @@ static func scoppio(genitore: Node, dove: Vector2, colore: Color, quanti: int, v
 	return p
 
 
+static func velocita_base() -> float:
+	# Velocità del gioco scelta in Accessibilità (1 = normale). Nelle prove resta sempre 1.
+	if Dispositivo.in_prova or Dispositivo.bot_attivo:
+		return 1.0
+	return clampf(Impostazioni.leggi("acc/velocita"), 0.5, 1.0)
+
+
+static func applica_velocita() -> void:
+	Engine.time_scale = velocita_base()
+
+
 static func fermo_immagine(nodo: Node, durata: float) -> void:
-	# Un istante di "fermo" quando un colpo va a segno: dà peso all'impatto.
-	if Dispositivo.in_prova or Engine.time_scale < 1.0:
+	# Un istante di "fermo" quando un colpo va a segno: dà peso all'impatto (spento con "meno lampi").
+	var base := velocita_base()
+	if Dispositivo.in_prova or Engine.time_scale < base or Impostazioni.leggi("acc/meno_lampi"):
 		return
 	Engine.time_scale = 0.05
 	await nodo.get_tree().create_timer(durata, true, false, true).timeout
-	Engine.time_scale = 1.0
+	Engine.time_scale = velocita_base()
 
 
 static func occlusore(genitore: Node, rett: Rect2) -> LightOccluder2D:
@@ -118,15 +131,75 @@ static func occlusore(genitore: Node, rett: Rect2) -> LightOccluder2D:
 	return o
 
 
+static func numero_danno(genitore: Node, dove: Vector2, danno: int) -> void:
+	# Numero del danno che sale e sparisce (impostazione "numeri dei danni", spenta di base).
+	if not Impostazioni.leggi("gioco/numeri_danno") or genitore == null:
+		return
+	var e := Label.new()
+	e.text = str(danno)
+	e.add_theme_font_size_override("font_size", 10)
+	e.add_theme_color_override("font_color", Color(1.0, 0.86, 0.5))
+	e.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.06))
+	e.add_theme_constant_override("outline_size", 3)
+	e.position = dove + Vector2(randf_range(-6.0, 2.0), 0.0)
+	e.z_index = 40
+	e.material = materiale_piatto()
+	genitore.add_child(e)
+	var tw := e.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(e, "position:y", e.position.y - 16.0, 0.7)
+	tw.tween_property(e, "modulate:a", 0.0, 0.7).set_delay(0.3)
+	tw.chain().tween_callback(e.queue_free)
+
+
+static func materiale_contorno(colore: Color) -> ShaderMaterial:
+	# Accessibilità "contorni chiari": linea di 1 pixel del colore scelto attorno allo sprite.
+	var chiave := colore.to_html()
+	if not _contorni.has(chiave):
+		var s := Shader.new()
+		s.code = """
+shader_type canvas_item;
+uniform vec4 contorno : source_color;
+varying vec4 tinta;
+void vertex() {
+	tinta = COLOR;   // in fragment() COLOR contiene già la texture: la tinta del nodo si prende qui
+}
+void fragment() {
+	vec4 c = texture(TEXTURE, UV);
+	if (c.a < 0.5) {
+		vec2 p = TEXTURE_PIXEL_SIZE;
+		float v = max(max(texture(TEXTURE, UV + vec2(p.x, 0.0)).a, texture(TEXTURE, UV - vec2(p.x, 0.0)).a),
+				max(texture(TEXTURE, UV + vec2(0.0, p.y)).a, texture(TEXTURE, UV - vec2(0.0, p.y)).a));
+		if (v < 0.5) {
+			discard;
+		}
+		COLOR = vec4(contorno.rgb, contorno.a * tinta.a);
+		NORMAL_MAP = vec3(0.5, 0.5, 1.0);
+	} else {
+		COLOR = c * tinta;
+	}
+}
+"""
+		var m := ShaderMaterial.new()
+		m.shader = s
+		m.set_shader_parameter("contorno", colore)
+		_contorni[chiave] = m
+	return _contorni[chiave]
+
+
 static func lampo(sprite: CanvasItem, durata: float = 0.08) -> void:
-	# Lo sprite appare per un attimo a piena luce: segnala il colpo ricevuto.
+	# Lo sprite appare per un attimo a piena luce: segnala il colpo ricevuto (più breve con "meno lampi").
+	if Impostazioni.leggi("acc/meno_lampi"):
+		durata *= 0.4
 	if sprite.has_method("lampo"):
 		sprite.call("lampo", durata)  # la figura viva ha il suo materiale e lo rimette da sola
 		return
+	var prima := sprite.material if sprite.material != materiale_piatto() else sprite.get_meta("materiale_prima", null) as Material
+	sprite.set_meta("materiale_prima", prima)
 	sprite.material = materiale_piatto()
 	await sprite.get_tree().create_timer(durata).timeout
 	if is_instance_valid(sprite):
-		sprite.material = null
+		sprite.material = sprite.get_meta("materiale_prima", null) as Material
 
 
 static func luce(colore: Color, raggio: float, energia: float, altezza: float = 40.0) -> PointLight2D:

@@ -143,6 +143,7 @@ func _controlla_ondate(delta: float) -> void:
 		Rapporto.conta("sogni_completati")
 		Rapporto.evento("sogno_completato", {"ondate": ondata})
 		get_tree().call_group("hud", "messaggio", "Il sogno si quieta. Per ora.", 4.0)
+		Suoni.suona("sogno_quieto")
 		return
 	_t_ondata = ATTESA_ONDATA
 	var nomi := ["", "Seconda", "Terza", "Ultima"]
@@ -153,6 +154,7 @@ func _controlla_ondate(delta: float) -> void:
 
 func _nuova_ondata() -> void:
 	ondata += 1
+	Suoni.suona("ondata")
 	Rapporto.conta("ondate")
 	Rapporto.evento("ondata", {"numero": ondata})
 	var da_mettere := {}
@@ -690,6 +692,7 @@ func _primo_piano() -> void:
 	var strato := Parallax2D.new()
 	strato.scroll_scale = Vector2(1.35, 1.0)
 	strato.z_index = 60
+	strato.name = "PrimoPiano"
 	add_child(strato)
 	# Stanno solo ai margini (drappi in alto, capitelli spezzati in basso): non coprono mai l'azione.
 	for dove: Vector2 in [Vector2(300, 112), Vector2(820, 112), Vector2(1330, 112), Vector2(1760, 112)]:
@@ -730,6 +733,9 @@ func _applica_profilo() -> void:
 		davanti.visible = doppie
 	for velo: ColorRect in _nebbie:
 		velo.visible = profilo.get("nebbia", true)
+	var primo := get_node_or_null("PrimoPiano") as CanvasItem
+	if primo != null:
+		primo.visible = profilo.get("primo_piano", true)
 	if _pulviscolo != null:
 		_pulviscolo.amount = Effetti.quantita(PULVISCOLO)
 	_aggiorna_luci()

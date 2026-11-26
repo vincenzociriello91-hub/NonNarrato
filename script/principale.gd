@@ -13,8 +13,9 @@ var bot: Bot
 var _vista: TextureRect
 var _filtro: ColorRect
 var _velo: ColorRect
-var _scala := 3
+var _scala := 3.0
 var _in_transizione := false
+var _materiale_vista: ShaderMaterial
 
 
 func _ready() -> void:
@@ -75,10 +76,16 @@ func _ready() -> void:
 	menu.bot_richiesto.connect(avvia_bot)
 	add_child(menu)
 
+	_materiale_vista = ShaderMaterial.new()
+	_materiale_vista.shader = load("res://shader/vista.gdshader")
 	get_window().size_changed.connect(_ridimensiona)
+	Impostazioni.cambiata.connect(_su_impostazione)
+	_applica_testo()
 	_ridimensiona()
 	Dispositivo.profilo_cambiato.connect(_applica_profilo)
 	_applica_profilo()
+	_applica_vista()
+	Effetti.applica_velocita()
 	_nuova_stanza()
 	_riscalda()
 	Rapporto.contesto = _contesto
@@ -146,6 +153,7 @@ func _alterna_pausa() -> void:
 	else:
 		get_tree().paused = true
 		hud.in_pausa(true)
+		Suoni.in_pausa(true)
 		menu.apri()
 		Rapporto.evento("pausa")
 
@@ -153,6 +161,25 @@ func _alterna_pausa() -> void:
 func _riprendi() -> void:
 	get_tree().paused = false
 	hud.in_pausa(false)
+	Suoni.in_pausa(false)
+
+
+func _su_impostazione(chiave: String) -> void:
+	if chiave in ["schermo/scala", "schermo/adatta", "schermo/proporzioni", "grafica/risoluzione"]:
+		_ridimensiona()
+	elif chiave == "acc/testo":
+		_applica_testo()
+		_ridimensiona()
+	if chiave.begins_with("schermo/") or chiave in ["grafica/filtro", "grafica/nitidezza", "acc/daltonismo"]:
+		_applica_vista()
+	if chiave == "acc/velocita":
+		Effetti.applica_velocita()
+
+
+func _applica_testo() -> void:
+	# Grandezza di testi e interfaccia (accessibilità): ingrandisce tutto ciò che non è il mondo di gioco.
+	if not Dispositivo.in_prova:
+		get_window().content_scale_factor = clampf(Impostazioni.leggi("acc/testo"), 0.8, 1.5)
 
 
 func _ridimensiona() -> void:
@@ -162,18 +189,50 @@ func _ridimensiona() -> void:
 	var interna := Dispositivo.risoluzione_interna(finestra)
 	_scala = interna["scala"]
 	var dimensione: Vector2i = interna["dimensione"]
-	mondo.size = dimensione
+	var resa: Vector2i = interna["resa"]
+	var area: Vector2i = interna["area"]
+	# Il mondo si disegna a "resa" ma mostra sempre "dimensione" pixel di gioco
+	# (risoluzione interna più bassa = meno pixel da calcolare, poi il filtro lo ingrandisce).
+	mondo.size = resa
+	mondo.size_2d_override = dimensione if resa != dimensione else Vector2i.ZERO
+	mondo.size_2d_override_stretch = resa != dimensione
 	# Unità dell'interfaccia -> pixel veri dello schermo.
 	var visibile := get_viewport().get_visible_rect().size
 	var fattore := float(finestra.x) / maxf(1.0, visibile.x)
-	_vista.position = Vector2.ZERO
-	_vista.size = Vector2(dimensione * _scala) / fattore
+	var mostrata := Vector2(dimensione) * _scala
+	var bordo := (Vector2(finestra) - Vector2(area)) * 0.5
+	_vista.position = bordo / fattore
+	_vista.size = mostrata / fattore
 	_filtro.position = Vector2.ZERO
 	_filtro.size = Vector2(dimensione)
 	Rapporto.grafica("finestra", [finestra.x, finestra.y])
 	Rapporto.grafica("risoluzione_interna", [dimensione.x, dimensione.y])
-	Rapporto.grafica("scala", _scala)
+	Rapporto.grafica("resa", [resa.x, resa.y])
+	Rapporto.grafica("scala", snappedf(_scala, 0.01))
 	hud.misure(dimensione, _scala)
+	_applica_vista()
+
+
+func _applica_vista() -> void:
+	# Filtro di ingrandimento (nitido, liscio, SGSR), luminosità, contrasto e correzione dei colori.
+	if _vista == null or _materiale_vista == null:
+		return
+	var filtro := ["nitido", "liscio", "sgsr"].find(Impostazioni.leggi("grafica/filtro"))
+	var intera := is_equal_approx(_scala, roundf(_scala)) and mondo.size_2d_override == Vector2i.ZERO
+	if intera:
+		filtro = 0   # a scala intera il pixel pieno è già la ricostruzione perfetta: gli altri filtri non servono
+	var daltonismo := ["no", "protanopia", "deuteranopia", "tritanopia"].find(Impostazioni.leggi("acc/daltonismo"))
+	var luce: float = Impostazioni.leggi("schermo/luminosita")
+	var contrasto: float = Impostazioni.leggi("schermo/contrasto")
+	var serve := filtro > 0 or daltonismo > 0 or not is_equal_approx(luce, 1.0) or not is_equal_approx(contrasto, 1.0)
+	_vista.material = _materiale_vista if serve else null
+	_materiale_vista.set_shader_parameter("sorgente", mondo.get_texture())
+	_materiale_vista.set_shader_parameter("filtro", maxi(0, filtro))
+	_materiale_vista.set_shader_parameter("nitidezza", lerpf(1.0, 3.0, Impostazioni.leggi("grafica/nitidezza")))
+	_materiale_vista.set_shader_parameter("gamma_scelta", luce)
+	_materiale_vista.set_shader_parameter("contrasto", contrasto)
+	_materiale_vista.set_shader_parameter("daltonismo", maxi(0, daltonismo))
+	Rapporto.grafica("filtro_vista", ["nitido", "liscio", "sgsr"][maxi(0, filtro)] if serve else "nessuno")
 
 
 func _applica_profilo() -> void:
@@ -182,6 +241,7 @@ func _applica_profilo() -> void:
 
 func _nuova_stanza() -> void:
 	if stanza != null:
+		Suoni.stanza_tolta()
 		stanza.queue_free()
 	stanza = Stanza.new()
 	mondo.add_child(stanza)

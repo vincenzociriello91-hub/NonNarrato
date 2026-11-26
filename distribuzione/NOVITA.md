@@ -1,5 +1,39 @@
 # Novità di NonNarrato
 
+## 0.1 — Impostazioni a schede, suoni e aggiornamento dentro il gioco
+
+- **Impostazioni a schede**: nel menu di pausa, in alto, cinque linguette, **Gioco**, **Schermo**, **Grafica**, **Audio** e **Accessibilità**. Con un controller si passa da una all'altra con LB e RB. Ogni scheda ha il suo tasto "Ripristina i valori consigliati". Le voci automatiche dicono tra parentesi cosa sta usando il gioco sul tuo telefono. Aspetto e mosse hanno un tasto a parte, sotto l'anteprima del personaggio.
+- **Gioco**:
+  - tipo di comandi (automatico, solo tasti a schermo, solo controller);
+  - grandezza e visibilità dei tasti a schermo, disposizione per mancini;
+  - zona morta delle leve, vibrazione e sua forza;
+  - numeri dei danni, frasi delle nemesi, schermata di debug, aggiornamenti.
+- **Schermo**, su misura per il tuo telefono:
+  - modello, risoluzione, frequenze del pannello e grandezza del mondo di gioco;
+  - quanto mondo vedere, pixel perfetti o sempre 360 righe, tutto lo schermo o 16:9;
+  - risoluzione del pannello (se ne ha più di una);
+  - limite FPS (solo i valori che lo schermo regge) e V-Sync;
+  - luminosità, contrasto, margini dai bordi, orientamento, schermo sempre acceso.
+- **Grafica**:
+  - livello di qualità, e ogni dettaglio a mano: torce con ombra, ombre morbide, dettaglio delle ombre, luce di riempimento, rilievo del personaggio, nebbia, sagome in primo piano, particelle, filtro pixel art;
+  - riduzione automatica se il gioco va a scatti, che si può spegnere (il calore abbassa comunque la qualità, per proteggere il telefono).
+- **Ingrandimento come DLSS e FSR**: il gioco già disegna il mondo a bassa risoluzione e lo ingrandisce senza perdere nitidezza. Ora puoi scendere al 75% o al 50% di risoluzione interna per consumare meno. Il filtro di ingrandimento può essere nitido, liscio o **SGSR**, l'ingranditore intelligente di Qualcomm pensato per i telefoni. DLSS e FSR 2/3/4 su Android con un gioco 2D non si possono usare.
+- **Suoni**: per la prima volta il gioco ha suoni, tutti creati da zero. Passi, salti, colpi delle armi, magie, dardi e frecce, esplosioni, nemici che si svegliano, che caricano il colpo e che muoiono, ruggito del bestione, stridio dei pipistrelli, forzieri, leve, grate, spuntoni, sega a pendolo, crolli, barili, bracieri, corno delle ondate. In più un sottofondo di caverna e una musica cupa.
+- **Audio**:
+  - volumi separati: generale, musica, effetti, ambiente, interfaccia;
+  - modalità notte, bassi e mono;
+  - silenzio quando il telefono è silenzioso;
+  - musica più bassa in pausa.
+  Il gioco riconosce da dove esce il suono (altoparlante, cuffie, Bluetooth, USB) e si regola da solo: sull'altoparlante abbassa i bassi e avvicina i suoni forti a quelli deboli.
+- **Accessibilità**:
+  - velocità del gioco, danni ricevuti (fino a invincibile), aiuto alla mira (spento, normale, forte);
+  - tiri da caricare tenendo premuto oppure con due tocchi;
+  - grandezza di testi e interfaccia, scosse dello schermo, meno lampi;
+  - contorni chiari attorno a personaggio e nemici;
+  - correzione dei colori per tre tipi di daltonismo;
+  - didascalie dei suoni importanti, con la direzione da cui arrivano.
+- **Aggiornamento dentro il gioco**: nella scheda Gioco il tasto "Aggiorna" scarica la versione nuova, la controlla e la installa da solo. Android chiede solo la prima volta il permesso "Installa app sconosciute". Il gioco poi si chiude da solo e va riaperto. Questa versione va ancora installata come sempre: il tasto funziona per gli aggiornamenti successivi.
+
 ## 0.1 — Il bot pensa da solo
 
 - **Il bot non segue più un copione.** Prima fa le prove tecniche (comandi, menu, armi, qualità) a nemici fermi, poi gioca una partita libera di circa 7 minuti. Lì sceglie da solo cosa fare, in base a quello che vede: combattere o ritirarsi se ha poca vita, curarsi a un forziere, risolvere gli enigmi, esplorare le zone che non ha visto, raccogliere munizioni, provare armi nuove, aspettare la prossima ondata.

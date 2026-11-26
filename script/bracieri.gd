@@ -97,6 +97,7 @@ class Braciere extends Area2D:
 		_alone.visible = true
 		_luce.enabled = Dispositivo.livello != "bassa"
 		Effetti.scoppio(get_parent(), position + Vector2(0, -42), colore, 12, 70.0, 0.5, -60.0)
+		Suoni.suona("bracere", position)
 
 	func spegni() -> void:
 		acceso = false

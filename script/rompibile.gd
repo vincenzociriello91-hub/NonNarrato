@@ -49,6 +49,7 @@ func subisci(danno: int, da: Vector2, _spinta: float) -> bool:
 
 func _rompi(da: Vector2) -> void:
 	if not silenzioso:
+		Suoni.suona("barile", global_position)
 		Rapporto.conta("oggetti_rotti")
 		Rapporto.evento("rotto", {"cosa": foglio, "x": roundi(global_position.x)})
 	var misura := Vector2(sprite.dimensione())

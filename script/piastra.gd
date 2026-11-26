@@ -67,6 +67,7 @@ func _premi(cassa: bool) -> void:
 	_t_lascia = -1.0
 	sprite.riproduci("giu")
 	Controlli.vibra(0.15, 0.05)
+	Suoni.suona("piastra", global_position, -6.0)
 	Rapporto.evento("piastra", {"nome": nome, "cassa": cassa, "chi": _chi})
 	premuta.emit(cassa)
 	if bersaglio == null:

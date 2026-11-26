@@ -25,6 +25,8 @@ extends CharacterBody2D
 
 enum Stato { DORME, RISVEGLIO, FERMO, PATTUGLIA, INSEGUE, ATTACCO, LANCIA, COLPITO, MORTO }
 
+var _ha_ruggito := false
+
 const TIPI := {
 	"scheletro": {"foglio": "scheletro", "vita": 4, "passo": 30.0, "corsa": 58.0, "vista": 180.0, "portata": 38.0},
 	"mago": {"foglio": "mago", "vita": 3, "passo": 26.0, "corsa": 26.0, "vista": 250.0, "portata": 0.0},
@@ -185,6 +187,8 @@ func _ready() -> void:
 	sprite.carica(_dati["foglio"])
 	sprite.light_mask = Effetti.L_DAVANTI
 	add_child(sprite)
+	_applica_contorno()
+	Impostazioni.cambiata.connect(_su_impostazione)
 
 	_bersaglio = Area2D.new()
 	_bersaglio.collision_layer = Effetti.S_BERSAGLI
@@ -421,8 +425,9 @@ func _osserva_giocatore(g: Giocatore) -> void:
 func _annuncia() -> void:
 	annunciato = true
 	var testo := Memoria.incontro(nemesi)
+	Suoni.suona("nemesi", global_position)
 	if testo != "":
-		get_tree().call_group("hud", "messaggio", testo, 4.0)
+		get_tree().call_group("hud", "messaggio", testo, 4.0, true)
 
 
 func _lezione() -> String:
@@ -453,6 +458,7 @@ func _schiva_tiri() -> bool:
 # ------------------------------------------------------------------ comportamenti
 
 func _risvegliati() -> void:
+	Suoni.suona("pipistrello" if tipo == "pipistrello" else "risveglio", global_position, -4.0)
 	_cambia(Stato.RISVEGLIO)
 	sprite.riproduci("risveglio", true)
 	Rapporto.evento("risveglio", {"x": roundi(global_position.x), "tipo": tipo})
@@ -934,6 +940,9 @@ func _tira(g: Giocatore) -> void:
 		colpo.autore = self
 		colpo.tattica = tattica
 		get_parent().add_child(colpo)
+	Suoni.suona("dardo" if tipo == "arciere" else "sfera_nemica", da, -3.0, 0.85 if tipo == "arciere" else 1.0)
+	if tipo == "arciere":
+		Suoni.suona("dardo_nemico", da)  # solo didascalia (nessun file con questo nome)
 	Rapporto.conta("dardi_nemici" if tipo == "arciere" else "magie_lanciate")
 
 
@@ -949,6 +958,12 @@ func _vuoto_davanti() -> bool:
 
 
 func _cambia(nuovo: Stato) -> void:
+	# Suoni che servono a giocare: il colpo in carica si sente prima di vederlo, il bestione ruggisce quando ti scopre.
+	if nuovo == Stato.ATTACCO and stato != Stato.ATTACCO:
+		Suoni.suona("pipistrello" if tipo == "pipistrello" else ("balzo" if tipo == "saltatore" else "avviso_attacco"), global_position, -4.0)
+	elif nuovo == Stato.INSEGUE and tipo == "bestione" and not _ha_ruggito:
+		_ha_ruggito = true
+		Suoni.suona("ruggito", global_position)
 	stato = nuovo
 	_t_stato = 0.0
 
@@ -1135,6 +1150,7 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 		return false
 	vita -= danno
 	Effetti.lampo(sprite)
+	Effetti.numero_danno(get_parent(), centro() + Vector2(0, -14), danno)
 	var lato := signf(global_position.x - da.x)
 	if lato == 0.0:
 		lato = 1.0
@@ -1160,6 +1176,7 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 
 
 func _muori(lato: float) -> void:
+	Suoni.suona("morte_nemico", global_position, 0.0, 0.7 if tipo == "bestione" else (1.5 if tipo == "pipistrello" else 1.0))
 	_cambia(Stato.MORTO)
 	velocity = Vector2(lato * 60.0, -80.0)
 	collision_layer = 0
@@ -1180,4 +1197,14 @@ func _muori(lato: float) -> void:
 		Memoria.veterano_morto(id_posto, xp, ondata)
 	var frase := Memoria.nemico_sconfitto(self, _ultima_famiglia)
 	if frase != "":
-		get_tree().call_group("hud", "messaggio", frase, 3.0)
+		get_tree().call_group("hud", "messaggio", frase, 3.0, true)
+
+
+func _su_impostazione(chiave: String) -> void:
+	if chiave == "acc/contorni" and is_instance_valid(sprite):
+		_applica_contorno()
+
+
+func _applica_contorno() -> void:
+	# Accessibilità "contorni chiari": i nemici hanno un contorno rosso chiaro, ben distinto dal fondo.
+	sprite.material = Effetti.materiale_contorno(Color(1.0, 0.42, 0.36)) if Impostazioni.leggi("acc/contorni") else null

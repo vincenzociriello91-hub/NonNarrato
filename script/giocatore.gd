@@ -116,6 +116,9 @@ var _carica := 0.0
 var _carica_piena := false
 var _raffica := 0
 var _t_raffica := 0.0
+var _tiro_alternato := false        # accessibilità "premi una volta": il tiro si carica senza tenere premuto
+var _resto_danni := 0.0             # accessibilità "danni ricevuti": le frazioni di danno si sommano
+var _t_passo := 0.0
 
 var _forma: CollisionShape2D
 var _rett: RectangleShape2D
@@ -256,6 +259,10 @@ func _scorri_tempi(delta: float) -> void:
 	_t_pausa_schivata = maxf(0.0, _t_pausa_schivata - delta)
 	_t_protetto = maxf(0.0, _t_protetto - delta)
 	_t_atterra = maxf(0.0, _t_atterra - delta)
+	_t_passo -= delta
+	if _t_passo <= 0.0 and stato == Stato.NORMALE and is_on_floor() and absf(velocity.x) > 40.0:
+		_t_passo = 0.3
+		Suoni.suona("passo", global_position, -8.0)
 	_t_girato = maxf(0.0, _t_girato - delta)
 	if _t_attraversa > 0.0:
 		_t_attraversa -= delta
@@ -309,6 +316,7 @@ func _normale(delta: float, a_terra: bool) -> void:
 			velocity.y = -SALTO
 			_conta("salti")
 			_polvere(5)
+			Suoni.suona("salto", global_position, -4.0)
 		_t_memoria_salto = 0.0
 		_t_coyote = 0.0
 	if Input.is_action_just_released("salta") and velocity.y < 0.0:
@@ -436,6 +444,7 @@ func _colpisci() -> void:
 			Effetti.scoppio(get_parent(), punto, Color(1.0, 0.9, 0.7), 8, 110.0, 0.22, 200.0)
 			scuoti(2.0 + danno * 0.8)
 			Controlli.vibra(0.3 + 0.1 * danno, 0.08)
+			Suoni.suona("colpo", punto, 0.0, 1.1 - 0.06 * danno)
 			Effetti.fermo_immagine(self, 0.04 + 0.015 * danno)
 
 
@@ -452,6 +461,7 @@ func _inizia_parata() -> void:
 	_t_pausa_schivata = Armi.PARATA_DURATA + Armi.PARATA_PAUSA
 	sprite.riproduci("fermo", true)   # col gruppo "scudo" la posa di riposo è lo scudo alzato
 	_conta("parate_tentate")
+	Suoni.suona("schiva", global_position, -10.0, 0.7)
 
 
 func _parata(delta: float) -> void:
@@ -495,6 +505,7 @@ func _inizia_rotolata(direzione: float) -> void:
 	stato = Stato.ROTOLATA
 	_t_stato = 0.0
 	_imposta_forma(BASSO)
+	Suoni.suona("rotola", global_position, -4.0)
 	sprite.riproduci("rotolata_indietro" if indietro else "rotolata", true)
 	_conta("rotolate")
 	if indietro:
@@ -527,6 +538,7 @@ func _fine_rotolata() -> void:
 
 
 func _inizia_schivata(a_terra: bool, direzione: float = 0.0) -> void:
+	Suoni.suona("schiva", global_position, -4.0)
 	# Senza direzione: a terra balzo all'indietro, in aria scatto in avanti.
 	# Con la direzione dello sguardo: scatto in avanti; con quella opposta: scatto all'indietro.
 	var indietro := _all_indietro(direzione)
@@ -670,14 +682,17 @@ func bersaglio_tiro(in_alto: bool) -> Nemico:
 	var base := Vector2(verso, -0.85).normalized() if in_alto else Vector2(verso, 0.0)
 	var da := bocca()
 	var migliore: Nemico = null
-	var distanza := MIRA_PORTATA
+	var cono := cono_mira()
+	if cono <= 0.0:
+		return null
+	var distanza := MIRA_PORTATA * (1.25 if cono > MIRA_CONO else 1.0)
 	for n: Node in get_tree().get_nodes_in_group("nemici"):
 		var nemico := n as Nemico
 		if nemico == null or not nemico.bersagliabile():
 			continue
 		var d := nemico.centro() - da
 		var lunghezza := d.length()
-		if lunghezza > distanza or lunghezza < 1.0 or absf(base.angle_to(d)) > MIRA_CONO:
+		if lunghezza > distanza or lunghezza < 1.0 or absf(base.angle_to(d)) > cono:
 			continue
 		var raggio := PhysicsRayQueryParameters2D.create(da, nemico.centro(), Effetti.S_MONDO)
 		if not get_world_2d().direct_space_state.intersect_ray(raggio).is_empty():
@@ -731,12 +746,14 @@ func raccogli(cosa: String, quante: int) -> int:
 	munizioni[cosa] = mini(int(MUNIZIONI_MASSIME[cosa]), prima + quante)
 	if munizioni[cosa] != prima:
 		armi_cambiate.emit()
+		Suoni.suona("raccogli", global_position, -4.0)
 	return int(munizioni[cosa]) - prima
 
 
 func _inizia_tiro() -> void:
 	if not puo_tirare():
 		Rapporto.conta("tiri_a_vuoto")
+		Suoni.suona("tiro_vuoto", global_position)
 		armi_cambiate.emit()   # l'indicatore lampeggia
 		return
 	stato = Stato.TIRO
@@ -746,6 +763,7 @@ func _inizia_tiro() -> void:
 	_carica_piena = false
 	_raffica = 0
 	_t_raffica = 0.0
+	_tiro_alternato = true
 	# Con su si mira in alto (per chi vola o sta sulle piattaforme). La direzione esatta si decide
 	# quando il colpo parte, con l'aiuto alla mira.
 	_mira_in_alto = Input.is_action_pressed("su")
@@ -758,6 +776,25 @@ func _inizia_tiro() -> void:
 func _fattore_tiro() -> float:
 	# La bacchetta fa partire la magia prima.
 	return _dote_magia("magia_veloce") if arma_distanza == "magia" else 1.0
+
+
+func _tiene_tiro() -> bool:
+	# "Tieni premuto" (predefinito) o "premi una volta": nel secondo modo una seconda pressione fa partire il tiro.
+	if Impostazioni.leggi("acc/carica") != "alterna":
+		return Input.is_action_pressed("tira")
+	if _t_stato > 0.05 and Input.is_action_just_pressed("tira"):
+		_tiro_alternato = false
+	return _tiro_alternato
+
+
+func cono_mira() -> float:
+	# Aiuto alla mira: spento, normale o forte (accessibilità).
+	match int(Impostazioni.leggi("acc/mira")):
+		0:
+			return 0.0
+		2:
+			return 0.95
+	return MIRA_CONO
 
 
 func carica_tiro() -> float:
@@ -778,7 +815,7 @@ func _tiro(delta: float, a_terra: bool) -> void:
 	else:
 		_muovi(delta, false, Input.get_axis("sinistra", "destra"))
 	_gravita(delta)
-	var tiene := Input.is_action_pressed("tira")
+	var tiene := _tiene_tiro()
 	if not _tiro_partito:
 		if _t_stato < momento:
 			return
@@ -790,6 +827,7 @@ func _tiro(delta: float, a_terra: bool) -> void:
 			sprite.velocita = 0.0
 			if _carica >= float(dati["carica"]):
 				_carica_piena = true
+				Suoni.suona("carica_pronta", global_position, -8.0)
 				Effetti.scoppio(get_parent(), bocca(), Color(1.0, 0.9, 0.6), 6, 40.0, 0.3, 0.0)
 				Controlli.vibra(0.2, 0.05)
 			return
@@ -843,6 +881,7 @@ func _spara() -> void:
 	colpo.position = bocca()
 	colpo.autore = self
 	get_parent().add_child(colpo)
+	Suoni.suona({"magia": "magia", "dardi": "dardo", "frecce": "freccia"}[arma_distanza], bocca(), -3.0)
 	armi_cambiate.emit()
 	_conta("tiri")
 	Rapporto.conta("tiri_" + arma_distanza)
@@ -857,6 +896,7 @@ func cura(quanta: int) -> int:
 	if vita != prima:
 		vita_cambiata.emit(vita, VITA_MASSIMA)
 		Effetti.scoppio(get_parent(), global_position + Vector2(0, -24), Color(0.9, 0.3, 0.35), 10, 50.0, 0.6, -60.0)
+		Suoni.suona("cura", global_position, -2.0)
 	return vita - prima
 
 
@@ -929,6 +969,7 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 		return false
 	if sta_parando(da):
 		Rapporto.conta("parate_riuscite")
+		Suoni.suona("parata", global_position)
 		Effetti.scoppio(get_parent(), global_position + Vector2(verso * 12.0, -26.0), Color(1.0, 0.92, 0.7), 10, 120.0, 0.25, 150.0)
 		scuoti(2.0)
 		velocity.x = -verso * 60.0
@@ -939,7 +980,12 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 		if stato == Stato.ROTOLATA or stato == Stato.SCHIVATA:
 			Rapporto.conta("colpi_evitati")
 		return false
-	vita = maxi(0, vita - danno)
+	# Accessibilità "danni ricevuti": si toglie solo la parte scelta (0 = invincibile); le frazioni si sommano.
+	var quota: float = clampf(Impostazioni.leggi("acc/danni"), 0.0, 1.0)
+	_resto_danni += float(danno) * quota
+	var tolti := floori(_resto_danni + 0.0001)
+	_resto_danni -= tolti
+	vita = maxi(0, vita - tolti)
 	_colpito_da = chi   # una trappola (chi = null) non lascia il merito a un nemico di prima
 	vita_cambiata.emit(vita, VITA_MASSIMA)
 	Rapporto.conta("colpi_subiti")
@@ -947,6 +993,7 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 	Controlli.vibra(0.8, 0.2)
 	scuoti(5.0)
 	Effetti.lampo(sprite)
+	Suoni.suona("colpito", global_position)
 	if vita <= 0:
 		_muori()
 		return true
@@ -982,12 +1029,13 @@ func _muori() -> void:
 		if "livello" in _colpito_da:
 			assassino += " (livello %d, ondata %d)" % [int(_colpito_da.get("livello")), int(_colpito_da.get("ondata"))]
 	Rapporto.evento("morte", {"x": roundi(global_position.x), "y": roundi(global_position.y), "da": assassino})
+	Suoni.suona("morte")
 	Controlli.vibra(1.0, 0.4)
 
 
 func scuoti(forza: float) -> void:
 	if not Dispositivo.in_prova:
-		_scossa = maxf(_scossa, forza)
+		_scossa = maxf(_scossa, forza * clampf(Impostazioni.leggi("acc/scuotimento"), 0.0, 1.0))
 
 
 # ------------------------------------------------------------------ movimento
@@ -1064,6 +1112,7 @@ func _atterrato() -> void:
 		_t_atterra = 0.14
 		_polvere(5)
 		Controlli.vibra(0.2, 0.05)
+		Suoni.suona("atterra", global_position, -3.0)
 
 
 # ------------------------------------------------------------------ aspetto
@@ -1101,6 +1150,7 @@ func _polvere(quanta: int) -> void:
 
 
 func _fendente() -> void:
+	Suoni.suona("fendente", global_position, -2.0, 1.15 if Armi.famiglia(Equipaggiamento.indossati.get("arma", "")) in Armi.RAPIDE else (0.8 if Armi.famiglia(Equipaggiamento.indossati.get("arma", "")) in Armi.LENTE else 1.0))
 	# Scia del colpo di spada: una mezzaluna chiara che svanisce subito.
 	var punti := PackedVector2Array()
 	var passi := 10

@@ -187,6 +187,7 @@ static func _esplodi(dove: Node, punto: Vector2, danno_esplosione: int, raggio: 
 			if nemico.subisci(danno_esplosione, punto, 160.0, "magia"):
 				colpiti += 1
 	Rapporto.conta("esplosioni")
+	Suoni.suona("esplosione", punto)
 	if colpiti > 1:
 		Rapporto.conta("esplosioni_multiple")
 	Effetti.scoppio(dove, punto, COLORE_MAGIA, 24, 160.0, 0.45, 0.0)
@@ -208,6 +209,8 @@ func _svanisci() -> void:
 		Proiettile._esplodi.call_deferred(get_parent(), global_position, danno, raggio_esplosione, autore, _gia_colpiti.duplicate())
 	if is_instance_valid(autore) and autore.has_method("esito_sfera"):
 		autore.esito_sfera(tattica, _colpito)
+	if raggio_esplosione <= 0.0:
+		Suoni.suona("impatto_tiro", global_position, -6.0, 0.8 if tipo in ["sfera", "magia_eroe"] else 1.2)
 	match tipo:
 		"freccia", "freccia_eroe", "dardo":
 			Effetti.scoppio(get_parent(), global_position, Color(0.6, 0.5, 0.4, 0.8), 6, 60.0, 0.3, 200.0, false)

@@ -4,6 +4,7 @@ extends Node
 # Regola fissa: la salute del dispositivo viene prima della grafica.
 
 signal profilo_cambiato
+signal audio_cambiato
 
 const ALTEZZA_BASE := 360
 const LIVELLI: Array[String] = ["bassa", "media", "alta"]
@@ -38,6 +39,13 @@ var sdk := 0                     # livello delle API di Android (0 = non Android
 
 var _frequenza_chiesta := 0
 var _esito_frequenza := ""
+var plugin: Object = null        # plugin Android di NonNarrato (vedi android_plugin/), se c'è
+var modi_schermo: Array = []     # [{id, w, h, hz}] letti da Android
+var modo_attuale := 0
+var hdr := false
+var uscita_audio := ""           # altoparlante, cuffie, bluetooth, usb, hdmi, altro ("" = non si sa)
+var suoneria := -1               # 0 silenzioso, 1 vibrazione, 2 normale, -1 non si sa
+var _modo_chiesto := -1
 
 var _tempo := 0.0
 var _fotogrammi := 0
@@ -56,6 +64,8 @@ func _ready() -> void:
 		elif arg == "--prova":
 			in_prova = true
 	_leggi_hardware()
+	if Engine.has_singleton("NonNarratoAndroid"):
+		plugin = Engine.get_singleton("NonNarratoAndroid")
 	_prepara_letture_android()
 	_leggi_android()
 	livello_consigliato = _consiglia()
@@ -154,7 +164,36 @@ func _leggi_android() -> void:
 				var margine: Variant = gestore_energia.call("getThermalHeadroom", 0)
 				if typeof(margine) == TYPE_FLOAT and not is_nan(margine):
 					margine_termico = margine
+	if plugin != null:
+		_leggi_plugin()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SEGNO_JNI))
+
+
+func _leggi_plugin() -> void:
+	# Modi dello schermo (una volta sola), uscita del suono e suoneria (a ogni controllo).
+	if modi_schermo.is_empty():
+		var testo := String(plugin.call("modiSchermo"))
+		var parti := testo.split("|")
+		for voce in parti[0].split(";", false):
+			var v := voce.split(",")
+			if v.size() == 4:
+				modi_schermo.append({"id": v[0].to_int(), "w": v[1].to_int(), "h": v[2].to_int(), "hz": snappedf(v[3].to_float(), 0.1)})
+		if parti.size() >= 3:
+			modo_attuale = parti[1].to_int()
+			hdr = parti[2] == "1"
+		info["modi_schermo"] = modi_schermo
+		info["hdr"] = hdr
+		info["installatore"] = String(plugin.call("installatore"))
+	var uscita := String(plugin.call("uscitaAudio"))
+	var squillo := int(plugin.call("suoneria"))
+	if uscita != uscita_audio or squillo != suoneria:
+		var prima := uscita_audio
+		uscita_audio = uscita
+		suoneria = squillo
+		info["uscita_audio"] = uscita
+		if prima != "":
+			_evento("uscita_audio", {"uscita": uscita, "suoneria": squillo})
+		audio_cambiato.emit()
 
 
 func _consiglia() -> String:
@@ -183,9 +222,35 @@ func applica() -> void:
 		indice -= riduzione_scatti
 	livello = LIVELLI[maxi(0, indice)]
 	profilo = (PROFILI[livello] as Dictionary).duplicate()
-	if not Impostazioni.leggi("grafica/ombre"):
-		profilo["luci_con_ombra"] = 0
+	profilo["primo_piano"] = livello != "bassa"
+	profilo["atlante_ombre"] = 2048 if livello == "alta" else 1024
+	# Dettagli scelti a mano (-1 = come il livello). Il caldo vince sempre: con il dispositivo caldo
+	# le ombre scelte a mano si riducono comunque.
+	var scelti := {
+		"luci_con_ombra": int(Impostazioni.leggi("grafica/luci_ombra")),
+		"ombre_morbide": int(Impostazioni.leggi("grafica/ombre_morbide")),
+		"luci_doppie": int(Impostazioni.leggi("grafica/luci_doppie")),
+		"figura_normali": int(Impostazioni.leggi("grafica/normali_figura")),
+		"nebbia": int(Impostazioni.leggi("grafica/nebbia")),
+		"primo_piano": int(Impostazioni.leggi("grafica/primo_piano")),
+		"atlante_ombre": int(Impostazioni.leggi("grafica/atlante_ombre")),
+	}
+	for chiave: String in scelti:
+		var v: int = scelti[chiave]
+		if v < 0:
+			continue
+		if chiave in ["luci_con_ombra", "atlante_ombre"]:
+			profilo[chiave] = v
+		else:
+			profilo[chiave] = v == 1
+	var particelle: float = Impostazioni.leggi("grafica/particelle")
+	if particelle > 0.0:
+		profilo["particelle"] = particelle
+	if riduzione_caldo > 0:
+		profilo["luci_con_ombra"] = mini(int(profilo["luci_con_ombra"]), 2 - mini(riduzione_caldo, 2))
+		profilo["particelle"] = minf(float(profilo["particelle"]), 0.7 if riduzione_caldo == 1 else 0.4)
 	profilo["palette"] = Impostazioni.leggi("grafica/palette")
+	RenderingServer.canvas_set_shadow_texture_size(int(profilo["atlante_ombre"]))
 	var limite: int = Impostazioni.leggi("grafica/limite_fps")
 	fps_obiettivo = limite if limite > 0 else 60
 	if riduzione_caldo >= 2:
@@ -194,8 +259,59 @@ func applica() -> void:
 		fps_obiettivo = mini(fps_obiettivo, 60)
 	if not in_prova:
 		Engine.max_fps = fps_obiettivo
+		_applica_schermo()
 	_richiedi_frequenza.call_deferred()
 	profilo_cambiato.emit()
+
+
+func _applica_schermo() -> void:
+	# V-Sync, orientamento, schermo sempre acceso e, se scelto, un modo dello schermo (risoluzione e Hz).
+	var vsync: bool = Impostazioni.leggi("schermo/vsync")
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
+	DisplayServer.screen_set_keep_on(Impostazioni.leggi("schermo/sempre_acceso"))
+	if OS.get_name() == "Android":
+		var verso: String = Impostazioni.leggi("schermo/orientamento")
+		var orientamento := DisplayServer.SCREEN_SENSOR_LANDSCAPE
+		if verso == "normale":
+			orientamento = DisplayServer.SCREEN_LANDSCAPE
+		elif verso == "capovolto":
+			orientamento = DisplayServer.SCREEN_REVERSE_LANDSCAPE
+		DisplayServer.screen_set_orientation(orientamento)
+	var modo: int = Impostazioni.leggi("schermo/modo")
+	if plugin != null and letture_android and modo != _modo_chiesto and (modo > 0 or _modo_chiesto > 0):
+		var hz := 0.0
+		for m: Dictionary in modi_schermo:
+			if int(m["id"]) == modo:
+				hz = float(m["hz"])
+		plugin.call("chiediModo", modo, hz)
+		_modo_chiesto = modo
+		_evento("modo_schermo", {"modo": modo, "hz": hz})
+
+
+func fps_possibili() -> Array[int]:
+	# Limiti di FPS che lo schermo regge davvero (30 e 60 sempre, 90 e 120 solo se il pannello li ha).
+	var massimo := 60.0
+	for m: Dictionary in modi_schermo:
+		massimo = maxf(massimo, float(m["hz"]))
+	var hz_info: float = info.get("hz", 60.0)
+	massimo = maxf(massimo, hz_info)
+	var elenco: Array[int] = [30, 60]
+	for f in [90, 120, 144]:
+		if massimo >= f - 1.0:
+			elenco.append(f)
+	return elenco
+
+
+func risoluzioni_schermo() -> Array:
+	# Una voce per ogni risoluzione del pannello, con la frequenza più alta: [{id, w, h, hz}].
+	var per_dimensione := {}
+	for m: Dictionary in modi_schermo:
+		var chiave := "%dx%d" % [int(m["w"]), int(m["h"])]
+		if not per_dimensione.has(chiave) or float(m["hz"]) > float(per_dimensione[chiave]["hz"]):
+			per_dimensione[chiave] = m
+	var elenco: Array = per_dimensione.values()
+	elenco.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["w"]) * int(a["h"]) > int(b["w"]) * int(b["h"]))
+	return elenco
 
 
 func _notification(cosa: int) -> void:
@@ -303,12 +419,50 @@ func scala_touch_consigliata() -> float:
 	return clampf(snappedf(TASTO_COLPO_MM / maxf(diametro, 0.1), 0.05), 1.0, 1.6)
 
 
+func area_di_gioco(finestra: Vector2i) -> Vector2i:
+	# Con "16:9" il gioco resta in 16:9 e ai lati (o sopra e sotto) restano bande scure.
+	if Impostazioni.leggi("schermo/proporzioni") != "16:9" or finestra.y <= 0:
+		return finestra
+	var voluto := 16.0 / 9.0
+	if float(finestra.x) / float(finestra.y) > voluto:
+		return Vector2i(roundi(finestra.y * voluto), finestra.y)
+	return Vector2i(finestra.x, roundi(finestra.x / voluto))
+
+
+func scala_consigliata(area: Vector2i) -> int:
+	# Circa 360 righe di gioco, con ogni pixel grande un numero intero di pixel dello schermo.
+	return maxi(1, roundi(float(area.y) / float(ALTEZZA_BASE)))
+
+
+func scale_possibili(area: Vector2i) -> Array[int]:
+	# Scale intere che lasciano fra 240 e 560 righe di gioco (sotto si vede troppo poco, sopra è minuscolo).
+	var elenco: Array[int] = []
+	for s in range(1, 9):
+		var righe := float(area.y) / s
+		if righe >= 240.0 and righe <= 560.0:
+			elenco.append(s)
+	if elenco.is_empty():
+		elenco.append(scala_consigliata(area))
+	return elenco
+
+
 func risoluzione_interna(finestra: Vector2i) -> Dictionary:
-	# Ogni pixel del gioco occupa un numero intero di pixel dello schermo:
-	# così la pixel art resta nitida su qualsiasi risoluzione.
-	var scala := maxi(1, roundi(float(finestra.y) / float(ALTEZZA_BASE)))
-	var dimensione := Vector2i(ceili(float(finestra.x) / scala), ceili(float(finestra.y) / scala))
-	return {"scala": scala, "dimensione": dimensione}
+	# Ogni pixel del gioco occupa un numero intero di pixel dello schermo ("intera"):
+	# così la pixel art resta nitida su qualsiasi risoluzione. Con "riempi" il gioco ha sempre 360 righe
+	# e la scala non è intera (il filtro di ingrandimento decide come appare).
+	# "resa" è la risoluzione a cui si disegna davvero: più bassa con la risoluzione interna sotto il 100%.
+	var area := area_di_gioco(finestra)
+	var scala := float(scala_consigliata(area))
+	if Impostazioni.leggi("schermo/adatta") == "riempi":
+		scala = maxf(0.5, float(area.y) / float(ALTEZZA_BASE))
+	else:
+		var scelta: int = Impostazioni.leggi("schermo/scala")
+		if scelta > 0 and scale_possibili(area).has(scelta):
+			scala = float(scelta)
+	var dimensione := Vector2i(ceili(float(area.x) / scala), ceili(float(area.y) / scala))
+	var quota: float = clampf(Impostazioni.leggi("grafica/risoluzione"), 0.25, 1.0)
+	var resa := Vector2i(maxi(1, roundi(dimensione.x * quota)), maxi(1, roundi(dimensione.y * quota)))
+	return {"scala": scala, "dimensione": dimensione, "resa": resa, "area": area}
 
 
 func _process(delta: float) -> void:
@@ -344,7 +498,8 @@ func _process(delta: float) -> void:
 	if _finestre_lente < 2:
 		return
 	_finestre_lente = 0
-	if Impostazioni.leggi("grafica/qualita") != "auto" or forzato != "" or LIVELLI.find(livello) <= 0:
+	if Impostazioni.leggi("grafica/qualita") != "auto" or not Impostazioni.leggi("grafica/adattamento") \
+			or forzato != "" or LIVELLI.find(livello) <= 0:
 		return
 	_fps_prima_di_ridurre = medio
 	_finestre_di_verifica = 2

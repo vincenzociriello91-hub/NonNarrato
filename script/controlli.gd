@@ -21,6 +21,41 @@ func _ready() -> void:
 		touch = false
 	else:
 		touch = DisplayServer.is_touchscreen_available()
+	Impostazioni.cambiata.connect(_su_impostazione)
+	_applica_zona_morta()
+	_applica_modo()
+
+
+func _su_impostazione(chiave: String) -> void:
+	if chiave == "controlli/zona_morta":
+		_applica_zona_morta()
+	elif chiave == "controlli/modo":
+		_applica_modo()
+
+
+func _applica_zona_morta() -> void:
+	var zona: float = clampf(Impostazioni.leggi("controlli/zona_morta"), 0.05, 0.9)
+	for nome in ["sinistra", "destra", "su", "giu"]:
+		if InputMap.has_action(nome):
+			InputMap.action_set_deadzone(nome, zona)
+
+
+func modo_forzato() -> String:
+	# "auto" = si capisce da solo; "touch" o "controller" = scelto nelle impostazioni.
+	return String(Impostazioni.leggi("controlli/modo"))
+
+
+func _applica_modo() -> void:
+	var forzato := modo_forzato()
+	var nuovo := touch
+	if forzato == "touch":
+		nuovo = true
+	elif forzato == "controller":
+		nuovo = false
+	if nuovo != touch:
+		touch = nuovo
+		cambi_modo += 1
+		modo_cambiato.emit(touch)
 
 
 func _definisci_azioni() -> void:
@@ -63,6 +98,8 @@ func _azione(nome: String, tasti: Array, pulsanti: Array, asse: int = -1, verso:
 
 func _input(evento: InputEvent) -> void:
 	# Vale l'ultimo comando usato: tocco lo schermo -> tasti a schermo; premo un tasto fisico -> spariscono.
+	if modo_forzato() != "auto":
+		return
 	var nuovo := touch
 	if evento is InputEventScreenTouch or evento is InputEventScreenDrag:
 		nuovo = true
@@ -81,6 +118,10 @@ func _input(evento: InputEvent) -> void:
 
 
 func _su_controller(dispositivo: int, collegato: bool) -> void:
+	if modo_forzato() != "auto":
+		controller = Input.get_joy_name(dispositivo) if collegato else ""
+		Rapporto.evento("controller", {"collegato": collegato, "nome": Input.get_joy_name(dispositivo), "guid": Input.get_joy_guid(dispositivo)})
+		return
 	if collegato:
 		controller = Input.get_joy_name(dispositivo)
 		if touch:
@@ -106,6 +147,7 @@ func nome_modo() -> String:
 func vibra(forza: float, durata: float) -> void:
 	if not Impostazioni.leggi("controlli/vibrazione"):
 		return
+	forza *= clampf(Impostazioni.leggi("controlli/forza_vibrazione"), 0.1, 1.0)
 	if touch:
 		Input.vibrate_handheld(int(durata * 1000.0), clampf(forza, 0.05, 1.0))
 	else:

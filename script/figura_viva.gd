@@ -469,3 +469,19 @@ static func _prepara_shader() -> void:
 	sp.code = SHADER_SPRITE % "render_mode unshaded;"
 	_mat_sprite_piatto = ShaderMaterial.new()
 	_mat_sprite_piatto.shader = sp
+	imposta_contorno()
+	if not Impostazioni.cambiata.is_connected(_su_impostazione):
+		Impostazioni.cambiata.connect(_su_impostazione)
+
+
+static func _su_impostazione(chiave: String) -> void:
+	if chiave == "acc/contorni":
+		imposta_contorno()
+
+
+static func imposta_contorno() -> void:
+	# Accessibilità "contorni chiari": il contorno di 1 pixel del protagonista diventa chiaro.
+	var colore := Color(0.98, 0.93, 0.72) if Impostazioni.leggi("acc/contorni") else Color(0.051, 0.039, 0.071)
+	for m: ShaderMaterial in [_mat_sprite, _mat_sprite_piatto]:
+		if m != null:
+			m.set_shader_parameter("contorno", colore)

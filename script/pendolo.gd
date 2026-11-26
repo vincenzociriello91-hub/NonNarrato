@@ -61,8 +61,11 @@ func _punta(angolo: float) -> Vector2:
 
 
 func _physics_process(delta: float) -> void:
+	var prima := angolo_a(_t)
 	_t += delta
 	_aggiorna()
+	if signf(prima) != signf(angolo_a(_t)):
+		Suoni.suona("pendolo", global_position + _punta(angolo_a(_t)), -6.0)
 	for area in _colpo.get_overlapping_areas():
 		Spuntoni.ferisci(area.get_meta("bersaglio", null), global_position + _punta(angolo_a(_t)) + Vector2(0, -20), _colpiti, _t, "pendolo")
 
