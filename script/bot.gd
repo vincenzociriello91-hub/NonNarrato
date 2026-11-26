@@ -82,6 +82,7 @@ var _fermate: Array = []
 var _ultimo_posto := Vector2.ZERO
 var _obiettivo_ora := ""
 var _esito_armi := {}            # tipo di nemico -> famiglia d'arma -> [combattimenti, vinti]
+var _pacchi_ignorati := {}        # oggetti a terra che non si è riusciti a prendere: lasciati stare per un po'
 var _ignorati := {}              # nemici che non si riesce a raggiungere: lasciati stare per un po'
 
 const DURATA_PARTITA := 420.0    # secondi di gioco della partita libera
@@ -2525,7 +2526,10 @@ func _partita() -> void:
 		if Dispositivo.in_prova:
 			print("PROVA cervello: %s (%.0f) vita %d" % [scelta["nome"], float(scelta["punti"]), _g().vita])
 		var vita_prima := _g().vita
+		var fotogramma := Engine.get_physics_frames()
 		var riuscito: bool = await _agisci(scelta)
+		if Engine.get_physics_frames() == fotogramma:
+			await _fotogrammi(1)   # mai una scelta dopo l'altra nello stesso fotogramma: il gioco si bloccherebbe
 		var c: Array = _obiettivi.get(scelta["nome"], [0, 0])
 		_obiettivi[scelta["nome"]] = [int(c[0]) + 1, int(c[1]) + (1 if riuscito else 0)]
 		ultimi.append([scelta["nome"], riuscito])
@@ -2604,12 +2608,16 @@ func _decidi(ultimi: Array) -> Dictionary:
 		return not _visitate.has(id) and not _nav.superfici[id].get("fragile", false) and not _nav.superfici[id].has("condizione"))
 	if not da_vedere.is_empty():
 		candidati.append({"nome": "esplora", "punti": 32.0 * _umore["curiosita"]})
+	# Solo quel che si può raggiungere e che non si è appena provato a prendere invano
+	# (una pozione caduta dove il navigatore non arriva faceva scegliere "raccogli" all'infinito).
 	var pacchi := get_tree().get_nodes_in_group("raccoglibili").filter(func(r: Node) -> bool:
-		return (r as Node2D).global_position.distance_to(g.global_position) < 400.0)
+		return (r as Node2D).global_position.distance_to(g.global_position) < 400.0 \
+				and _nav.superficie_per((r as Node2D).global_position) != "" \
+				and int(_pacchi_ignorati.get(r.get_instance_id(), 0)) < Engine.get_physics_frames())
 	if not pacchi.is_empty():
 		var pozione := pacchi.any(func(r: Node) -> bool: return (r as Raccoglibile).cosa == "pozione")
 		candidati.append({"nome": "raccogli", "punti": 60.0 if munizioni_basse else (40.0 + cura * 0.3 if pozione else 26.0),
-				"dove": (pacchi[0] as Node2D).global_position})
+				"dove": (pacchi[0] as Node2D).global_position, "pacco": pacchi[0]})
 	# Forzieri senza storia ancora chiusi (qualcuno può essere un mimic).
 	for f: Node in get_tree().get_nodes_in_group("forzieri"):
 		var forziere := f as Forziere
@@ -2690,7 +2698,11 @@ func _agisci(scelta: Dictionary) -> bool:
 				_visitate[id] = true   # vista, oppure ora non ci si arriva (grata chiusa)
 			return arrivato
 		"raccogli":
-			return await _vai_a(scelta["dove"], 8.0)
+			var preso: bool = await _vai_a(scelta["dove"], 8.0)
+			var pacco: Variant = scelta.get("pacco")   # senza tipo: se è stato preso è già liberato
+			if not preso and is_instance_valid(pacco):
+				_pacchi_ignorati[(pacco as Node).get_instance_id()] = Engine.get_physics_frames() + 60 * 20
+			return preso
 		"forziere":
 			var forziere: Forziere = scelta["forziere"]
 			if not is_instance_valid(forziere):
