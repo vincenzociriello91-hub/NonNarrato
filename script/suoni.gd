@@ -18,6 +18,7 @@ const DIDASCALIE := {
 	"forziere": "[forziere aperto]", "balestra": "[scatto di balestra]", "colpito": "[ferito]",
 	"bracere": "[fiamma]", "balzo": "[balzo]", "tuffo": "[tuffo]", "muro_rotto": "[muro che crolla]",
 	"legno_rotto": "[legno spezzato]", "affanno": "[senza fiato]", "crepa": "[la pietra si crepa]",
+	"mimic_ruggito": "[un forziere ringhia]", "mimic_morso": "[il mimic sta per mordere]",
 }
 
 var _effetti: Array[AudioStreamPlayer2D] = []

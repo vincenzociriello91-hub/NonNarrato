@@ -1,5 +1,19 @@
 # Novità di NonNarrato
 
+## 0.1 — Bottino, pozioni e mimic
+
+- **Bottino dei nemici**: i nemici deboli non lasciano niente. Quelli forti (mago, bestione, le nemesi e chiunque sia cresciuto con le ondate o da veterano) lasciano quello che serve all'arma con cui li hai finiti: **dardi** se con la balestra, **frecce** se con l'arco, **pozioni di mana** se con la magia. A volte lasciano anche pozioni di salute, di stamina e, più di rado, di velocità.
+- **Pozioni piccole, medie e grandi**, in quattro colori:
+  - rossa: **salute**, ridà vita poco a poco;
+  - verde: **stamina**, per arrampicarsi più a lungo;
+  - blu: **mana**, ricarica la magia;
+  - gialla: **velocità**, corri, sali e nuoti più in fretta, con una scia dorata.
+- **Gli effetti si sommano**: ogni pozione dura qualche secondo; se ne prendi un'altra dello stesso tipo mentre la prima è ancora attiva, l'effetto diventa più forte e più lungo. In alto, accanto ai cuori, un cerchio colorato si svuota col tempo e mostra quanto è forte (×2, ×3...).
+- **Forzieri con oggetti a caso**: ogni volta un contenuto diverso (vita, dardi, frecce, pozioni che saltano fuori). Se sei ferito ti curano, se hai finito dardi o frecce te ne ridanno. Due forzieri nuovi: uno sulla piattaforma alta della cripta e uno nella galleria.
+- **Mimic**: a ogni sogno uno di quei due forzieri può essere un mimic. Lo apri e ringhia, spalanca la bocca piena di denti e ti salta addosso a morsi. Battuto, lascia sempre almeno due pozioni medie o grandi.
+- **Suoni nuovi**: sorsi, boccette che cadono, il ringhio e il morso del mimic.
+- **Il bot** apre i forzieri, raccoglie le pozioni, batte un mimic (contro i suoi balzi ha imparato a rotolargli attraverso) e nella partita libera va a cercare i forzieri chiusi.
+
 ## 0.1 — Il sotterraneo: muri da rompere, pareti da scalare, acqua da attraversare
 
 - **Un sotterraneo sotto la cripta**, tutto da scoprire. La stanza resta di prova, ma ora è un platform su due livelli: sopra la cripta e la galleria, sotto un dedalo di camere collegate da pozzi, cunicoli e una vasca allagata.

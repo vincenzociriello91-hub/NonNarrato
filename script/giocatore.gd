@@ -12,6 +12,7 @@ extends CharacterBody2D
 signal vita_cambiata(vita: int, massima: int)
 signal armi_cambiate
 signal morto
+signal effetti_cambiati
 
 enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO, PARATA, ARRAMPICATA, NUOTO }
 
@@ -83,6 +84,15 @@ const SALTO_MURO := Vector2(165.0, 330.0)
 const RESPIRO_MASSIMO := 100.0
 const RESPIRO_CONSUMO := 9.0        # al secondo con la testa sott'acqua: circa 11 secondi
 const RESPIRO_RECUPERO := 60.0
+# Pozioni (0.1.19): l'effetto dura qualche secondo e si somma (più se ne prendono insieme, più è forte e lungo).
+const POZIONE_TAGLIE := {"piccola": [1.0, 4.0], "media": [2.0, 6.0], "grande": [3.0, 9.0]}   # forza, secondi
+const EFFETTO_FORZA_MAX := 6.0
+const EFFETTO_TEMPO_MAX := 24.0
+const CURA_PER_FORZA := 0.4             # vita al secondo per ogni punto di forza
+const STAMINA_PER_FORZA := 30.0
+const MANA_PER_FORZA := 22.0
+const VELOCITA_PER_FORZA := 0.1         # +10% per punto di forza...
+const VELOCITA_POZIONE_MASSIMA := 0.5   # ...fino a +50%
 const ANNEGA_OGNI := 1.4            # senza respiro: un cuore ogni tanti secondi
 const NUOTO_VELOCITA := 96.0
 const NUOTO_SPINTA := 420.0
@@ -142,6 +152,9 @@ var _resto_danni := 0.0             # accessibilità "danni ricevuti": le frazio
 var _t_passo := 0.0
 var stamina := STAMINA_MASSIMA
 var respiro := RESPIRO_MASSIMO
+var effetti := {}                       # pozioni attive: tipo -> {"forza", "tempo", "durata"}
+var _cura_accumulata := 0.0
+var _t_scia := 0.0
 var sott_acqua := false             # la testa è sotto la superficie
 var in_acqua := false
 var _esausto := false
@@ -306,6 +319,7 @@ func _scorri_tempi(delta: float) -> void:
 	_t_girato = maxf(0.0, _t_girato - delta)
 	_t_stacco = maxf(0.0, _t_stacco - delta)
 	_aggiorna_fiato(delta)
+	_aggiorna_effetti(delta)
 	if _t_attraversa > 0.0:
 		_t_attraversa -= delta
 		if _t_attraversa <= 0.0:
@@ -933,6 +947,74 @@ func _spara() -> void:
 	Rapporto.conta("tiri_" + arma_distanza)
 
 
+# ------------------------------------------------------------------ pozioni
+
+func bevi(tipo: String, taglia: String) -> void:
+	# Ogni pozione aggiunge forza e secondi all'effetto dello stesso tipo già in corso.
+	if stato == Stato.MORTO or not Bottino.TIPI_POZIONE.has(tipo):
+		return
+	var t: Array = POZIONE_TAGLIE.get(taglia, POZIONE_TAGLIE["piccola"])
+	var e: Dictionary = effetti.get(tipo, {"forza": 0.0, "tempo": 0.0, "durata": 0.0})
+	var sommato := float(e["tempo"]) > 0.0
+	e["forza"] = minf(EFFETTO_FORZA_MAX, float(e["forza"]) + float(t[0]))
+	e["tempo"] = minf(EFFETTO_TEMPO_MAX, float(e["tempo"]) + float(t[1]))
+	e["durata"] = e["tempo"]
+	effetti[tipo] = e
+	Suoni.suona("bevi", global_position, -2.0, 1.15 if taglia == "piccola" else (0.9 if taglia == "grande" else 1.0))
+	Effetti.scoppio(get_parent(), global_position + Vector2(0, -22), Bottino.COLORI_POZIONE[tipo], 12, 70.0, 0.6, -70.0,
+			true, 1.0, Vector2.UP, 60.0)
+	_conta("pozioni_bevute")
+	Rapporto.conta("pozioni_" + tipo)
+	if sommato:
+		Rapporto.conta("effetti_sommati")
+	Rapporto.evento("pozione", {"tipo": tipo, "taglia": taglia, "forza": e["forza"], "secondi": snappedf(float(e["tempo"]), 0.1)})
+	var testo := "Pozione %s di %s" % [taglia, Bottino.NOMI_POZIONE[tipo]]
+	if sommato:
+		testo += ": effetto più forte (×%d)" % int(e["forza"])
+	get_tree().call_group("hud", "didascalia_oggetto", testo, Bottino.COLORI_POZIONE[tipo])
+	effetti_cambiati.emit()
+
+
+func forza_effetto(tipo: String) -> float:
+	return float((effetti.get(tipo, {}) as Dictionary).get("forza", 0.0))
+
+
+func moltiplicatore_velocita() -> float:
+	return 1.0 + minf(VELOCITA_POZIONE_MASSIMA, VELOCITA_PER_FORZA * forza_effetto("velocita"))
+
+
+func _aggiorna_effetti(delta: float) -> void:
+	if effetti.is_empty() or stato == Stato.MORTO:
+		return
+	for tipo: String in effetti.keys():
+		var e: Dictionary = effetti[tipo]
+		var forza := float(e["forza"])
+		e["tempo"] = float(e["tempo"]) - delta
+		match tipo:
+			"salute":
+				_cura_accumulata += CURA_PER_FORZA * forza * delta
+				if _cura_accumulata >= 1.0:
+					_cura_accumulata -= 1.0
+					cura(1)
+			"stamina":
+				stamina = minf(STAMINA_MASSIMA, stamina + STAMINA_PER_FORZA * forza * delta)
+				if _esausto and stamina >= STAMINA_RIPRESA:
+					_esausto = false
+			"mana":
+				energia = minf(ENERGIA_MASSIMA, energia + MANA_PER_FORZA * forza * delta)
+			"velocita":
+				_t_scia -= delta
+				if _t_scia <= 0.0 and absf(velocity.x) > 60.0 and Dispositivo.profilo.get("particelle", 1.0) > 0.0:
+					_t_scia = 0.12   # una scia dorata quando si corre
+					Effetti.scoppio(get_parent(), global_position + Vector2(-signf(velocity.x) * 6.0, -18.0),
+							Bottino.COLORI_POZIONE["velocita"], 3, 20.0, 0.35, 0.0, false)
+		if float(e["tempo"]) <= 0.0:
+			effetti.erase(tipo)
+			if tipo == "salute":
+				_cura_accumulata = 0.0
+			effetti_cambiati.emit()
+
+
 func cura(quanta: int) -> int:
 	# Restituisce quanta vita ha davvero recuperato.
 	if stato == Stato.MORTO:
@@ -1099,7 +1181,7 @@ func _muovi(delta: float, a_terra: bool, direzione: float) -> void:
 	var accelerazione := ACCELERAZIONE_ARIA
 	if a_terra:
 		accelerazione = ACCELERAZIONE if absf(direzione) > 0.01 else ATTRITO
-	velocity.x = move_toward(velocity.x, direzione * VELOCITA, accelerazione * delta)
+	velocity.x = move_toward(velocity.x, direzione * VELOCITA * moltiplicatore_velocita(), accelerazione * delta)
 
 
 # ------------------------------------------------------------------ arrampicata
@@ -1145,7 +1227,7 @@ func _arrampicata(delta: float) -> void:
 	var su_giu := Input.get_axis("su", "giu")
 	var direzione := Input.get_axis("sinistra", "destra")
 	velocity.x = _lato_muro * 30.0   # spinge appena contro la parete
-	velocity.y = su_giu * ARRAMPICATA_VELOCITA
+	velocity.y = su_giu * ARRAMPICATA_VELOCITA * moltiplicatore_velocita()
 	var spesa := STAMINA_SCALA if absf(su_giu) > 0.1 else STAMINA_APPESO
 	if not Impostazioni.leggi("acc/stamina_infinita"):
 		stamina = maxf(0.0, stamina - spesa * delta)
@@ -1247,7 +1329,7 @@ func _nuoto(delta: float) -> void:
 	var su_giu := Input.get_axis("su", "giu")
 	if absf(direzione) > 0.01:
 		verso = 1 if direzione > 0.0 else -1
-	velocity.x = move_toward(velocity.x, direzione * NUOTO_VELOCITA, NUOTO_SPINTA * delta)
+	velocity.x = move_toward(velocity.x, direzione * NUOTO_VELOCITA * moltiplicatore_velocita(), NUOTO_SPINTA * delta)
 	var testa := global_position.y - ALTO.y + 6.0
 	var alla_superficie := testa <= _superficie + 4.0
 	var obiettivo_y := su_giu * NUOTO_VELOCITA

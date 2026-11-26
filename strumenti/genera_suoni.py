@@ -502,6 +502,42 @@ def s_crepa():
 
 # ------------------------------------------------------------------ anelli (ambiente e musica)
 
+def s_bevi():
+    # Tre sorsi: gorgoglio a bolle che sale, poi un tintinnio di vetro.
+    n = 0.55
+    out = np.zeros(n_(n))
+    for i in range(3):
+        k = n_(0.04 + i * 0.13)
+        f = 220 + i * 60
+        g = tono(scorri(f, f * 1.9, 0.09), 0.09) * decad(0.09, 0.03) * 0.7
+        g = g + passa(rumore(0.09), "bandpass", [300, 1200]) * decad(0.09, 0.02) * 0.25
+        out[k:k + len(g)] += g[: max(0, len(out) - k)]
+    vetro = ritarda(campana(2637, 0.3, tau=0.12) * 0.25, 0.45)
+    return riverbero(somma(out, vetro), 0.3, 0.15)
+
+
+def s_pozione_cade():
+    # Una boccetta che tocca terra: due tintinnii di vetro.
+    return somma(campana(2093, 0.25, tau=0.08) * 0.6, ritarda(campana(2794, 0.2, tau=0.06) * 0.35, 0.06))
+
+
+def s_mimic_ruggito():
+    # Coperchio che sbatte e un ringhio di legno: scricchiolio basso e gola rauca.
+    n = 0.8
+    legno = passa(rumore(0.12), "bandpass", [180, 900]) * decad(0.12, 0.03) * 1.2
+    gola = tono(scorri(110, 70, n), n, "sega") * (0.6 + 0.4 * np.sin(2 * np.pi * 31 * t(n))) * 0.4
+    ringhio = passa(rumore(n), "bandpass", [120, 500]) * (0.6 + 0.4 * np.sin(2 * np.pi * 17 * t(n)))
+    corpo = np.tanh(somma(passa(gola, "lowpass", 600), ringhio) * 2.2) * inviluppo(n_(n), 0.05, 0.35)
+    return riverbero(somma(legno, ritarda(corpo, 0.05)), 0.6, 0.3)
+
+
+def s_mimic_morso():
+    # Il coperchio che si chiude di scatto: colpo di legno secco con un clic.
+    colpo = passa(rumore(0.09), "bandpass", [250, 1800]) * decad(0.09, 0.015)
+    clic = tono(scorri(900, 500, 0.03), 0.03) * decad(0.03, 0.006) * 0.5
+    return somma(colpo, ritarda(clic, 0.01), tono(scorri(120, 80, 0.12), 0.12) * decad(0.12, 0.03) * 0.5)
+
+
 def anello(x, sr, coda):
     # Rende un suono ripetibile senza scatti: la coda finale si somma all'inizio.
     c = int(coda * sr)
@@ -574,9 +610,10 @@ SUONI = {
     "ui_tocco": s_ui_tocco, "ui_indietro": s_ui_indietro, "ui_apri": s_ui_apri,
     "presa": s_presa, "affanno": s_affanno, "tuffo": s_tuffo, "bolle": s_bolle, "respiro": s_respiro,
     "muro_rotto": s_muro_rotto, "legno_rotto": s_legno_rotto, "crepa": s_crepa,
+    "bevi": s_bevi, "pozione_cade": s_pozione_cade, "mimic_ruggito": s_mimic_ruggito, "mimic_morso": s_mimic_morso,
 }
 LUNGHI = {"ambiente": s_ambiente, "musica": s_musica}
-LIVELLI = {"presa": 0.5, "bolle": 0.5, "passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5, "ambiente": 0.7, "musica": 0.7}
+LIVELLI = {"pozione_cade": 0.5, "presa": 0.5, "bolle": 0.5, "passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5, "ambiente": 0.7, "musica": 0.7}
 
 
 def main():

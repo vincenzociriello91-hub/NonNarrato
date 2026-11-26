@@ -238,6 +238,7 @@ func _esegui() -> void:
 	_prova_lezione_fallita()
 	await _prova_impostazioni_suoni_aggiornamenti()
 	await _prova_sotterraneo()
+	await _prova_bottino()
 	await _prova_armi_e_bestione()
 	await _prova_nemesi_e_veterani()
 	await _prova_meccanismi()
@@ -618,6 +619,165 @@ func _prova_impostazioni_suoni_aggiornamenti() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(prova_apk))
 	_verifica("aggiornamento: senza plugin sul computer (Android lo ha)", Aggiornatore.plugin == null and Aggiornatore.testo_pulsante() != "")
 	Impostazioni.ripristina()
+
+
+func _prova_bottino() -> void:
+	# Bottino secondo l'arma, pozioni che si sommano, forzieri a caso, mimic.
+	var caso := RandomNumberGenerator.new()
+	caso.seed = 99
+	var deboli := 0
+	for i in 200:
+		deboli += Bottino.per_nemico("scheletro", 0, false, "magia", caso).size()
+	_verifica("bottino: i nemici deboli non lasciano niente", deboli == 0 and not Bottino.forte("arciere", 1, false)
+			and Bottino.forte("mago", 0, false) and Bottino.forte("scheletro", 2, false) and Bottino.forte("scheletro", 0, true))
+	var conta := {}
+	for arma: String in ["magia", "dardi", "frecce", "mischia"]:
+		var c := {"mana": 0, "dardi": 0, "frecce": 0, "salute": 0, "stamina": 0, "velocita": 0}
+		for i in 300:
+			for v: Dictionary in Bottino.per_nemico("mago", 0, false, arma, caso):
+				var chiave: String = v["tipo"] if v["cosa"] == "pozione" else v["cosa"]
+				c[chiave] = int(c[chiave]) + 1
+		conta[arma] = c
+	_verifica("bottino: battuto con la magia lascia pozioni di mana", int(conta["magia"]["mana"]) > 180 and int(conta["magia"]["dardi"]) == 0,
+			str(conta["magia"]))
+	_verifica("bottino: con la balestra dardi, con l'arco frecce", int(conta["dardi"]["dardi"]) > 180 and int(conta["frecce"]["frecce"]) > 180
+			and int(conta["dardi"]["frecce"]) == 0 and int(conta["frecce"]["mana"]) == 0, "%s %s" % [conta["dardi"], conta["frecce"]])
+	_verifica("bottino: sempre possibili salute e stamina, più di rado velocità", int(conta["mischia"]["mana"]) == 0
+			and int(conta["mischia"]["salute"]) > int(conta["mischia"]["velocita"]) and int(conta["mischia"]["stamina"]) > 30
+			and int(conta["mischia"]["velocita"]) > 10, str(conta["mischia"]))
+	var mimic_ok := true
+	for i in 100:
+		var l := Bottino.per_nemico("mimic", 0, false, "mischia", caso)
+		if l.filter(func(v: Dictionary) -> bool: return v["cosa"] == "pozione" and v["taglia"] != "piccola").size() < 2:
+			mimic_ok = false
+	_verifica("bottino: il mimic lascia sempre almeno due pozioni medie o grandi", mimic_ok)
+	var taglie := {"piccola": 0, "media": 0, "grande": 0}
+	for i in 600:
+		taglie[Bottino.taglia_a_caso(0, caso)] += 1
+	_verifica("bottino: pozioni piccole, medie e grandi (le grandi rare)", int(taglie["piccola"]) > int(taglie["media"])
+			and int(taglie["media"]) > int(taglie["grande"]) and int(taglie["grande"]) > 0, str(taglie))
+
+	# Pozioni: effetto di qualche secondo che si somma.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	stanza.ondate_attive = false
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		(n as Nemico).tregua(true)
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	var g := _g()
+	g.bevi("velocita", "piccola")
+	var prima: Dictionary = (g.effetti["velocita"] as Dictionary).duplicate()
+	g.bevi("velocita", "media")
+	var dopo: Dictionary = g.effetti["velocita"]
+	_verifica("pozioni: due insieme si sommano (più forte e più lunga)", float(dopo["forza"]) == float(prima["forza"]) + 2.0
+			and float(dopo["tempo"]) > float(prima["tempo"]) + 5.0 and is_equal_approx(g.moltiplicatore_velocita(), 1.3),
+			"%s -> %s" % [str(prima), str(dopo)])
+	Input.action_press("destra")
+	await _fotogrammi(40)
+	var corsa := g.velocity.x
+	Input.action_release("destra")
+	_verifica("pozioni: con la velocità si corre più forte", corsa > Giocatore.VELOCITA * 1.2, "%.0f" % corsa)
+	_verifica("pozioni: in alto si vede l'effetto in corso", _principale.hud.pozioni_visibili() >= 1)
+	g.vita = 3
+	g.vita_cambiata.emit(g.vita, Giocatore.VITA_MASSIMA)
+	g.bevi("salute", "media")
+	g.stamina = 10.0
+	g.bevi("stamina", "piccola")
+	g.energia = 0.0
+	g.bevi("mana", "piccola")
+	await _fotogrammi(190)
+	_verifica("pozioni: salute, stamina e mana tornano nel tempo", g.vita >= 5 and g.stamina > 60.0
+			and g.energia > Giocatore.RICARICA_ENERGIA * 2.5 + 20.0, "vita %d stamina %.0f energia %.0f" % [g.vita, g.stamina, g.energia])
+	await _fotogrammi(60 * 12)
+	_verifica("pozioni: finito il tempo l'effetto sparisce", g.effetti.is_empty() and is_equal_approx(g.moltiplicatore_velocita(), 1.0),
+			str(g.effetti))
+	# Raccolta passandoci sopra (dopo il volo d'uscita).
+	var r := Raccoglibile.new()
+	r.cosa = "pozione"
+	r.tipo_pozione = "stamina"
+	r.taglia = "grande"
+	r.lancio = Vector2(20, -160)
+	r.position = g.position + Vector2(0, -20)
+	stanza.add_child(r)
+	await _fotogrammi(90)
+	_verifica("pozioni: si raccolgono passandoci sopra", not is_instance_valid(r) and g.effetti.has("stamina")
+			and float(g.effetti["stamina"]["forza"]) == 3.0, str(g.effetti))
+
+	# Forziere a caso (non mimic): oggetti a caso, pozioni che saltano fuori e restano.
+	var cripta := stanza.meccanismi["forziere_cripta"] as Forziere
+	cripta.mimic = false
+	cripta.interagisci(g)
+	await _fotogrammi(110)
+	var uscite := cripta.pozioni_uscite.filter(func(x: Node) -> bool: return is_instance_valid(x))
+	_verifica("forzieri: oggetti a caso, almeno una pozione, niente storia", cripta.aperto and cripta.contenuto.has("pozioni")
+			and not cripta.contenuto.has("frammento") and uscite.size() == (cripta.contenuto["pozioni"] as Array).size(), str(cripta.contenuto))
+	_verifica("forzieri: le pozioni escono e cadono a terra, e restano", uscite.all(func(x: Raccoglibile) -> bool:
+			return x.permanente and x.lancio == Vector2.ZERO), str(uscite.map(func(x: Raccoglibile) -> String: return "%s %s %s" % [x.global_position, x.lancio, x.permanente])))
+	var diversi := {}
+	for i in 30:
+		diversi[JSON.stringify(Bottino.per_forziere(false, caso))] = true
+	_verifica("forzieri: il contenuto cambia ogni volta", diversi.size() > 15, "%d diversi" % diversi.size())
+
+	# Mimic: aperto si sveglia, morde, battuto lascia pozioni migliori; non diventa una nemesi.
+	var galleria := stanza.meccanismi["forziere_galleria"] as Forziere
+	galleria.mimic = true
+	await _sposta(galleria.global_position + Vector2(-40, 0), 1)
+	g = _g()
+	galleria.interagisci(g)
+	await _fotogrammi(40)
+	var mimic: Nemico = null
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if (n as Nemico).tipo == "mimic":
+			mimic = n
+	_verifica("mimic: il forziere si sveglia e diventa un nemico", mimic != null and not galleria.visible
+			and galleria.contenuto.get("mimic", false) and not galleria.puo_interagire())
+	await _scatta("mimic_sveglio")
+	if mimic != null:
+		await _fotogrammi(60)
+		var vita := g.vita
+		for i in 240:
+			await _fotogrammi(1)
+			if g.vita < vita:
+				break
+		_verifica("mimic: salta addosso e morde", g.vita < vita and Rapporto.contatore("balzi_saltatore") > 0, "vita %d -> %d" % [vita, g.vita])
+		var nemesi_prima := Memoria.nemesi.size()
+		Memoria.nemico_ha_ucciso(mimic)
+		_verifica("mimic: non diventa una nemesi", Memoria.nemesi.size() == nemesi_prima)
+		for i in 10:
+			if mimic.stato == Nemico.Stato.MORTO:
+				break
+			mimic.subisci(3, mimic.global_position + Vector2(-20, 0), 50.0, "mischia", {"famiglia": "spada"})
+			await _fotogrammi(10)
+		var lasciate := mimic.bottino_lasciato.filter(func(v: Dictionary) -> bool: return v["cosa"] == "pozione" and v["taglia"] != "piccola")
+		_verifica("mimic: battuto lascia pozioni migliori", mimic.stato == Nemico.Stato.MORTO and lasciate.size() >= 2,
+				str(mimic.bottino_lasciato))
+		await _fotogrammi(40)
+		await _scatta("mimic_bottino")
+	# Un nemico forte battuto con i dardi: quello che lascia esce davvero nella stanza.
+	var mago: Nemico = null
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if (n as Nemico).tipo == "mago" and (n as Nemico).stato != Nemico.Stato.MORTO:
+			mago = n
+	if mago != null:
+		var prima_r := get_tree().get_nodes_in_group("raccoglibili").size()
+		var seme := 1
+		for prova_seme in range(1, 60):   # un seme con cui lascia qualcosa: la prova guarda che esca davvero
+			var r_prova := RandomNumberGenerator.new()
+			r_prova.seed = prova_seme
+			if not Bottino.per_nemico("mago", int(mago.get("_forza")), false, "dardi", r_prova).is_empty():
+				seme = prova_seme
+				break
+		(mago.get("_caso") as RandomNumberGenerator).seed = seme
+		mago.stato = Nemico.Stato.FERMO
+		mago.subisci(99, mago.global_position + Vector2(-30, 0), 50.0, "tiro", {"munizione": "dardi"})
+		await _fotogrammi(80)
+		var fuori := mago.bottino_lasciato.filter(func(v: Dictionary) -> bool: return v["cosa"] in ["pozione", "dardi", "frecce"]).size()
+		_verifica("bottino: il nemico forte lascia gli oggetti nella stanza", not mago.bottino_lasciato.is_empty() and mago.bottino_lasciato.all(func(v: Dictionary) -> bool:
+				return v["cosa"] != "pozione" or v["tipo"] != "mana")
+				and get_tree().get_nodes_in_group("raccoglibili").size() >= prima_r + fuori, str(mago.bottino_lasciato))
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
 
 
 func _prova_sotterraneo() -> void:

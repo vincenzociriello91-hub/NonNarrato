@@ -810,7 +810,7 @@ func _minaccia() -> Nemico:
 		if n.tipo == "pipistrello":
 			if d.length() < 150.0 and _visibile(n):
 				return n
-		elif absf(d.x) < 110.0 and absf(d.y) < (60.0 if n.tipo == "saltatore" else 40.0) and _visibile(n):
+		elif absf(d.x) < 110.0 and absf(d.y) < (60.0 if n.tipo in Nemico.SALTANO else 40.0) and _visibile(n):
 			return n   # dietro un muro non è una minaccia
 	return null
 
@@ -835,7 +835,7 @@ func _pericolo(n: Nemico) -> String:
 		if altro == n or altro.global_position.distance_to(_g().global_position) > 110.0:
 			continue
 		var suo := _pericolo_da(altro)
-		if suo in ["colpo", "carica", "picchiata"]:
+		if suo in ["colpo", "carica", "picchiata", "balzo"]:
 			_pericolo_da_chi = altro
 			return suo
 	return ""
@@ -851,8 +851,8 @@ func _pericolo_da(n: Nemico) -> String:
 	if n.stato == Nemico.Stato.ATTACCO and not n.get("_in_balzo") and t < float(tempi[1]) - 0.06 \
 			and absf(d.x) < portata and absf(d.y) < 40.0:
 		return "colpo"
-	if n.tipo == "saltatore" and n.stato == Nemico.Stato.ATTACCO and n.get("_in_balzo") and t < 0.5 and d.length() < 90.0:
-		return "colpo"
+	if n.tipo in Nemico.SALTANO and n.stato == Nemico.Stato.ATTACCO and n.get("_in_balzo") and t < 0.5 and d.length() < 90.0:
+		return "balzo"
 	if n.tipo == "bestione" and n.get("_carica") and absf(d.x) < 110.0 and absf(d.y) < 40.0:
 		return "carica"
 	if n.tipo == "pipistrello" and n.get("_fase_volo") == "scende" and d.length() < 80.0:
@@ -932,7 +932,7 @@ func _tira_contro(n: Nemico, arma: String) -> bool:
 			else:
 				await _tocca("tira")
 		"dardi":
-			if n.tipo in ["pipistrello", "saltatore"]:
+			if n.tipo in ["pipistrello", "saltatore", "mimic"]:
 				await _tieni_tiro(false, 26)
 			else:
 				await _tocca("tira")
@@ -951,6 +951,8 @@ func _scegli_difesa(pericolo: String) -> String:
 		opzioni = ["scatto_indietro", "rotolo_indietro", "rotolo_avanti"]
 	elif pericolo == "picchiata":
 		opzioni = ["colpisci", "rotolo_avanti", "scatto_indietro"]   # il pipistrello muore con un colpo
+	elif pericolo == "balzo":
+		opzioni = ["rotolo_avanti", "salto", "rotolo_indietro"]   # un balzo arriva lontano: arretrando ti raggiunge
 	elif pericolo == "carica":
 		opzioni = ["rotolo_avanti", "salto"]   # una carica non si scansa arretrando: la si passa
 	if _caso.randf() < 0.25:
@@ -1052,7 +1054,7 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 			if await _contro_pipistrello(n, t_tiro <= 0):
 				t_tiro = 36
 			continue
-		if absf(d.y) > 40.0 and not (n.tipo == "saltatore" and absf(d.y) < 70.0):
+		if absf(d.y) > 40.0 and not (n.tipo in Nemico.SALTANO and absf(d.y) < 70.0):
 			# È su un'altra quota (per esempio il mago sulla piattaforma): se è a tiro gli si tira,
 			# altrimenti ci si arriva.
 			_rilascia_tutto()
@@ -1371,7 +1373,7 @@ func _esegui() -> void:
 	# in una stanza nuova, dove il bot decide da solo cosa fare. Alla fine le prestazioni.
 	_tregua(true)
 	var tecniche: Array[Callable] = [_movimento, _oggetti, _tasti_a_schermo, _qualita, _menu_e_aspetto, _mosse_in_partita,
-			_ambiente, _sotterraneo, _armi_da_mischia, _armi_a_distanza]
+			_ambiente, _sotterraneo, _bottino, _armi_da_mischia, _armi_a_distanza]
 	for fase: Callable in tecniche:
 		if solo_fasi.is_empty() or solo_fasi.has(fase.get_method().trim_prefix("_")):
 			await fase.call()
@@ -2027,6 +2029,93 @@ func _rompi_struttura(s: Struttura, arma_tiro: String = "magia") -> bool:
 	return is_instance_valid(s) and not s.integra
 
 
+# ------------------------------------------------------------------ bottino (0.1.19)
+
+func _bottino() -> void:
+	# Forzieri con oggetti a caso, pozioni che saltano fuori e si raccolgono, un mimic da battere che
+	# lascia pozioni migliori. Il bottino dei nemici forti secondo l'arma lo prova test/prova.gd (a caso).
+	_nuova_fase("bottino")
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	_tregua(true)
+	var stanza_fase: Node = _principale.stanza
+	var cripta := _m("forziere_cripta") as Forziere
+	var galleria := _m("forziere_galleria") as Forziere
+	cripta.mimic = false   # prova a colpo sicuro: uno vero e uno che morde
+	galleria.mimic = true
+	var bevute := Rapporto.contatore("pozioni_bevute")
+	var a_portata := await _usa(cripta)
+	if _interrotta(stanza_fase):
+		return
+	await _fotogrammi(40)
+	var pozioni: Array = cripta.contenuto.get("pozioni", [])
+	_verifica("bottino: il forziere a caso si apre e dà oggetti a caso", a_portata and cripta.aperto and not pozioni.is_empty()
+			and not cripta.contenuto.has("frammento"), str(cripta.contenuto))
+	await _scatta("forziere_pozioni")
+	await _raccogli_vicini(cripta.global_position, 160.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("bottino: le pozioni saltate fuori si raccolgono", Rapporto.contatore("pozioni_bevute") >= bevute + pozioni.size(),
+			"bevute %d su %d" % [Rapporto.contatore("pozioni_bevute") - bevute, pozioni.size()])
+	_verifica("bottino: in alto si vedono le pozioni in corso", _principale.hud.pozioni_visibili() > 0 or _g().effetti.is_empty() == false,
+			str(_g().effetti))
+	# Il mimic: aperto, si sveglia e morde.
+	var svegliati := Rapporto.contatore("mimic_svegliati")
+	await _usa(galleria)
+	if _interrotta(stanza_fase):
+		return
+	await _fotogrammi(50)
+	var mimic: Nemico = null
+	for n: Nemico in _nemici_vivi("mimic"):
+		mimic = n
+	_verifica("bottino: un forziere era un mimic e si sveglia", mimic != null and Rapporto.contatore("mimic_svegliati") == svegliati + 1
+			and not galleria.visible)
+	await _scatta("mimic")
+	if mimic == null:
+		return
+	await _affronta(mimic)
+	for i in 6:
+		if not is_instance_valid(mimic) or mimic.stato == Nemico.Stato.MORTO or _g().stato == Giocatore.Stato.MORTO:
+			break
+		await _affronta(mimic)
+	if _interrotta(stanza_fase):
+		return
+	var battuto := is_instance_valid(mimic) and mimic.stato == Nemico.Stato.MORTO
+	var lasciato: Array = mimic.bottino_lasciato if is_instance_valid(mimic) else []
+	var migliori := lasciato.filter(func(v: Dictionary) -> bool: return v["cosa"] == "pozione" and v["taglia"] in ["media", "grande"])
+	_verifica("bottino: il mimic si batte", battuto, "vita %d" % (mimic.vita if is_instance_valid(mimic) else -1))
+	_verifica("bottino: il mimic lascia pozioni migliori", migliori.size() >= 2, str(lasciato))
+	bevute = Rapporto.contatore("pozioni_bevute")
+	var punto := mimic.global_position if is_instance_valid(mimic) else _g().global_position
+	await _fotogrammi(30)
+	await _raccogli_vicini(punto, 200.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("bottino: le pozioni del mimic si raccolgono", Rapporto.contatore("pozioni_bevute") >= bevute + migliori.size(),
+			"bevute %d" % (Rapporto.contatore("pozioni_bevute") - bevute))
+	await _scatta("pozioni_in_corso")
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	_tregua(true)
+
+
+func _raccogli_vicini(punto: Vector2, raggio: float) -> void:
+	# Passa sopra a pozioni e munizioni attorno a un punto, dalla più vicina.
+	for giro in 8:
+		await _fotogrammi(10)   # quelle appena uscite devono prima atterrare
+		var vicini := get_tree().get_nodes_in_group("raccoglibili").filter(func(r: Node) -> bool:
+			return is_instance_valid(r) and (r as Node2D).global_position.distance_to(punto) < raggio \
+					and (r as Raccoglibile).lancio == Vector2.ZERO)
+		if vicini.is_empty():
+			return
+		vicini.sort_custom(func(a: Node, b: Node) -> bool:
+			return (a as Node2D).global_position.distance_to(_g().global_position) < (b as Node2D).global_position.distance_to(_g().global_position))
+		var r := vicini[0] as Raccoglibile
+		if r.cosa != "pozione" and int(_g().munizioni.get(r.cosa, 0)) >= int(Giocatore.MUNIZIONI_MASSIME.get(r.cosa, 99)):
+			return   # munizioni già piene: restano lì
+		await _vai_a(r.global_position, 3.0)
+
+
 # ------------------------------------------------------------------ armi a distanza e nemici nuovi
 
 func _scegli_arma_col_tasto(arma: String) -> bool:
@@ -2390,7 +2479,15 @@ func _decidi(ultimi: Array) -> Dictionary:
 	var pacchi := get_tree().get_nodes_in_group("raccoglibili").filter(func(r: Node) -> bool:
 		return (r as Node2D).global_position.distance_to(g.global_position) < 400.0)
 	if not pacchi.is_empty():
-		candidati.append({"nome": "raccogli", "punti": 60.0 if munizioni_basse else 26.0, "dove": (pacchi[0] as Node2D).global_position})
+		var pozione := pacchi.any(func(r: Node) -> bool: return (r as Raccoglibile).cosa == "pozione")
+		candidati.append({"nome": "raccogli", "punti": 60.0 if munizioni_basse else (40.0 + cura * 0.3 if pozione else 26.0),
+				"dove": (pacchi[0] as Node2D).global_position})
+	# Forzieri senza storia ancora chiusi (qualcuno può essere un mimic).
+	for f: Node in get_tree().get_nodes_in_group("forzieri"):
+		var forziere := f as Forziere
+		if forziere.casuale and not forziere.aperto and forziere.visible:
+			candidati.append({"nome": "forziere", "punti": 36.0 * _umore["avidita"] + cura * 0.5, "forziere": forziere})
+			break
 	if munizioni_basse:
 		var barili := get_tree().get_nodes_in_group("rompibili").filter(func(b: Node) -> bool:
 			return is_instance_valid(b) and (b as Node2D).global_position.distance_to(g.global_position) < 300.0)
@@ -2466,6 +2563,14 @@ func _agisci(scelta: Dictionary) -> bool:
 			return arrivato
 		"raccogli":
 			return await _vai_a(scelta["dove"], 8.0)
+		"forziere":
+			var forziere: Forziere = scelta["forziere"]
+			if not is_instance_valid(forziere):
+				return false
+			await _usa(forziere)
+			if is_instance_valid(forziere) and forziere.mimic and forziere.aperto:
+				_esiti_partita["un forziere era un mimic"] = true
+			return is_instance_valid(forziere) and forziere.aperto
 		"rompi":
 			if scelta.has("struttura"):
 				return await _rompi_struttura(scelta["struttura"])

@@ -228,7 +228,7 @@ func nemesi_per(tipo: String) -> Array:
 
 func nemico_ha_ucciso(n: Node) -> void:
 	# Chi ti uccide se lo ricorda: diventa (o resta) una nemesi, più forte.
-	if n == null or not is_instance_valid(n) or not ("tipo" in n):
+	if n == null or not is_instance_valid(n) or not ("tipo" in n) or Nemico.SENZA_NEMESI.has(n.get("tipo")):
 		return
 	var rec: Dictionary = n.get("nemesi")
 	if not rec.is_empty():
@@ -257,7 +257,7 @@ func nemico_ha_ucciso(n: Node) -> void:
 func nemico_sconfitto(n: Node, famiglia_arma: String = "") -> String:
 	# Restituisce una frase da mostrare, se c'è qualcosa da dire. famiglia_arma = con che cosa l'hai battuto
 	# (la nemesi impara a difendersene).
-	if n == null or not ("tipo" in n):
+	if n == null or not ("tipo" in n) or Nemico.SENZA_NEMESI.has(n.get("tipo")):
 		return ""
 	var rec: Dictionary = n.get("nemesi")
 	if not rec.is_empty():

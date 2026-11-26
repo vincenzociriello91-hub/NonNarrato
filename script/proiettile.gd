@@ -163,7 +163,8 @@ func _colpisci_nemico(chi: Variant) -> void:
 	var a_segno := false
 	if chi is Nemico:
 		a_segno = (chi as Nemico).subisci(danno, global_position - velocita.normalized() * 10.0, 110.0,
-				"magia" if tipo == "magia_eroe" else "tiro")
+				"magia" if tipo == "magia_eroe" else "tiro",
+				{"munizione": "magia" if tipo == "magia_eroe" else ("dardi" if tipo == "dardo" else "frecce")})
 		if a_segno:
 			Rapporto.conta("tiri_a_segno")
 	else:

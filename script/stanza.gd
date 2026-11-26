@@ -124,6 +124,7 @@ func _ready() -> void:
 	_oggetti()
 	_galleria()
 	_sotterraneo()
+	_forzieri_a_caso()
 	_nemici()
 	_crea_giocatore()
 	_atmosfera()
@@ -688,10 +689,34 @@ func _piastra(nome: String, dove: Vector2, modo: String, bersaglio: Node) -> Pia
 	return p
 
 
-func _forziere(nome: String, dove: Vector2, oro: bool) -> Forziere:
+func _forzieri_a_caso() -> void:
+	# Due forzieri senza storia, solo oggetti a caso: a ogni sogno ognuno può essere un mimic.
+	var caso := RandomNumberGenerator.new()
+	caso.seed = int(Memoria.sogni) * 104729 + 17
+	for voce: Array in [["forziere_cripta", Vector2(724, 290)], ["forziere_galleria", Vector2(1520, PAVIMENTO)]]:
+		var f := _forziere(voce[0], voce[1], false, true)
+		f.mimic = caso.randf() < Bottino.MIMIC_PROBABILITA
+
+
+func sveglia_mimic(f: Forziere) -> Nemico:
+	# Un forziere che era un mimic: al suo posto un nemico che si sveglia aprendo la bocca.
+	var n := Nemico.new()
+	n.tipo = "mimic"
+	n.id_posto = "mimic:" + f.nome
+	n.verso = 1 if is_instance_valid(giocatore) and giocatore.global_position.x > f.global_position.x else -1
+	n.position = f.position
+	n.ondata = ondata
+	n.rialzato = true   # parte dall'animazione di risveglio (la bocca che si spalanca)
+	n.add_to_group("nemici")
+	add_child(n)
+	return n
+
+
+func _forziere(nome: String, dove: Vector2, oro: bool, casuale: bool = false) -> Forziere:
 	var f := Forziere.new()
 	f.nome = nome
 	f.oro = oro
+	f.casuale = casuale
 	f.position = dove
 	add_child(f)
 	meccanismi[nome] = f

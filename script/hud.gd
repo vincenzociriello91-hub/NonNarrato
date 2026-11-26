@@ -52,6 +52,24 @@ class Fiato extends Control:
 					draw_arc(c, 4.0, 0.0, TAU, 12, Color(0.6, 0.82, 1.0, 0.35), 1.0)
 
 
+class Pozioni extends Control:
+	# Pozioni in corso: un cerchio del loro colore che si svuota col tempo e la forza (×2 se sommate).
+	var voci: Array = []           # [tipo, forza, frazione rimasta]
+
+	func _draw() -> void:
+		var x := 0.0
+		for v: Array in voci:
+			var c := Vector2(x + 11.0, 11.0)
+			var colore: Color = Bottino.COLORI_POZIONE.get(v[0], Color.WHITE)
+			draw_circle(c, 10.5, Color(0.05, 0.04, 0.08, 0.85))
+			draw_arc(c, 8.0, -PI * 0.5, -PI * 0.5 + TAU * clampf(float(v[2]), 0.0, 1.0), 24, colore, 3.0)
+			draw_circle(c, 4.5, colore)
+			if float(v[1]) >= 2.0:
+				draw_string(ThemeDB.fallback_font, Vector2(x + 1.0, 36.0), "×%d" % int(v[1]), HORIZONTAL_ALIGNMENT_LEFT,
+						-1, 12, Color(0.96, 0.93, 0.86))
+			x += 30.0
+
+
 const PULSANTI := [
 	["attacca", "Colpo", 46.0], ["salta", "Salto", 42.0], ["rotola", "Rotola", 36.0],
 	["schiva", "Schiva", 36.0], ["afferra", "Afferra", 34.0], ["tira", "Tira", 34.0],
@@ -75,6 +93,9 @@ var _tela := Vector2i(640, 360)
 var _scala := 3.0
 var _didascalie: VBoxContainer
 var _fiato: Fiato
+var _pozioni: Pozioni
+var _oggetto: Label
+var _avviso_oggetto: Tween
 var _pausa := false
 var _avviso_messaggio: Tween
 
@@ -96,6 +117,13 @@ func _ready() -> void:
 	_fiato.size = Vector2(130, 32)
 	_fiato.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_radice.add_child(_fiato)
+	_pozioni = Pozioni.new()
+	_pozioni.size = Vector2(140, 40)
+	_pozioni.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_radice.add_child(_pozioni)
+	_oggetto = _etichetta(15, Color(0.95, 0.9, 0.8))
+	_oggetto.modulate.a = 0.0
+	_radice.add_child(_oggetto)
 
 	_etichetta_sogno = _etichetta(15, Color(0.72, 0.7, 0.84))
 	_radice.add_child(_etichetta_sogno)
@@ -221,6 +249,8 @@ func _disponi() -> void:
 	var m := _margini()
 	_cuori.position = Vector2(m[0] + 16.0, m[1] + 14.0)
 	_fiato.position = Vector2(m[0] + 270.0, m[1] + 16.0)
+	_pozioni.position = Vector2(m[0] + 410.0, m[1] + 10.0)
+	_oggetto.position = Vector2(m[0] + 410.0, m[1] + 52.0)
 	_etichetta_sogno.position = Vector2(m[0] + 20.0, m[1] + 46.0)
 	_armi.position = Vector2(m[0] + 20.0, m[1] + 68.0)
 	_debug.position = Vector2(m[0] + 16.0, m[1] + 100.0)
@@ -386,6 +416,24 @@ func messaggio(testo: String, durata: float, storia: bool = false) -> void:
 	_avviso_messaggio.tween_property(_messaggio, "modulate:a", 0.0, 0.6)
 
 
+func didascalia_oggetto(testo: String, colore: Color = Color(0.95, 0.9, 0.8)) -> void:
+	# Cosa hai appena preso (una pozione, e se si è sommata a quella in corso).
+	if _oggetto == null:
+		return
+	_oggetto.text = testo
+	_oggetto.add_theme_color_override("font_color", colore.lightened(0.25))
+	if _avviso_oggetto != null and _avviso_oggetto.is_valid():
+		_avviso_oggetto.kill()
+	_oggetto.modulate.a = 1.0
+	_avviso_oggetto = create_tween()
+	_avviso_oggetto.tween_interval(2.2)
+	_avviso_oggetto.tween_property(_oggetto, "modulate:a", 0.0, 0.5)
+
+
+func pozioni_visibili() -> int:
+	return _pozioni.voci.size() if _pozioni != null else 0
+
+
 func fiato_visibile() -> bool:
 	return _fiato != null and (_fiato.stamina < 0.999 or _fiato.respiro < 0.999)
 
@@ -400,6 +448,14 @@ func _process(delta: float) -> void:
 			_fiato.respiro = re
 			_fiato.esausto = g.get("_esausto")
 			_fiato.queue_redraw()
+		if not g.effetti.is_empty() or not _pozioni.voci.is_empty():
+			var voci: Array = []
+			for tipo: String in Bottino.TIPI_POZIONE:
+				if g.effetti.has(tipo):
+					var e: Dictionary = g.effetti[tipo]
+					voci.append([tipo, float(e["forza"]), float(e["tempo"]) / maxf(0.1, float(e["durata"]))])
+			_pozioni.voci = voci
+			_pozioni.queue_redraw()
 	# "Afferra" serve solo accanto a una cassa, a una leva o a un forziere, e dice cosa fa.
 	if _pulsanti.has("afferra"):
 		var cosa := ""

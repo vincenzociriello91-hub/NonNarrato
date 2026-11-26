@@ -13,6 +13,10 @@ extends CharacterBody2D
 #    dopo un suo colpo (quando è scoperto), con la magia o con le trappole. Colpisce forte e carica.
 #  - "saltatore": piccolo e veloce, ti balza addosso (dritto, a zig-zag o dall'alto) e ti segue
 #    saltando da una piattaforma all'altra.
+#  - "mimic": un forziere vivo. Sembra un forziere qualsiasi finché non lo apri; allora si sveglia e ti
+#    salta addosso a morsi (si muove come il saltatore). Battuto, lascia pozioni migliori.
+# Bottino (vedi Bottino): i deboli niente; i forti lasciano quello dell'arma con cui li hai finiti
+# e a volte pozioni.
 # Una nemesi (vedi Memoria) è lo stesso nemico, ma più forte, con un nome, un titolo e una frase;
 # a ogni ritorno ha una capacità in più (parata, combo, rinforzi, pelle dura, furia) e resiste all'arma
 # che l'ha battuta.
@@ -34,7 +38,10 @@ const TIPI := {
 	"pipistrello": {"foglio": "pipistrello", "vita": 2, "passo": 34.0, "corsa": 190.0, "vista": 190.0, "portata": 0.0},
 	"bestione": {"foglio": "bestione", "vita": 8, "passo": 22.0, "corsa": 40.0, "vista": 190.0, "portata": 50.0},
 	"saltatore": {"foglio": "saltatore", "vita": 3, "passo": 44.0, "corsa": 88.0, "vista": 210.0, "portata": 30.0},
+	"mimic": {"foglio": "mimic", "vita": 6, "passo": 40.0, "corsa": 70.0, "vista": 240.0, "portata": 34.0},
 }
+const SALTANO := ["saltatore", "mimic"]   # si muovono a balzi (stesso cervello)
+const SENZA_NEMESI := ["mimic"]           # non diventano nemesi: non c'è un posto dove ritrovarli
 const TIRATORI := ["mago", "arciere"]
 const GRAVITA := 1200.0
 const ATTACCO_DURATA := 0.86
@@ -53,7 +60,7 @@ const UDITO := 150.0
 const RICERCA_MASSIMA := 3.5
 const BALZO_DURATA := 0.86
 const GIRO_BESTIONE := 0.8      # secondi che il bestione impiega a girarsi
-const CORPO_A_CORPO := ["scheletro", "bestione", "saltatore"]
+const CORPO_A_CORPO := ["scheletro", "bestione", "saltatore", "mimic"]
 const RICHIAMO := 200.0          # chi ti vede chiama i compagni entro questa distanza
 const COMBO_VELOCE := 0.72       # i colpi concatenati partono prima
 const PARATA_NEMICO := 0.45
@@ -120,6 +127,8 @@ var _t_vivo := 0.0
 var _schivate := 0
 var _ultima_famiglia := ""
 var _t_bloccato := 0.0
+var _ultima_arma := ""             # con cosa è arrivato l'ultimo colpo: decide il bottino
+var bottino_lasciato: Array = []   # cosa ha lasciato morendo (per il rapporto e le prove)
 
 
 func _ready() -> void:
@@ -170,6 +179,10 @@ func _ready() -> void:
 			corpo = Vector2(14, 12)
 			bersaglio = Vector2(22, 18)
 			colpo = Vector2(20, 16)
+		"mimic":
+			corpo = Vector2(30, 24)
+			bersaglio = Vector2(34, 28)
+			colpo = Vector2(40, 30)
 	var vola := tipo == "pipistrello"
 	if vola:
 		motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
@@ -326,7 +339,7 @@ func _physics_process(delta: float) -> void:
 	if g != null and g.stato != Giocatore.Stato.MORTO:
 		dx = g.global_position.x - global_position.x
 		dy = g.global_position.y - global_position.y
-		var quota := 200.0 if tipo in TIRATORI or vola else (120.0 if tipo == "saltatore" else 80.0)
+		var quota := 200.0 if tipo in TIRATORI or vola else (120.0 if tipo in SALTANO else 80.0)
 		visto = absf(dx) < float(_dati["vista"]) and absf(dy) < quota and _vede(g)
 		sentito = _sente(g, dx, dy)
 		_osserva_giocatore(g)
@@ -367,7 +380,7 @@ func _physics_process(delta: float) -> void:
 			Stato.FERMO:
 				_tiratore(g, dx, dy, visto, delta)
 			Stato.INSEGUE:
-				if tipo == "saltatore":
+				if tipo in SALTANO:
 					_saltatore(g, delta, dx, dy, visto)
 				else:
 					_insegui(g, delta, dx, dy, visto)
@@ -458,7 +471,7 @@ func _schiva_tiri() -> bool:
 # ------------------------------------------------------------------ comportamenti
 
 func _risvegliati() -> void:
-	Suoni.suona("pipistrello" if tipo == "pipistrello" else "risveglio", global_position, -4.0)
+	Suoni.suona("pipistrello" if tipo == "pipistrello" else ("mimic_ruggito" if tipo == "mimic" else "risveglio"), global_position, -4.0)
 	_cambia(Stato.RISVEGLIO)
 	sprite.riproduci("risveglio", true)
 	Rapporto.evento("risveglio", {"x": roundi(global_position.x), "tipo": tipo})
@@ -790,14 +803,14 @@ func _inizia_balzo(g: Giocatore, dall_alto: bool) -> void:
 
 func _balzo(g: Giocatore) -> void:
 	if _t_stato > 0.08:
-		_colpisci_a_contatto(g, 1, 170.0)
+		_colpisci_a_contatto(g, 2 if tipo == "mimic" else 1, 200.0 if tipo == "mimic" else 170.0)
 	if is_on_floor() and _t_stato > 0.12:
 		velocity.x = move_toward(velocity.x, 0.0, 30.0)
 	if _t_stato >= BALZO_DURATA and is_on_floor():
 		_in_balzo = false
 		_verifica_attacco()
-		_t_ricarica = maxf(0.3, 0.8 - 0.08 * potere)
-		_t_pausa = 0.35   # atterrato: scoperto
+		_t_ricarica = maxf(0.3, 0.8 - 0.08 * potere) + (0.4 if tipo == "mimic" else 0.0)
+		_t_pausa = 0.7 if tipo == "mimic" else 0.35   # atterrato: scoperto (il mimic pesa: ci mette di più)
 		_cambia(Stato.INSEGUE)
 
 
@@ -960,7 +973,15 @@ func _vuoto_davanti() -> bool:
 func _cambia(nuovo: Stato) -> void:
 	# Suoni che servono a giocare: il colpo in carica si sente prima di vederlo, il bestione ruggisce quando ti scopre.
 	if nuovo == Stato.ATTACCO and stato != Stato.ATTACCO:
-		Suoni.suona("pipistrello" if tipo == "pipistrello" else ("balzo" if tipo == "saltatore" else "avviso_attacco"), global_position, -4.0)
+		var avviso := "avviso_attacco"
+		match tipo:
+			"pipistrello":
+				avviso = "pipistrello"
+			"saltatore":
+				avviso = "balzo"
+			"mimic":
+				avviso = "mimic_morso"
+		Suoni.suona(avviso, global_position, -4.0)
 	elif nuovo == Stato.INSEGUE and tipo == "bestione" and not _ha_ruggito:
 		_ha_ruggito = true
 		Suoni.suona("ruggito", global_position)
@@ -1022,7 +1043,7 @@ func _posto_per_attaccare() -> bool:
 
 func _accerchia(g: Giocatore, dx: float) -> bool:
 	# Vero se in questo fotogramma si sta spostando per prenderti dall'altra parte.
-	if tipo not in CORPO_A_CORPO or tipo == "saltatore" or _forza < 1:
+	if tipo not in CORPO_A_CORPO or tipo in SALTANO or _forza < 1:
 		return false   # ad accerchiare si impara: dalla seconda ondata, o da veterani
 	var mio_lato := -1 if dx > 0.0 else 1    # da che parte di te sono
 	if _t_fianco <= 0.0:
@@ -1119,6 +1140,7 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 	var famiglia: String = dettagli.get("famiglia", "")
 	if famiglia != "":
 		_ultima_famiglia = famiglia
+	_ultima_arma = String(dettagli.get("munizione", tipo_colpo))
 	# Parata: da davanti la spada e i tiri non passano, a meno che l'arma non rompa la guardia.
 	if _t_parata > 0.0 and davanti and tipo_colpo in ["mischia", "tiro"]:
 		if dettagli.get("rompe", false):
@@ -1198,6 +1220,21 @@ func _muori(lato: float) -> void:
 	var frase := Memoria.nemico_sconfitto(self, _ultima_famiglia)
 	if frase != "":
 		get_tree().call_group("hud", "messaggio", frase, 3.0, true)
+	_lascia_bottino()
+
+
+func _lascia_bottino() -> void:
+	# I deboli niente; i forti secondo l'arma del colpo finale (dardi, frecce, mana) e a volte pozioni.
+	if evocato:
+		return   # i rinforzi di una nemesi non portano niente
+	bottino_lasciato = Bottino.per_nemico(tipo, _forza, not nemesi.is_empty(), _ultima_arma, _caso)
+	if bottino_lasciato.is_empty():
+		return
+	Bottino.lascia(get_parent(), global_position + Vector2(0, -16), bottino_lasciato, false, _caso)
+	Rapporto.evento("bottino", {"tipo": tipo, "arma": _ultima_arma,
+			"cosa": bottino_lasciato.map(func(v: Dictionary) -> String: return Bottino.descrizione(v))})
+	if tipo == "mimic":
+		Rapporto.conta("mimic_battuti")
 
 
 func _su_impostazione(chiave: String) -> void:

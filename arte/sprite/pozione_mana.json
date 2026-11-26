@@ -1,0 +1,34 @@
+{
+	"animazioni": {
+		"grande": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				2
+			]
+		},
+		"media": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				1
+			]
+		},
+		"piccola": {
+			"ciclo": false,
+			"fps": 12.0,
+			"frame": [
+				0
+			]
+		}
+	},
+	"cella": [
+		12,
+		17
+	],
+	"colonne": 3,
+	"piedi": [
+		6,
+		16
+	]
+}

@@ -141,6 +141,14 @@ In ogni sogno, quando la stanza è vuota, i caduti si rialzano per tre volte (qu
 più forti. Ogni posto della stanza ha un veterano che accumula esperienza a ogni morte (`Memoria.veterani`, in
 `user://memoria.cfg`) e cresce piano, nel corso di mesi.
 
+## Bottino e pozioni
+
+`script/bottino.gd` decide cosa lasciano nemici e forzieri. I nemici deboli niente; quelli forti (mago, bestione,
+nemesi, chi ha forza 2 o più) quello dell'arma del colpo finale (dardi, frecce, pozione di mana) e a volte pozioni di
+salute, stamina e velocità. Le pozioni (piccola, media, grande) si raccolgono passandoci sopra (`Raccoglibile`) e
+danno un effetto di qualche secondo che si somma (`Giocatore.bevi`, `effetti`). I forzieri danno oggetti a caso; i due
+forzieri "a caso" possono essere mimic (nemico `mimic`, si muove a balzi), che battuti lasciano pozioni migliori.
+
 ## Armi a distanza
 
 Magia (energia che si ricarica), dardi e frecce (munizioni da forzieri e barili), in `script/giocatore.gd`
