@@ -2367,6 +2367,15 @@ func _affronta(n: Nemico) -> void:
 # che conviene di più adesso (con un carattere diverso a ogni partita e quello che ha imparato),
 # agisce, verifica com'è andata e lo ricorda. Nessun copione: ogni partita va in un altro modo.
 
+func _lascia_la_stanza_a_chi_gioca() -> void:
+	# Fermato a metà (pausa) o finito: i nemici non devono restare in tregua (fermi, ciechi e intoccabili:
+	# succedeva fermando il bot durante le prove tecniche) e chi gioca riparte da una stanza pulita,
+	# senza i muri rotti, i mimic forzati e le casse spostate dal bot. Non conta come un sogno nuovo.
+	_tregua(false)
+	if not Dispositivo.in_prova and is_instance_valid(_principale.stanza):
+		_principale.ricomincia_stanza()
+
+
 func _tregua(si: bool) -> void:
 	# Durante le prove tecniche i nemici restano fermi e non si possono colpire.
 	for n: Node in get_tree().get_nodes_in_group("nemici"):
@@ -3147,6 +3156,7 @@ func _concludi(motivo: String) -> void:
 	# Impostazioni e aspetto tornano come li aveva chi gioca.
 	if not _stato_utente.is_empty():
 		_rimetti(_stato_utente)
+	_lascia_la_stanza_a_chi_gioca()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SEGNO))
 	Dispositivo.bot_attivo = false
 	Effetti.applica_velocita()

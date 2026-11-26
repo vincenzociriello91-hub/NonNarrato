@@ -236,6 +236,20 @@ func _esegui() -> void:
 	_verifica("il bot rimette impostazioni e aspetto di prima", not FileAccess.file_exists(Bot.SEGNO) and dopo == prima,
 			str(dopo) if dopo != prima else "")
 	_prova_lezione_fallita()
+	# Bot fermato durante le prove tecniche: i nemici non devono restare fermi e intoccabili.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	bot.call("_tregua", true)
+	await _fotogrammi(2)
+	bot.call("_lascia_la_stanza_a_chi_gioca")
+	await _fotogrammi(4)
+	var fermi: Array = []
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var nemico := n as Nemico
+		if nemico.stato != Nemico.Stato.MORTO and (not nemico.is_physics_processing()
+				or (nemico.stato not in [Nemico.Stato.DORME, Nemico.Stato.RISVEGLIO] and not nemico.bersagliabile())):
+			fermi.append("%s %s" % [nemico.tipo, nemico.global_position])
+	_verifica("bot fermato: i nemici tornano a muoversi e a farsi colpire", fermi.is_empty(), str(fermi))
 	await _prova_impostazioni_suoni_aggiornamenti()
 	await _prova_dispositivo()
 	await _prova_sotterraneo()

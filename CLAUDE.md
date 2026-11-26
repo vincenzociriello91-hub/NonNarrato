@@ -92,6 +92,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - `script/bot.gd` contiene tutto lo scenario: lo usano il tasto "Fai giocare il bot" del menu, `-- --bot` e la prova automatica (`test/prova.gd` lo avvia senza chiudere e aggiunge solo controlli da computer). Nuove funzioni = nuovi controlli nel bot.
 - Prima di partire salva impostazioni e aspetto di chi gioca in `user://bot_in_corso.txt` (var_to_str, non JSON: i tipi devono restare); alla fine li rimette. Se il gioco muore a metà, `Bot.ripara_se_interrotto()` all'avvio.
 - Durante il bot: vibrazione spenta, adattamento automatico della qualità fermo (`Dispositivo.bot_attivo`), pausa di chi gioca = stop del bot.
+- Alla fine o allo stop `_concludi` chiama `_lascia_la_stanza_a_chi_gioca()`: tregua tolta e, fuori dalle prove, stanza ricominciata (bug del 26/11/2026: fermando il bot nelle prove tecniche i nemici restavano in tregua, fermi, ciechi e intoccabili).
 - Rapporto: sezione `bot` con controlli, falliti, e per ogni fase secondi, FPS medi, fotogramma peggiore, fotogrammi sotto 30 e sotto 20 FPS (le fasi `prestazioni_bassa/media/alta` confrontano le qualità). Motivo `bot` o `bot_fermato`.
 - Pacchetti in più (armature, elmi): solo CC0, da quaternius.com, kenney.nl, opengameart.org, itch.io quando Vincenzo li aggiunge ai domini consentiti.
 

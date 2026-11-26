@@ -1,5 +1,9 @@
 # Novità di NonNarrato
 
+## 0.1 — Correzione: nemici bloccati dopo il bot
+
+- **Corretto**: se fermavi il bot con la pausa mentre faceva le sue prove, i nemici restavano bloccati: camminavano sul posto, non ti vedevano e non si potevano ferire. Ora, quando il bot si ferma (o finisce), i nemici tornano normali e la stanza ricomincia pulita, senza i muri rotti e le casse spostate dal bot. Non conta come un sogno nuovo.
+
 ## 0.1 — Il gioco conosce meglio il tuo telefono
 
 - **Riconoscimento del dispositivo più completo**: oltre a schermo, grafica, suono, batteria e calore, ora il gioco legge anche:
