@@ -47,7 +47,7 @@ Odin 2 Portal, 25/11/2026, versione 0.1.4 (prova fatta a distanza col connettore
 - Tocco: leva, tasti a schermo e tasto indietro (apre la pausa) funzionano.
 - Letture Android (batteria, stato termico) funzionano; il margine termico non è disponibile (-1).
 - Il rapporto arriva in `/sdcard/Download/NonNarrato_report/`.
-- Android non lascia leggere memoria totale e nome del processore: restano vuoti. Lo schermo si dichiara a 60 Hz.
+- Android non lascia leggere memoria totale e nome del processore a Godot (OS.get_memory_info, OS.get_processor_name): dalla 0.1.20 li legge il plugin (`infoDispositivo`). Lo schermo si dichiara a 60 Hz.
 
 Pixel 8 Pro, 25/11/2026, versioni 0.1.7 e 0.1.8 (bot completo): Mali-G715, Vulkan Mobile, qualità "alta" da sola, tela 748x336 ×4, 60 FPS fissi in ogni fase, nessun errore, stato termico 0. Con limite 120 lo schermo passava a 120 Hz ma il gioco restava a 60: causa probabile il frame pacing di Android (Swappy), fissato a 60 alla creazione dello schermo; dalla 0.1.9 è spento (`enable_frame_pacing=false`) e la frequenza la gestisce `Dispositivo._richiedi_frequenza`. Da verificare nel prossimo rapporto.
 
@@ -189,3 +189,11 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Mimic: tipo `mimic` in `Nemico.TIPI`, cervello del saltatore (`Nemico.SALTANO`), morso 2, pausa lunga dopo il balzo, `SENZA_NEMESI` (Memoria lo ignora). Sprite dal forziere KayKit con denti, lingua e occhi ("pezzi" figli di `chest_lid`/`chest`).
 - Bot: pericolo "balzo" separato da "colpo" (contro i balzi arretrare non serve: rotolo in avanti); fase tecnica `bottino` (forziere a caso, raccolta, mimic forzato); nella partita obiettivo "forziere" e pozioni più interessanti in "raccogli". Il bottino secondo l'arma lo prova `test/prova.gd` (`_prova_bottino`, statistiche su molti tiri e seme fisso per il mago).
 - Il formato di `strumenti/render_sprite.json` è scritto a mano (array in riga): aggiungere voci senza riformattare il file.
+
+## Riconoscimento del dispositivo (0.1.20)
+
+- Decisione di Vincenzo (26/11/2026): il gioco deve riconoscere tutto quello che Android permette e che serve a regolarlo.
+- Plugin: `infoDispositivo()` = JSON letto una volta (produttore, modello, Android e sdk, patch, hardware, ABI, SOC_MANUFACTURER/SOC_MODEL e MEDIA_PERFORMANCE_CLASS dall'API 31, core, frequenza massima da /sys, RAM totale e libera, isLowRamDevice, spazio, Vulkan, giroscopio, vibrazione, prestazioni sostenute); `statoEnergia()` = "risparmio|modalità gioco" letto a ogni controllo. Tutto dentro `_leggi_plugin` (file-segnale).
+- `Dispositivo._unisci_info` mette i dati del plugin in `info` (quindi nel rapporto); `nome_processore()` traduce le sigle comuni (`NOMI_PROCESSORI`); `consiglia_da(info)` = [livello, motivo], statico e provato con dati finti.
+- `aggiorna_energia(risparmio, modo)`: risparmio energetico o modalità "batteria" (3) = `riduzione_energia` 1 (un livello in meno e 30 FPS, solo con qualità e limite FPS automatici); la modalità "prestazioni" (2) vince sul risparmio.
+- Menu: scheda Gioco, sezione "Il tuo dispositivo" (`_testo_dispositivo`); in Grafica il motivo del livello consigliato.

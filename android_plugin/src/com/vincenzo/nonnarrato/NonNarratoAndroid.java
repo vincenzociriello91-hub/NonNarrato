@@ -5,10 +5,14 @@ package com.vincenzo.nonnarrato;
 //  - installare l'aggiornamento scaricato da GitHub con una sessione di PackageInstaller,
 //    senza conferme quando Android lo permette (aggiornamento di sé stesso, API 31+);
 //  - leggere i modi dello schermo e chiederne uno (risoluzione e frequenza);
-//  - capire dove va il suono (altoparlante, cuffie, Bluetooth, USB) e se il telefono è silenzioso.
+//  - capire dove va il suono (altoparlante, cuffie, Bluetooth, USB) e se il telefono è silenzioso;
+//  - riconoscere il dispositivo: memoria, processore, versione di Android, classe di prestazioni,
+//    spazio libero, sensori; e lo stato dell'energia (risparmio energetico, modalità gioco di Android).
 // Compilato dalla compilazione su GitHub (strumenti/compila_plugin.sh) e messo in addons/.
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.GameManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -23,7 +27,12 @@ import android.media.AudioAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.os.Build;
+import android.os.PowerManager;
+import android.os.StatFs;
+import android.os.Vibrator;
 import android.provider.Settings;
 import android.view.Display;
 import android.view.Window;
@@ -34,7 +43,12 @@ import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
 import org.godotengine.godot.plugin.UsedByGodot;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -416,5 +430,114 @@ public class NonNarratoAndroid extends GodotPlugin {
 		}
 		AudioManager audio = (AudioManager) attivita.getSystemService(Context.AUDIO_SERVICE);
 		return audio == null ? -1 : audio.getRingerMode();
+	}
+
+	// ------------------------------------------------------------------ dispositivo
+
+	/** Tutto quello che Android lascia sapere sul dispositivo senza permessi, in JSON (letto una volta). */
+	@UsedByGodot
+	public String infoDispositivo() {
+		JSONObject d = new JSONObject();
+		Activity attivita = getActivity();
+		try {
+			d.put("produttore", Build.MANUFACTURER);
+			d.put("marca", Build.BRAND);
+			d.put("modello", Build.MODEL);
+			d.put("nome_dispositivo", Build.DEVICE);
+			d.put("build", Build.DISPLAY);
+			d.put("android", Build.VERSION.RELEASE);
+			d.put("sdk", Build.VERSION.SDK_INT);
+			d.put("patch_sicurezza", Build.VERSION.SECURITY_PATCH);
+			d.put("hardware", Build.HARDWARE);
+			d.put("scheda", Build.BOARD);
+			JSONArray abi = new JSONArray();
+			for (String a : Build.SUPPORTED_ABIS) {
+				abi.put(a);
+			}
+			d.put("abi", abi);
+			if (Build.VERSION.SDK_INT >= 31) {
+				d.put("soc_produttore", Build.SOC_MANUFACTURER);
+				d.put("soc_modello", Build.SOC_MODEL);
+				d.put("classe_prestazioni", Build.VERSION.MEDIA_PERFORMANCE_CLASS);
+			}
+			d.put("core", Runtime.getRuntime().availableProcessors());
+			d.put("frequenza_max_mhz", frequenzaMassimaMhz());
+			if (attivita != null) {
+				ActivityManager am = (ActivityManager) attivita.getSystemService(Context.ACTIVITY_SERVICE);
+				if (am != null) {
+					ActivityManager.MemoryInfo m = new ActivityManager.MemoryInfo();
+					am.getMemoryInfo(m);
+					d.put("ram_mb", m.totalMem / 1048576L);
+					d.put("ram_libera_mb", m.availMem / 1048576L);
+					d.put("poca_memoria", am.isLowRamDevice());
+					d.put("memoria_app_mb", am.getLargeMemoryClass());
+				}
+				StatFs spazio = new StatFs(attivita.getFilesDir().getAbsolutePath());
+				d.put("spazio_libero_mb", spazio.getAvailableBytes() / 1048576L);
+				d.put("spazio_totale_mb", spazio.getTotalBytes() / 1048576L);
+				PackageManager pm = attivita.getPackageManager();
+				d.put("vulkan", pm.hasSystemFeature("android.hardware.vulkan.level"));
+				SensorManager sensori = (SensorManager) attivita.getSystemService(Context.SENSOR_SERVICE);
+				if (sensori != null) {
+					d.put("giroscopio", sensori.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null);
+					d.put("accelerometro", sensori.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null);
+				}
+				Vibrator vibrazione = (Vibrator) attivita.getSystemService(Context.VIBRATOR_SERVICE);
+				d.put("vibrazione", vibrazione != null && vibrazione.hasVibrator());
+				d.put("vibrazione_dosabile", vibrazione != null && vibrazione.hasAmplitudeControl());
+				PowerManager energia = (PowerManager) attivita.getSystemService(Context.POWER_SERVICE);
+				d.put("prestazioni_sostenute", energia != null && energia.isSustainedPerformanceModeSupported());
+			}
+		} catch (Exception e) {
+			try {
+				d.put("errore", e.toString());
+			} catch (Exception ignorata) {
+				// niente da fare
+			}
+		}
+		return d.toString();
+	}
+
+	/** "risparmio|modo": risparmio energetico (0/1) e modalità gioco di Android
+	 *  (0 non disponibile, 1 normale, 2 prestazioni, 3 batteria, 4 personalizzata). Si legge spesso. */
+	@UsedByGodot
+	public String statoEnergia() {
+		Activity attivita = getActivity();
+		if (attivita == null) {
+			return "-1|0";
+		}
+		int risparmio = -1;
+		PowerManager energia = (PowerManager) attivita.getSystemService(Context.POWER_SERVICE);
+		if (energia != null) {
+			risparmio = energia.isPowerSaveMode() ? 1 : 0;
+		}
+		int modo = 0;
+		if (Build.VERSION.SDK_INT >= 31) {
+			GameManager giochi = (GameManager) attivita.getSystemService(Context.GAME_SERVICE);
+			if (giochi != null) {
+				modo = giochi.getGameMode();
+			}
+		}
+		return risparmio + "|" + modo;
+	}
+
+	private static int frequenzaMassimaMhz() {
+		// La frequenza più alta tra i core (i file di sistema si leggono senza permessi su quasi tutti i telefoni).
+		int massima = -1;
+		for (int i = 0; i < 16; i++) {
+			File f = new File("/sys/devices/system/cpu/cpu" + i + "/cpufreq/cpuinfo_max_freq");
+			if (!f.exists()) {
+				continue;
+			}
+			try (BufferedReader r = new BufferedReader(new FileReader(f))) {
+				String riga = r.readLine();
+				if (riga != null) {
+					massima = Math.max(massima, Integer.parseInt(riga.trim()) / 1000);
+				}
+			} catch (Exception e) {
+				// illeggibile: si va avanti
+			}
+		}
+		return massima;
 	}
 }

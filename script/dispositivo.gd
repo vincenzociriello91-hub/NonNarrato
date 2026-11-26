@@ -1,6 +1,9 @@
 extends Node
 # Riconosce il dispositivo su cui gira il gioco, sceglie il livello di qualità
-# e lo abbassa da solo se il dispositivo scalda o se il gioco va a scatti.
+# e lo abbassa da solo se il dispositivo scalda, se il gioco va a scatti o se il telefono
+# è in risparmio energetico (o nella modalità gioco "batteria" di Android).
+# Sul telefono il plugin legge memoria, processore, versione di Android, classe di prestazioni,
+# spazio libero e sensori (infoDispositivo) e lo stato dell'energia (statoEnergia).
 # Regola fissa: la salute del dispositivo viene prima della grafica.
 
 signal profilo_cambiato
@@ -17,6 +20,16 @@ const GPU_FORTI: Array[String] = [
 	"adreno (tm) 7", "adreno (tm) 8", "adreno 7", "adreno 8", "immortalis",
 	"mali-g71", "mali-g72", "mali-g78", "mali-g9", "xclipse 9", "apple", "nvidia", "geforce", "radeon rx",
 ]
+# Nomi commerciali dei processori più comuni (Android dà solo la sigla).
+const NOMI_PROCESSORI := {
+	"SM8750": "Snapdragon 8 Elite", "SM8650": "Snapdragon 8 Gen 3", "SM8635": "Snapdragon 8s Gen 3",
+	"SM8550": "Snapdragon 8 Gen 2", "SM8475": "Snapdragon 8+ Gen 1", "SM8450": "Snapdragon 8 Gen 1",
+	"SM8350": "Snapdragon 888", "SM8250": "Snapdragon 865", "SM7675": "Snapdragon 7+ Gen 3",
+	"SM7550": "Snapdragon 7 Gen 3", "SM6450": "Snapdragon 6 Gen 1",
+	"GS101": "Google Tensor", "GS201": "Google Tensor G2", "ZUMA": "Google Tensor G3", "ZUMAPRO": "Google Tensor G4",
+	"GS301": "Google Tensor G3", "GS401": "Google Tensor G4", "LAGUNA": "Google Tensor G5",
+}
+const MODI_GIOCO := {0: "non disponibile", 1: "normale", 2: "prestazioni", 3: "batteria", 4: "personalizzata"}
 const SEGNO_JNI := "user://lettura_android_in_corso"
 const SEGNO_FREQUENZA := "user://frequenza_in_corso"
 const TASTO_COLPO_MM := 13.0      # diametro voluto del tasto principale a schermo
@@ -46,6 +59,10 @@ var hdr := false
 var uscita_audio := ""           # altoparlante, cuffie, bluetooth, usb, hdmi, altro ("" = non si sa)
 var suoneria := -1               # 0 silenzioso, 1 vibrazione, 2 normale, -1 non si sa
 var _modo_chiesto := -1
+var risparmio_energetico := -1   # 1 = attivo, 0 = no, -1 = non si sa
+var modalita_gioco := 0          # vedi MODI_GIOCO
+var riduzione_energia := 0       # 1 = risparmio energetico o modalità "batteria": qualità e FPS più bassi
+var motivo_consiglio := ""       # perché il gioco ha scelto quel livello (si legge nel menu)
 
 var _tempo := 0.0
 var _fotogrammi := 0
@@ -68,7 +85,9 @@ func _ready() -> void:
 		plugin = Engine.get_singleton("NonNarratoAndroid")
 	_prepara_letture_android()
 	_leggi_android()
-	livello_consigliato = _consiglia()
+	var scelta := consiglia_da(info)
+	livello_consigliato = scelta[0]
+	motivo_consiglio = scelta[1]
 	Impostazioni.cambiata.connect(func(_chiave: String) -> void: applica())
 	applica()
 	var timer := Timer.new()
@@ -184,6 +203,10 @@ func _leggi_plugin() -> void:
 		info["modi_schermo"] = modi_schermo
 		info["hdr"] = hdr
 		info["installatore"] = String(plugin.call("installatore"))
+		_unisci_info(String(plugin.call("infoDispositivo")))
+	var energia := String(plugin.call("statoEnergia")).split("|")
+	if energia.size() == 2:
+		aggiorna_energia(energia[0].to_int(), energia[1].to_int())
 	var uscita := String(plugin.call("uscitaAudio"))
 	var squillo := int(plugin.call("suoneria"))
 	if uscita != uscita_audio or squillo != suoneria:
@@ -196,16 +219,79 @@ func _leggi_plugin() -> void:
 		audio_cambiato.emit()
 
 
-func _consiglia() -> String:
-	var gpu := String(info.get("gpu", "")).to_lower()
-	var ram: int = info.get("ram_mb", -1)
-	var core: int = info.get("core", 4)
-	if (ram > 0 and ram < 3500) or core <= 4 or info.get("poca_memoria", false):
-		return "bassa"
+func _unisci_info(testo: String) -> void:
+	# Quello che legge il plugin prende il posto dei valori vuoti di Godot (memoria, processore).
+	var dati: Variant = JSON.parse_string(testo)
+	if typeof(dati) != TYPE_DICTIONARY:
+		info["info_plugin"] = "illeggibile"
+		return
+	var d: Dictionary = dati
+	for chiave: String in d:
+		if chiave in ["modello", "core"]:
+			continue
+		info[chiave] = d[chiave]
+	if int(d.get("core", 0)) > 0:
+		info["core"] = int(d["core"])
+	if String(d.get("modello", "")) != "":
+		info["modello"] = "%s %s" % [String(d.get("produttore", "")).capitalize(), d["modello"]]
+	info["ram_mb"] = int(d.get("ram_mb", info.get("ram_mb", -1)))
+	info["processore"] = nome_processore(d)
+	info["versione_sistema"] = "Android %s" % d.get("android", "?")
+	var scelta := consiglia_da(info)
+	livello_consigliato = scelta[0]
+	motivo_consiglio = scelta[1]
+
+
+static func nome_processore(d: Dictionary) -> String:
+	var sigla := String(d.get("soc_modello", "")).strip_edges()
+	if sigla == "" or sigla == "unknown":
+		sigla = String(d.get("hardware", "")).strip_edges()
+	var nome: String = NOMI_PROCESSORI.get(sigla.to_upper(), "")
+	var produttore := String(d.get("soc_produttore", "")).strip_edges()
+	if nome != "":
+		return "%s (%s)" % [nome, sigla]
+	if produttore != "" and produttore.to_lower() != "unknown":
+		return "%s %s" % [produttore, sigla]
+	return sigla
+
+
+static func consiglia_da(dati: Dictionary) -> Array:
+	# [livello, motivo]. Poca memoria o pochi core: bassa. Grafica forte (o classe di prestazioni alta di
+	# Android) con memoria sufficiente: alta. Il resto: media.
+	var gpu := String(dati.get("gpu", "")).to_lower()
+	var ram: int = int(dati.get("ram_mb", -1))
+	var core: int = int(dati.get("core", 4))
+	var classe: int = int(dati.get("classe_prestazioni", 0))
+	if dati.get("poca_memoria", false):
+		return ["bassa", "Android lo dichiara un dispositivo a poca memoria"]
+	if ram > 0 and ram < 3500:
+		return ["bassa", "memoria di %.1f GB" % (ram / 1024.0)]
+	if core <= 4:
+		return ["bassa", "%d core" % core]
+	var memoria_ok := ram < 0 or ram >= 5500
 	for chiave in GPU_FORTI:
-		if gpu.contains(chiave) and (ram < 0 or ram >= 5500):
-			return "alta"
-	return "media"
+		if gpu.contains(chiave) and memoria_ok:
+			return ["alta", "grafica potente (%s)%s" % [dati.get("gpu", "?"), (", %.0f GB" % (ram / 1024.0)) if ram > 0 else ""]]
+	if classe >= 33 and memoria_ok:
+		return ["alta", "Android lo dichiara di classe prestazioni %d" % classe]
+	return ["media", "dispositivo di fascia media"]
+
+
+func aggiorna_energia(risparmio: int, modo: int) -> void:
+	# Risparmio energetico o modalità gioco "batteria": un livello in meno e 30 FPS (solo con le scelte
+	# automatiche). La modalità "prestazioni" scelta per il gioco vince sul risparmio.
+	var nuova := 1 if (risparmio == 1 or modo == 3) and modo != 2 else 0
+	var cambiato := risparmio != risparmio_energetico or modo != modalita_gioco
+	risparmio_energetico = risparmio
+	modalita_gioco = modo
+	info["risparmio_energetico"] = risparmio
+	info["modalita_gioco"] = MODI_GIOCO.get(modo, str(modo))
+	if nuova != riduzione_energia:
+		riduzione_energia = nuova
+		_evento("energia", {"risparmio": risparmio, "modalita_gioco": info["modalita_gioco"], "riduzione": nuova})
+		applica()
+	elif cambiato:
+		profilo_cambiato.emit()
 
 
 func applica() -> void:
@@ -219,7 +305,7 @@ func applica() -> void:
 	# Il caldo abbassa sempre la qualità; gli scatti solo se la scelta è automatica.
 	indice -= riduzione_caldo
 	if automatica:
-		indice -= riduzione_scatti
+		indice -= riduzione_scatti + riduzione_energia
 	livello = LIVELLI[maxi(0, indice)]
 	profilo = (PROFILI[livello] as Dictionary).duplicate()
 	profilo["primo_piano"] = livello != "bassa"
@@ -253,6 +339,8 @@ func applica() -> void:
 	RenderingServer.canvas_set_shadow_texture_size(int(profilo["atlante_ombre"]))
 	var limite: int = Impostazioni.leggi("grafica/limite_fps")
 	fps_obiettivo = limite if limite > 0 else 60
+	if limite <= 0 and riduzione_energia > 0:
+		fps_obiettivo = 30   # risparmio energetico: il telefono va trattato con riguardo
 	if riduzione_caldo >= 2:
 		fps_obiettivo = mini(fps_obiettivo, 30)
 	elif riduzione_caldo == 1:
@@ -546,6 +634,7 @@ func righe_debug() -> PackedStringArray:
 		termico = str(stato_termico)
 		if margine_termico >= 0.0:
 			termico += " (margine %.2f)" % margine_termico
-	righe.append("Qualità %s (consigliata %s)  obiettivo %d FPS" % [livello, livello_consigliato, fps_obiettivo])
+	righe.append("Qualità %s (consigliata %s)  obiettivo %d FPS%s" % [livello, livello_consigliato, fps_obiettivo,
+			"  risparmio energetico" if riduzione_energia > 0 else ""])
 	righe.append("Calore %s  batteria %s" % [termico, (str(batteria) + "%") if batteria >= 0 else "n.d."])
 	return righe

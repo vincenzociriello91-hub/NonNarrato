@@ -1,5 +1,16 @@
 # Novità di NonNarrato
 
+## 0.1 — Il gioco conosce meglio il tuo telefono
+
+- **Riconoscimento del dispositivo più completo**: oltre a schermo, grafica, suono, batteria e calore, ora il gioco legge anche:
+  - memoria totale e libera;
+  - processore, col nome commerciale (per esempio "Snapdragon 8 Gen 2"), numero di core e frequenza massima;
+  - versione di Android e classe di prestazioni che Android assegna al telefono;
+  - spazio libero, giroscopio, tipo di vibrazione.
+- **Si regola da solo anche con l'energia**: con il **risparmio energetico** attivo, o con la modalità gioco "batteria" di Android, la qualità automatica scende di un livello e il gioco va a 30 FPS. Se nella modalità gioco di Android scegli "prestazioni", quella vince. Le scelte fatte a mano non vengono toccate.
+- **Nel menu**, scheda **Gioco**, la sezione "Il tuo dispositivo" mostra tutto quello che il gioco ha riconosciuto. Nella scheda **Grafica** c'è scritto perché ha scelto quel livello di qualità.
+- Tutto finisce anche nel rapporto, per regolare meglio il gioco sui telefoni veri.
+
 ## 0.1 — Bottino, pozioni e mimic
 
 - **Bottino dei nemici**: i nemici deboli non lasciano niente. Quelli forti (mago, bestione, le nemesi e chiunque sia cresciuto con le ondate o da veterano) lasciano quello che serve all'arma con cui li hai finiti: **dardi** se con la balestra, **frecce** se con l'arco, **pozioni di mana** se con la magia. A volte lasciano anche pozioni di salute, di stamina e, più di rado, di velocità.

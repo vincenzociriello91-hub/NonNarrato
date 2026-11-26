@@ -65,6 +65,13 @@ scelta del gioco in base al dispositivo):
 - **Accessibilità**: velocità, danni ricevuti, mira, tiri da caricare con due tocchi, grandezza dei testi, scosse,
   lampi, contorni chiari, daltonismo, didascalie dei suoni.
 
+## Riconoscimento del dispositivo
+
+`script/dispositivo.gd` legge da Godot schermo, grafica e frequenze, e dal plugin Android memoria, processore,
+versione di Android, classe di prestazioni, spazio, sensori e stato dell'energia. Da questi sceglie il livello di
+qualità consigliato (`consiglia_da`) e lo abbassa con il caldo, gli scatti, il risparmio energetico o la modalità gioco
+"batteria" di Android. Quello che ha riconosciuto si legge nel menu (scheda Gioco) e nel rapporto.
+
 ## Suoni
 
 Tutti sintetizzati da `strumenti/genera_suoni.py` (rumore, toni e filtri: nessuna registrazione, CC0), file in

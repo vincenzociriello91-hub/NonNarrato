@@ -1630,6 +1630,12 @@ func _menu_impostazioni(menu: Menu) -> void:
 	_verifica("schermo: grandezze proposte dal dispositivo", menu.opzioni_di("schermo/scala").size() >= 2, str(menu.opzioni_di("schermo/scala")))
 	_verifica("schermo: limiti FPS proposti", menu.opzioni_di("grafica/limite_fps").size() >= 3, str(menu.opzioni_di("grafica/limite_fps")))
 	_verifica("schermo: descrizione dello schermo", menu.testo_info("schermo").contains("Mondo di gioco"), menu.testo_info("schermo"))
+	_verifica("gioco: descrizione del dispositivo", menu.testo_info("dispositivo").contains("Processore"), menu.testo_info("dispositivo"))
+	if Dispositivo.plugin != null:
+		# Sul telefono il plugin deve aver letto memoria, processore e stato dell'energia.
+		_verifica("dispositivo: il plugin legge memoria, processore ed energia", int(Dispositivo.info.get("ram_mb", -1)) > 0
+				and String(Dispositivo.info.get("processore", "")) != "" and Dispositivo.risparmio_energetico >= 0,
+				"%s, %s MB, risparmio %d" % [Dispositivo.info.get("processore", ""), Dispositivo.info.get("ram_mb", -1), Dispositivo.risparmio_energetico])
 	menu.scegli("schermo/adatta", "riempi")
 	await _fotogrammi_in_pausa(2)
 	var tela: Vector2i = mondo.size_2d_override if mondo.size_2d_override != Vector2i.ZERO else mondo.size

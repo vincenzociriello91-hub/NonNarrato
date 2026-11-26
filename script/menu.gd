@@ -185,6 +185,8 @@ func _costruisci_gioco(p: VBoxContainer) -> void:
 	_interruttore(p, "Numeri dei danni sopra i nemici", "gioco/numeri_danno")
 	_interruttore(p, "Frasi delle nemesi e messaggi della storia", "gioco/messaggi")
 	_interruttore(p, "Schermata di debug (FPS e dispositivo)", "gioco/debug")
+	_sezione(p, "Il tuo dispositivo")
+	_info["dispositivo"] = _nota(p, "")
 	_sezione(p, "Aggiornamenti")
 	_info["versione"] = _nota(p, "")
 	_interruttore(p, "Controlla gli aggiornamenti all'avvio", "gioco/controlla_aggiornamenti")
@@ -784,8 +786,14 @@ func _testi_informativi() -> void:
 		testo += "\nFrequenze del pannello: %s Hz" % ", ".join(hz.map(func(h: int) -> String: return str(h)))
 	(_info["schermo"] as Label).text = testo
 	var calore := "normale" if d.riduzione_caldo == 0 else ("caldo: qualità ridotta" if d.riduzione_caldo == 1 else "molto caldo: qualità ridotta di più")
-	(_info["grafica"] as Label).text = "In uso: qualità %s (consigliata per il tuo dispositivo: %s) · obiettivo %d FPS\n%s · calore %s" % [
+	var testo_grafica := "In uso: qualità %s (consigliata per il tuo dispositivo: %s) · obiettivo %d FPS\n%s · calore %s" % [
 			d.livello, d.livello_consigliato, d.fps_obiettivo, d.info.get("gpu", "?"), calore]
+	if d.motivo_consiglio != "":
+		testo_grafica += "\nPerché %s: %s" % [d.livello_consigliato, d.motivo_consiglio]
+	if d.riduzione_energia > 0:
+		testo_grafica += "\nRisparmio energetico attivo: in automatico un livello in meno e 30 FPS."
+	(_info["grafica"] as Label).text = testo_grafica
+	(_info["dispositivo"] as Label).text = _testo_dispositivo()
 	var uscite := {"altoparlante": "altoparlante del telefono", "cuffie": "cuffie con il filo", "bluetooth": "dispositivo Bluetooth",
 			"usb": "uscita USB", "hdmi": "schermo esterno (HDMI)", "altro": "altra uscita", "": "non rilevata (computer o versione senza plugin)"}
 	var suonerie := {0: "silenziosa", 1: "vibrazione", 2: "normale", -1: "non rilevata"}
@@ -800,6 +808,42 @@ func _testi_informativi() -> void:
 		comandi += " · controller collegato: %s" % Controlli.controller
 	(_info["comandi"] as Label).text = comandi
 	(_info["versione"] as Label).text = "Versione installata: %s" % Aggiornatore.versione_attuale
+
+
+func _testo_dispositivo() -> String:
+	# Quello che il gioco ha riconosciuto del telefono (sul computer resta quel poco che dice Godot).
+	var i: Dictionary = Dispositivo.info
+	var righe: Array[String] = []
+	righe.append("%s · %s" % [i.get("modello", "?"), i.get("versione_sistema", "?")])
+	var processore := String(i.get("processore", ""))
+	var cpu := "%s%d core" % [(processore + ", ") if processore != "" else "", int(i.get("core", 0))]
+	if int(i.get("frequenza_max_mhz", -1)) > 0:
+		cpu += " fino a %.2f GHz" % (int(i["frequenza_max_mhz"]) / 1000.0)
+	righe.append("Processore: " + cpu)
+	var ram := int(i.get("ram_mb", -1))
+	if ram > 0:
+		var memoria := "Memoria: %.1f GB" % (ram / 1024.0)
+		if int(i.get("ram_libera_mb", -1)) > 0:
+			memoria += " (libera %.1f GB)" % (int(i["ram_libera_mb"]) / 1024.0)
+		righe.append(memoria)
+	righe.append("Grafica: %s" % i.get("gpu", "?"))
+	if int(i.get("classe_prestazioni", 0)) > 0:
+		righe.append("Classe di prestazioni di Android: %d" % int(i["classe_prestazioni"]))
+	if int(i.get("spazio_libero_mb", -1)) > 0:
+		righe.append("Spazio libero: %.1f GB su %.0f" % [int(i["spazio_libero_mb"]) / 1024.0, int(i.get("spazio_totale_mb", 0)) / 1024.0])
+	if Dispositivo.risparmio_energetico >= 0:
+		righe.append("Risparmio energetico: %s · modalità gioco di Android: %s" % [
+				"attivo" if Dispositivo.risparmio_energetico == 1 else "spento", Dispositivo.MODI_GIOCO.get(Dispositivo.modalita_gioco, "?")])
+	var sensori: Array[String] = []
+	if i.get("giroscopio", false):
+		sensori.append("giroscopio")
+	if i.get("vibrazione_dosabile", false):
+		sensori.append("vibrazione dosabile")
+	elif i.get("vibrazione", false):
+		sensori.append("vibrazione")
+	if not sensori.is_empty():
+		righe.append("Sensori: " + ", ".join(sensori))
+	return "\n".join(righe)
 
 
 func _carica_aspetto() -> void:

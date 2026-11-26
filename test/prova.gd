@@ -237,6 +237,7 @@ func _esegui() -> void:
 			str(dopo) if dopo != prima else "")
 	_prova_lezione_fallita()
 	await _prova_impostazioni_suoni_aggiornamenti()
+	await _prova_dispositivo()
 	await _prova_sotterraneo()
 	await _prova_bottino()
 	await _prova_armi_e_bestione()
@@ -618,6 +619,54 @@ func _prova_impostazioni_suoni_aggiornamenti() -> void:
 			and not Aggiornatore.impronta_valida(prova_apk, "0".repeat(64)))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(prova_apk))
 	_verifica("aggiornamento: senza plugin sul computer (Android lo ha)", Aggiornatore.plugin == null and Aggiornatore.testo_pulsante() != "")
+	Impostazioni.ripristina()
+
+
+func _prova_dispositivo() -> void:
+	# Riconoscimento del dispositivo: livello consigliato, nome del processore, dati del plugin, energia.
+	var d := Dispositivo
+	_verifica("dispositivo: poca memoria = qualità bassa", d.consiglia_da({"ram_mb": 2048, "core": 8})[0] == "bassa"
+			and d.consiglia_da({"poca_memoria": true, "ram_mb": 8000, "core": 8})[0] == "bassa")
+	_verifica("dispositivo: grafica potente e memoria = alta", d.consiglia_da({"gpu": "Adreno (TM) 740", "ram_mb": 12000, "core": 8})[0] == "alta"
+			and d.consiglia_da({"gpu": "Mali-G57", "ram_mb": 6000, "core": 8, "classe_prestazioni": 33})[0] == "alta")
+	_verifica("dispositivo: fascia media = media", d.consiglia_da({"gpu": "Mali-G57", "ram_mb": 4000, "core": 8})[0] == "media")
+	_verifica("dispositivo: nome commerciale del processore", d.nome_processore({"soc_modello": "SM8550", "soc_produttore": "QTI"}) == "Snapdragon 8 Gen 2 (SM8550)"
+			and d.nome_processore({"soc_modello": "MT6985", "soc_produttore": "Mediatek"}) == "Mediatek MT6985",
+			d.nome_processore({"soc_modello": "SM8550", "soc_produttore": "QTI"}))
+	# Dati come li darebbe il plugin sulla Odin.
+	var salvate: Dictionary = d.info.duplicate(true)
+	var prima := [d.livello_consigliato, d.motivo_consiglio]
+	d.call("_unisci_info", JSON.stringify({"produttore": "AYN", "modello": "Odin2 Portal", "android": "13", "sdk": 33,
+			"soc_modello": "SM8550", "soc_produttore": "QTI", "core": 8, "ram_mb": 7680, "ram_libera_mb": 3100,
+			"classe_prestazioni": 0, "spazio_libero_mb": 90000, "spazio_totale_mb": 120000, "giroscopio": true,
+			"vibrazione": true, "vibrazione_dosabile": true, "frequenza_max_mhz": 3187}))
+	_verifica("dispositivo: i dati del plugin riempiono memoria e processore", int(d.info["ram_mb"]) == 7680
+			and String(d.info["processore"]).begins_with("Snapdragon 8 Gen 2") and d.info["modello"] == "Ayn Odin2 Portal"
+			and d.info["versione_sistema"] == "Android 13", str(d.info))
+	_principale.menu.call("_testi_informativi")
+	var testo: String = _principale.menu.testo_info("dispositivo")
+	_verifica("dispositivo: il menu dice cosa ha riconosciuto", testo.contains("Snapdragon 8 Gen 2") and testo.contains("7.5 GB")
+			and testo.contains("3.19 GHz") and testo.contains("giroscopio"), testo)
+	# Risparmio energetico: in automatico un livello in meno e 30 FPS; la modalità "prestazioni" vince.
+	Impostazioni.scrivi("grafica/qualita", "auto")
+	Impostazioni.scrivi("grafica/limite_fps", 0)
+	d.livello_consigliato = "alta"
+	d.aggiorna_energia(0, 1)
+	d.applica()
+	var normale := [d.livello, d.fps_obiettivo]
+	d.aggiorna_energia(1, 1)
+	var risparmio := [d.livello, d.fps_obiettivo]
+	d.aggiorna_energia(1, 2)
+	var prestazioni := [d.livello, d.fps_obiettivo]
+	d.aggiorna_energia(0, 3)
+	var batteria := [d.livello, d.fps_obiettivo]
+	_verifica("dispositivo: risparmio energetico = un livello in meno e 30 FPS", normale == ["alta", 60] and risparmio == ["media", 30]
+			and prestazioni == ["alta", 60] and batteria == ["media", 30], "%s %s %s %s" % [normale, risparmio, prestazioni, batteria])
+	d.aggiorna_energia(-1, 0)
+	d.info = salvate
+	d.applica()
+	d.livello_consigliato = prima[0]
+	d.motivo_consiglio = prima[1]
 	Impostazioni.ripristina()
 
 
