@@ -262,6 +262,16 @@ func tempi_attacco() -> Array:
 	return tempi
 
 
+func tregua(si: bool) -> void:
+	# Per le prove tecniche del bot: fermo e intoccabile (poi torna com'era).
+	set_physics_process(not si)
+	if stato == Stato.MORTO:
+		return
+	_bersaglio.set_deferred("monitorable", not si and stato not in [Stato.DORME, Stato.RISVEGLIO] or (not si and tipo == "pipistrello"))
+	if si:
+		velocity = Vector2.ZERO
+
+
 func sta_parando() -> bool:
 	return _t_parata > 0.0
 

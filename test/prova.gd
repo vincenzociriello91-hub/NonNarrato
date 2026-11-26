@@ -189,6 +189,7 @@ func _esegui() -> void:
 	bot.chiudi_alla_fine = false
 	bot.scritta = false
 	bot.cartella_foto = _cartella
+	bot.seme = 4242   # sul computer la partita libera va sempre allo stesso modo (sul telefono no)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--fasi="):
 			bot.solo_fasi = arg.trim_prefix("--fasi=").split(",")
@@ -210,6 +211,7 @@ func _esegui() -> void:
 	_prova_lezione_fallita()
 	await _prova_armi_e_bestione()
 	await _prova_nemesi_e_veterani()
+	await _prova_meccanismi()
 	await _prova_ondate()
 	if bot.solo_fasi.is_empty() or bot.solo_fasi.has("prestazioni"):
 		_verifica("il bot prova anche il limite FPS di chi gioca", bot.fasi.any(func(f: Dictionary) -> bool: return f["nome"] == "prestazioni_120fps"))
@@ -349,6 +351,91 @@ func _prova_nemesi_e_veterani() -> void:
 	finto.free()   # mai entrato nella scena
 	await _fotogrammi(2)
 	Memoria.ripristina_stato(salvata)
+
+
+func _prova_meccanismi() -> void:
+	# Il bot ora gioca libero (risolve enigmi e apre forzieri solo se gli va): qui ogni meccanismo
+	# della galleria si prova a colpo sicuro, in una stanza nuova a nemici fermi.
+	var salvati := Equipaggiamento.stato()
+	Equipaggiamento.azzera_tesori()
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	var m := stanza.meccanismi
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		(n as Nemico).tregua(true)
+	stanza.ondate_attive = false
+	var g := _g()
+	# Leva e grata, forziere (vita, frecce, frammento).
+	(m["leva_alcova"] as Leva).interagisci(g)
+	await _fotogrammi(80)
+	_verifica("la leva apre la grata dell'alcova", (m["porta_alcova"] as Porta).del_tutto_aperta())
+	g.vita = 3
+	g.munizioni["frecce"] = 0
+	var forziere := m["forziere_alcova"] as Forziere
+	forziere.interagisci(g)
+	await _fotogrammi(40)   # il coperchio si apre, poi esce il premio
+	_verifica("il forziere cura, ridà le frecce e ha un frammento", forziere.aperto and g.vita > 3
+			and int(g.munizioni["frecce"]) > 0 and forziere.contenuto.has("frammento"), str(forziere.contenuto))
+	# Piastra e balestra.
+	var scoccate := Rapporto.contatore("frecce_scoccate")
+	await _sposta(Vector2((m["piastra_freccia"] as Node2D).global_position.x, Stanza.PAVIMENTO), -1)
+	await _fotogrammi(60)
+	_verifica("la piastra fa scattare la balestra", Rapporto.contatore("frecce_scoccate") > scoccate)
+	# Spuntoni: chi ci resta sopra si ferisce.
+	g.vita = Giocatore.VITA_MASSIMA
+	var subite := Rapporto.contatore("trappole_subite")
+	await _sposta(Vector2((m["spuntoni"] as Node2D).global_position.x, Stanza.PAVIMENTO), 1)
+	_rilascia_tutto()
+	for i in 300:
+		if Rapporto.contatore("trappole_subite") > subite:
+			break
+		await _fotogrammi(1)
+	_verifica("gli spuntoni feriscono chi ci resta sopra", Rapporto.contatore("trappole_subite") > subite)
+	await _sposta(Vector2(1500, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(60)
+	g.vita = Giocatore.VITA_MASSIMA
+	# Lastra fragile: crolla poco dopo che ci si sale, poi torna.
+	var lastra := m["crollo1"] as PiattaformaFragile
+	var crolli := Rapporto.contatore("piattaforme_crollate")
+	await _sposta(lastra.global_position + Vector2(PiattaformaFragile.LARGHEZZA * 0.5, -2.0), 1)
+	_rilascia_tutto()
+	await _fotogrammi(150)
+	var crollata := Rapporto.contatore("piattaforme_crollate") > crolli
+	await _sposta(Vector2(1900, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(240)
+	_verifica("la lastra fragile crolla e poi torna", crollata and lastra.presente)
+	# Montacarichi: sale e scende da solo.
+	var montacarichi := m["montacarichi"] as Node2D
+	var quote := {}
+	for i in 12:
+		quote[roundi(montacarichi.global_position.y / 40.0)] = true
+		await _fotogrammi(40)
+	_verifica("il montacarichi sale e scende", quote.size() >= 3, str(quote.keys()))
+	# Cassa sulla piastra: la grata del tesoro resta alzata.
+	var cassa := m["cassa_enigma"] as RigidBody2D
+	var piastra := m["piastra_tesoro"] as Piastra
+	cassa.global_position = Vector2(piastra.global_position.x, Stanza.PAVIMENTO - 2.0)
+	cassa.linear_velocity = Vector2.ZERO
+	await _fotogrammi(120)
+	_verifica("la cassa sulla piastra tiene alzata la grata del tesoro", piastra.da_cassa and (m["porta_tesoro"] as Porta).del_tutto_aperta())
+	# Bracieri: ordine sbagliato si spengono; ordine giusto alza il gradino; il forziere d'oro dà un colore.
+	var enigma := m["bracieri"] as EnigmaBracieri
+	var sbagli := Rapporto.contatore("enigmi_sbagliati")
+	var sbagliato: int = enigma.ordine[1]
+	enigma.accendi(enigma.bracieri[sbagliato])
+	await _fotogrammi(90)
+	_verifica("bracieri: nell'ordine sbagliato si spengono", Rapporto.contatore("enigmi_sbagliati") > sbagli and enigma.accesi.is_empty())
+	for i: int in enigma.ordine:
+		enigma.accendi(enigma.bracieri[i])
+	await _fotogrammi(160)
+	_verifica("bracieri: nell'ordine giusto si alza il gradino segreto", enigma.soluzione and (m["gradino"] as Porta).del_tutto_aperta())
+	var oro := m["forziere_oro"] as Forziere
+	oro.interagisci(g)
+	await _fotogrammi(40)
+	_verifica("il forziere d'oro dà un colore nuovo", oro.aperto and oro.contenuto.has("colore"), str(oro.contenuto))
+	Equipaggiamento.ripristina_stato(salvati)
+	g.vita = Giocatore.VITA_MASSIMA
 
 
 func _prova_ondate() -> void:

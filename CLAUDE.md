@@ -78,7 +78,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 - Decisione di Vincenzo (25/11/2026): un bot che gioca in locale, fa tutto e alla chiusura manda il rapporto.
 - Il bot non si teletrasporta mai: `_vai_a()` usa il `Navigatore` (superfici da `Stanza.superfici()`, archi salto/salto_su/attraversa/caduta/rotola, Dijkstra, esperienza in `user://bot_esperienza.cfg` che corregge il punto di stacco dopo un errore). Le casse sulla strada si scavalcano (su + direzione); i nemici svegli vicini si affrontano. In combattimento legge la carica del colpo nemico, attacca quando è scoperto e sceglie la schivata che ha funzionato di più (scatto indietro, rotolo indietro o avanti, salto, colpo sulla sfera).
-- Ordine delle fasi: movimento, cassa e barili, scheletro, cripta (si ripulisce combattendo; il bot non muore mai apposta), cunicolo e piattaforme (terrazza, p2, ripiano), schivate, qualità, tasti, menu, mosse, ambiente, armi da mischia, armi a distanza, galleria, trappole, torre, due enigmi, nemici nuovi, ondate, gioco libero (visita tutte le zone), prestazioni. All'inizio il bot azzera la memoria del sogno e alla fine rimette quella di chi gioca.
+- Ordine delle fasi: vedi "Bot con cervello" più sotto (prove tecniche, partita libera, prestazioni). Il bot non muore mai apposta. All'inizio il bot azzera la memoria del sogno e alla fine rimette quella di chi gioca.
 - `script/bot.gd` contiene tutto lo scenario: lo usano il tasto "Fai giocare il bot" del menu, `-- --bot` e la prova automatica (`test/prova.gd` lo avvia senza chiudere e aggiunge solo controlli da computer). Nuove funzioni = nuovi controlli nel bot.
 - Prima di partire salva impostazioni e aspetto di chi gioca in `user://bot_in_corso.txt` (var_to_str, non JSON: i tipi devono restare); alla fine li rimette. Se il gioco muore a metà, `Bot.ripara_se_interrotto()` all'avvio.
 - Durante il bot: vibrazione spenta, adattamento automatico della qualità fermo (`Dispositivo.bot_attivo`), pausa di chi gioca = stop del bot.
@@ -120,6 +120,15 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Veterani: `Memoria.veterani[id_posto]` {xp, morti, uccisioni, ondate}; livello = radice(xp/12), max 10 (livello 5 dopo circa 70 morti: mesi); `_forza` = livello + ondata - 1 dà vita, corsa, vista, riflessi; livello 4/7/9 = combo/parata/furia. `id_posto` = "tipo@x,y" da `Stanza._nemico`.
 - Ondate: `Stanza.ONDATE = 4`, `_controlla_ondate` (stanza vuota → 4 s → `_nuova_ondata`), `sogno_completato`, `Memoria.sogni_completati`.
 - Bot: niente fase `morte`; fase `cripta` (ex nemesi); fasi nuove `armi_da_mischia` e `ondate`; le fasi della galleria interrotte da una morte vera si rifanno (fino a 3 volte). La nascita delle nemesi la prova `test/prova.gd` (`_prova_nemesi_e_veterani`).
+
+## Bot con cervello (0.1.16)
+
+- Ordine: prove tecniche a nemici fermi (`_tregua`, `Nemico.tregua`): movimento, cassa e barili, tasti a schermo, qualità, menu, mosse, ambiente, armi da mischia, armi a distanza; poi `_partita` (420 s di gioco, stanza nuova, ondate attive); poi prestazioni.
+- `_partita`: ciclo osserva-decidi-agisci-ricorda. `_decidi` dà un punteggio a: combatti, ritirata, alcova, torre, cassa, bracieri (riusano `_galleria`, `_torre`, `_enigma_cassa`, `_enigma_bracieri`), caccia, aspetta, esplora, raccogli, rompi, prova_arma; pesi dal carattere (`_umore`, a caso per partita), dalla riuscita passata, ±20% di caso, penalità a ciò che è fallito due volte. Nella partita `_verifica` registra risultati in `_esiti_partita` (non sono errori) e `_nuova_fase` non apre fasi.
+- `seme`: 0 = a caso (telefono); la prova sul computer usa 4242. Memoria del cervello in `user://bot_cervello.cfg` (obiettivi, armi contro ogni nemico, chi l'ha ucciso).
+- Contro lo stallo: `_ignorati` (nemico irraggiungibile lasciato 20-25 s), controllo dei progressi in `_combatti_contro`, `_fermate` nel rapporto (fermo 20 s). Controlli finali: obiettivi diversi ≥ 5, almeno 4 uccisi, metà delle zone viste, mai bloccato 90 s, esiti delle armi.
+- I meccanismi della galleria (leva, forzieri, balestra, spuntoni, lastre, montacarichi, cassa sulla piastra, bracieri, forziere d'oro) li prova a colpo sicuro `test/prova.gd` (`_prova_meccanismi`).
+- Durante il bot le ondate seguono `_ondate_permesse` (ferme nelle prove tecniche).
 
 ## Regole del codice
 

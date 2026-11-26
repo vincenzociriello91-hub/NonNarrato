@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Il bot pensa da solo
+
+- **Il bot non segue più un copione.** Prima fa le prove tecniche (comandi, menu, armi, qualità) a nemici fermi, poi gioca una partita libera di circa 7 minuti. Lì sceglie da solo cosa fare, in base a quello che vede: combattere o ritirarsi se ha poca vita, curarsi a un forziere, risolvere gli enigmi, esplorare le zone che non ha visto, raccogliere munizioni, provare armi nuove, aspettare la prossima ondata.
+- **Ogni partita è diversa**: il bot ha un carattere che cambia ogni volta (più coraggioso, più prudente, più curioso, più avido) e un po' di caso nelle scelte.
+- **Impara da una partita all'altra**: ricorda quali obiettivi gli riescono, quale arma ha funzionato contro ogni nemico (contro chi para prova le armi che rompono la guardia) e chi lo ha ucciso più spesso, così ci sta più attento.
+- **Se resta bloccato si arrangia**: salta, tira da lontano o lascia perdere un nemico che non riesce a raggiungere; una cassa incastrata contro la grata la afferra e la tira invece di spingerla.
+- Nel rapporto trovi il suo carattere, il diario delle scelte, cosa è riuscito, quali armi ha provato, chi lo ha ucciso e dove si è fermato a lungo.
+
 ## 0.1 — Armi vere, nemici più duri, nemesi che crescono e quattro ondate
 
 - **Ogni arma ha i suoi attacchi**:

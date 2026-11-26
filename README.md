@@ -115,13 +115,11 @@ raffica di dardi, arco carico che trapassa.
 
 ## Bot di prova
 
-Dal menu di pausa, "Fai giocare il bot" (oppure `godot --path . -- --bot` sul computer). `script/bot.gd` gioca da solo
-la stanza come una persona (solo comandi, nessun teletrasporto: i percorsi li trova `script/navigatore.gd`, che
-ricorda quali passaggi falliscono e sa quando una grata è aperta o una lastra è crollata), combatte schivando, muore
-contro uno scheletro e affronta la sua nemesi, aspetta il momento giusto davanti alle trappole, prende il montacarichi,
-risolve i due enigmi e apre i forzieri, prova mosse,
-aspetti e qualità, misura la fluidità di ogni fase, rimette le scelte di chi gioca, salva il
-rapporto con la sezione `bot` e chiude il gioco. Se il gioco si chiude a metà, al riavvio le scelte vengono rimesse.
+Dal menu di pausa, "Fai giocare il bot" (oppure `godot --path . -- --bot` sul computer). `script/bot.gd` prima prova
+comandi, menu, armi e qualità a nemici fermi, poi gioca una **partita libera**: osserva (vita, nemici, forzieri,
+enigmi, zone da vedere), sceglie l'obiettivo che conviene adesso secondo un carattere diverso a ogni partita e quello
+che ha imparato (`user://bot_cervello.cfg`), agisce e ricorda com'è andata. Si muove solo con i comandi (i percorsi
+li trova `script/navigatore.gd`). Alla fine misura le prestazioni con ogni qualità e scrive tutto nel rapporto.
 
 ## Prove
 
@@ -130,9 +128,10 @@ godot --headless --path . --import
 godot --headless --fixed-fps 60 --path . -- --prova
 ```
 
-La prova fa giocare lo stesso bot (corsa, salto, colpi, cassa, barili, nemici, cunicolo, piattaforme, tasti a schermo,
-menu, aspetto, mosse, morte, comandi a caso, qualità) e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno schermo e `--schermate=/cartella` salva anche le immagini.
-Per correggere più in fretta, `--fasi=torre,enigma_cassa` fa giocare al bot solo alcune fasi.
+La prova fa giocare lo stesso bot (con un seme fisso: la partita libera va sempre allo stesso modo), poi prova a colpo
+sicuro meccanismi, nemesi, veterani, ondate, armi e scudo, e stampa `PROVA ok/FALLITA` per ogni controllo. Con uno
+schermo e `--schermate=/cartella` salva anche le immagini. Per correggere più in fretta, `--fasi=armi_a_distanza,partita`
+fa giocare al bot solo alcune fasi.
 
 ## Pubblicazione
 

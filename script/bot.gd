@@ -53,6 +53,27 @@ var _fase_interrotta := false
 var _pericolo_da_chi: Nemico = null
 var _esito_ondate := {}
 var _ondate_permesse := false
+var seme := 0                    # 0 = a caso (sul telefono ogni partita è diversa); la prova sul computer ne fissa uno
+var _in_partita := false         # nella partita libera i controlli delle vecchie fasi diventano risultati, non errori
+var _esiti_partita := {}
+var _umore := {}                 # carattere di questa partita: coraggio, prudenza, curiosità, avidità
+var _diario: Array = []          # gli obiettivi scelti, in ordine (finisce nel rapporto)
+var _obiettivi := {}             # nome -> [scelto, riuscito]: il bot ricorda cosa gli riesce
+var _visitate := {}
+var _armi_provate := {}
+var _pericolosi := {}            # tipo di nemico -> quante volte l'ha ucciso: ne terrà conto
+var _stallo_massimo := 0.0
+var _obiettivi_storici := {}
+var _partita_finale := {}
+var _t_fermo := 0.0
+var _fermate: Array = []
+var _ultimo_posto := Vector2.ZERO
+var _obiettivo_ora := ""
+var _esito_armi := {}            # tipo di nemico -> famiglia d'arma -> [combattimenti, vinti]
+var _ignorati := {}              # nemici che non si riesce a raggiungere: lasciati stare per un po'
+
+const DURATA_PARTITA := 420.0    # secondi di gioco della partita libera
+const ESPERIENZA_CERVELLO := "user://bot_cervello.cfg"
 var _armatura_provata := false   # il primo colpo di spada sul bestione si prova da davanti (come farebbe una persona)
 var _trappole_forzate := {}      # trappola -> fino a quando non la si aspetta più (ms)
 
@@ -88,7 +109,7 @@ func avvia() -> void:
 	in_corso = true
 	_inizio_ms = Time.get_ticks_msec()
 	_stato_utente = {"impostazioni": Impostazioni.tutte(), "aspetto": Equipaggiamento.stato(), "memoria": Memoria.stato()}
-	_caso.seed = 4242
+	_caso.seed = seme if seme != 0 else int(Time.get_unix_time_from_system() * 1000.0) % 2147483647
 	_nav = Navigatore.new(Stanza.superfici(), Stanza.passaggi_speciali())
 	_nav.condizione = func(nome: String) -> bool: return _principale.stanza.condizione(nome)
 	var f := FileAccess.open(SEGNO, FileAccess.WRITE)
@@ -164,6 +185,12 @@ func _rilascia_tutto() -> void:
 
 
 func _verifica(nome: String, riuscita: bool, dettaglio: String = "") -> void:
+	if _in_partita:
+		# Nella partita libera il bot sceglie da sé: quello che riesce o no è un risultato da raccontare.
+		_esiti_partita[nome] = riuscita
+		if Dispositivo.in_prova:
+			print("PROVA partita: %s %s %s" % ["riuscito" if riuscita else "non riuscito", nome, dettaglio])
+		return
 	print("PROVA %s: %s %s" % ["ok" if riuscita else "FALLITA", nome, dettaglio])
 	controlli.append({"nome": nome, "ok": riuscita, "dettaglio": dettaglio.left(200), "fase": fase_nome,
 			"t": snappedf((Time.get_ticks_msec() - _inizio_ms) / 1000.0, 0.1)})
@@ -547,7 +574,7 @@ func _minaccia() -> Nemico:
 	# Un nemico sveglio e vicino: alla stessa quota, oppure un pipistrello che vola qui attorno.
 	var g := _g()
 	for n: Nemico in _nemici_vivi():
-		if n.stato in [Nemico.Stato.DORME, Nemico.Stato.RISVEGLIO]:
+		if n.stato in [Nemico.Stato.DORME, Nemico.Stato.RISVEGLIO] or _ignorato(n):
 			continue
 		var d := n.global_position - g.global_position
 		if n.tipo == "pipistrello":
@@ -556,6 +583,10 @@ func _minaccia() -> Nemico:
 		elif absf(d.x) < 110.0 and absf(d.y) < (60.0 if n.tipo == "saltatore" else 40.0) and _visibile(n):
 			return n   # dietro un muro non è una minaccia
 	return null
+
+
+func _ignorato(n: Nemico) -> bool:
+	return int(_ignorati.get(n.get_instance_id(), 0)) > Engine.get_physics_frames()
 
 
 func _visibile(n: Nemico) -> bool:
@@ -751,7 +782,21 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 	# Contro lo stallo: se per otto secondi non cambia niente (nessuno si muove, nessuno si ferisce), si lascia.
 	var inizio_ms := Engine.get_physics_frames()
 	var istantanea := ""
+	var ultimo_progresso := Engine.get_physics_frames()
+	var bloccato := 0
+	var vita_nemico := n.vita
+	var vita_mia := _g().vita
 	for i in massimo:
+		if is_instance_valid(n) and (n.vita < vita_nemico or _g().vita < vita_mia):
+			vita_nemico = n.vita
+			vita_mia = _g().vita
+			ultimo_progresso = Engine.get_physics_frames()
+		elif Engine.get_physics_frames() - ultimo_progresso > 60 * 15:
+			# Quindici secondi senza ferire né essere feriti: irraggiungibile, per ora lo si lascia stare.
+			if is_instance_valid(n):
+				_ignorati[n.get_instance_id()] = Engine.get_physics_frames() + 60 * 25
+			Rapporto.conta("bot_rinunce")
+			break
 		if Engine.get_physics_frames() - inizio_ms >= 480:
 			inizio_ms = Engine.get_physics_frames()
 			var ora := "%s %d %d %s" % [str((_g().global_position / 8.0).round()), _g().vita,
@@ -887,6 +932,22 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 			else:
 				Input.action_release("su")
 			await _fotogrammi(1)
+			# Spinge ma non avanza (qualcosa in mezzo): un salto; se non basta, da lontano; se no, si lascia stare.
+			bloccato = bloccato + 1 if absf(_g().velocity.x) < 15.0 else 0
+			if bloccato == 45:
+				Input.action_press("salta")
+				await _fotogrammi(14)
+				Input.action_release("salta")
+			elif bloccato >= 120:
+				_rilascia_tutto()
+				var arma := _scegli_arma(n)
+				if arma != "" and _a_tiro(n) != 0:
+					await _tira_contro(n, arma)
+					bloccato = 46
+				else:
+					_ignorati[n.get_instance_id()] = Engine.get_physics_frames() + 60 * 20
+					Rapporto.conta("bot_rinunce")
+					break
 		else:
 			Input.action_release(avanti)
 			Input.action_release("su")
@@ -976,6 +1037,8 @@ func _pixel_pieni(img: Image) -> int:
 # ------------------------------------------------------------------ fasi e fluidità
 
 func _nuova_fase(nome: String) -> void:
+	if _in_partita:
+		return   # gli obiettivi della partita libera restano tutti nella fase "partita"
 	_chiudi_fase()
 	_numero_fase += 1
 	fase_nome = nome
@@ -1005,6 +1068,19 @@ func _process(delta: float) -> void:
 	# Le ondate restano ferme finché il bot prova enigmi e meccanismi; le affronta nella sua fase.
 	if in_corso and is_instance_valid(_principale.stanza) and _principale.stanza.ondate_attive != _ondate_permesse:
 		_principale.stanza.ondate_attive = _ondate_permesse
+	if _in_partita and is_instance_valid(_principale.stanza):
+		var qui := _g().global_position
+		if qui.distance_to(_ultimo_posto) > 16.0 or _obiettivo_ora == "aspetta" or get_tree().paused:
+			_ultimo_posto = qui
+			_t_fermo = 0.0
+		else:
+			_t_fermo += delta
+			_stallo_massimo = maxf(_stallo_massimo, _t_fermo)
+			if int(_t_fermo * 60.0) == 20 * 60:
+				# Fermo da 20 secondi: lo si annota (dove, mentre faceva cosa) per capire e correggere.
+				_fermate.append({"obiettivo": _obiettivo_ora, "x": roundi(qui.x), "y": roundi(qui.y)})
+				if Dispositivo.in_prova:
+					print("PROVA fermo da 20 s: %s a %s, %s" % [_obiettivo_ora, str(qui.round()), Giocatore.Stato.keys()[_g().stato]])
 	if Dispositivo.in_prova and in_corso and Engine.get_process_frames() % 600 == 0 and _principale.stanza != null:
 		var g := _g()
 		print("PROVA traccia: %s %s %s" % [fase_nome, str(g.global_position.round()), Giocatore.Stato.keys()[g.stato]])
@@ -1057,22 +1133,19 @@ func _esegui() -> void:
 			"%s, torce con ombra %d" % [Dispositivo.livello, _principale.stanza.torce_con_ombra()])
 	await _scatta("inizio")
 
-	var tutte: Array[Callable] = [_movimento, _oggetti, _scheletro, _cripta, _percorso, _qualita, _tasti_a_schermo,
-			_menu_e_aspetto, _mosse_in_partita, _ambiente, _armi_da_mischia, _armi_a_distanza, _galleria, _trappole, _torre,
-			_enigma_cassa, _enigma_bracieri, _nemici_nuovi, _ondate, _gioco_libero, _prestazioni]
-	# Le fasi della galleria, se il bot muore davvero a metà, si rifanno (la stanza è ricominciata).
-	var ripetibili := [_galleria, _trappole, _torre, _enigma_cassa, _enigma_bracieri]
-	for fase: Callable in tutte:
-		if not (solo_fasi.is_empty() or solo_fasi.has(fase.get_method().trim_prefix("_"))):
-			continue
-		for tentativo in (3 if ripetibili.has(fase) else 1):
-			_fase_interrotta = false
+	# Prima le prove tecniche, a nemici fermi (tregua): comandi, menu, armi, qualità. Poi la partita libera,
+	# in una stanza nuova, dove il bot decide da solo cosa fare. Alla fine le prestazioni.
+	_tregua(true)
+	var tecniche: Array[Callable] = [_movimento, _oggetti, _tasti_a_schermo, _qualita, _menu_e_aspetto, _mosse_in_partita,
+			_ambiente, _armi_da_mischia, _armi_a_distanza]
+	for fase: Callable in tecniche:
+		if solo_fasi.is_empty() or solo_fasi.has(fase.get_method().trim_prefix("_")):
 			await fase.call()
-			if not _fase_interrotta:
-				break
-			Rapporto.evento("fase_ripetuta", {"fase": fase_nome, "tentativo": tentativo + 1})
-		if _fase_interrotta:
-			_verifica("%s: portata a termine (il bot è morto ogni volta)" % fase_nome, false)
+	_tregua(false)
+	if solo_fasi.is_empty() or solo_fasi.has("partita"):
+		await _partita()
+	if solo_fasi.is_empty() or solo_fasi.has("prestazioni"):
+		await _prestazioni()
 	_chiudi_fase()
 	await _concludi("bot")
 
@@ -1128,115 +1201,6 @@ func _oggetti() -> void:
 	_verifica("barile rotto", Rapporto.contatore("oggetti_rotti") > rotti, "rotti %d" % Rapporto.contatore("oggetti_rotti"))
 	_verifica("per passare la cassa la scavalca", Rapporto.contatore("scavalchi") > scavalchi,
 			"scavalchi %d" % (Rapporto.contatore("scavalchi") - scavalchi))
-
-
-func _scheletro() -> void:
-	_nuova_fase("scheletro")
-	# Avvicinandosi, lo scheletro addormentato si sveglia: poi si combatte schivando i suoi colpi.
-	_combatte_minacce = false
-	await _vai_a(Vector2(556, Stanza.PAVIMENTO), 6.0)
-	_combatte_minacce = true
-	await _fotogrammi(30)
-	var sveglio := false
-	for n: Nemico in _nemici_vivi("scheletro"):
-		if n.global_position.x < 800.0 and n.stato != Nemico.Stato.DORME:
-			sveglio = true
-	_verifica("lo scheletro si risveglia", sveglio)
-	await _scatta("risveglio")
-	var uccisi := Rapporto.contatore("nemici_uccisi")
-	for n: Nemico in _nemici_vivi("scheletro"):
-		if n.global_position.x < 800.0:
-			await _scatta("scheletro")
-			await _combatti_contro(n, 2400)
-			break
-	_verifica("scheletro sconfitto", Rapporto.contatore("nemici_uccisi") > uccisi,
-			"uccisi %d, vita %d" % [Rapporto.contatore("nemici_uccisi"), _g().vita])
-	_verifica("i nemici scelgono e ricordano le tattiche", not Memoria.tattiche.is_empty(), str(Memoria.tattiche))
-	await _scatta("dopo_scheletro")
-
-
-func _cripta() -> void:
-	# Si ripulisce la cripta combattendo davvero: prima chi è sulla stessa quota, poi il mago sulla sua
-	# piattaforma (raggiunto a piedi: qui niente tiri, per provare il corpo a corpo). Se una nemesi c'è,
-	# si presenta. Il bot non si lascia mai uccidere apposta: la nascita delle nemesi la prova il computer.
-	_nuova_fase("cripta")
-	var uccisi := Rapporto.contatore("nemici_uccisi")
-	var magie := Rapporto.contatore("magie_lanciate")
-	_usa_tiri = false
-	for giro in 10:
-		var vivi := _nemici_cripta()
-		if vivi.is_empty():
-			break
-		var bersaglio: Nemico = vivi[0]
-		for n: Nemico in vivi:
-			if absf(n.global_position.y - _g().global_position.y) < 40.0:
-				bersaglio = n
-				break
-		await _combatti_contro(bersaglio, 2400)
-		if _g().stato == Giocatore.Stato.MORTO:
-			await _rinasci()
-	_usa_tiri = true
-	_verifica("il mago lancia", Rapporto.contatore("magie_lanciate") > magie)
-	_verifica("cripta ripulita combattendo", _nemici_cripta().is_empty(),
-			"uccisi %d, rimasti %d" % [Rapporto.contatore("nemici_uccisi") - uccisi, _nemici_cripta().size()])
-	var con_nemesi: bool = _nemici_vivi().any(func(n: Nemico) -> bool: return not n.nemesi.is_empty()) \
-			or Rapporto.get("_eventi").any(func(e: Dictionary) -> bool: return e.get("tipo", "") == "nemesi_incontro")
-	if con_nemesi:
-		var presentata: bool = Rapporto.get("_eventi").any(func(e: Dictionary) -> bool: return e.get("tipo", "") == "nemesi_incontro")
-		_verifica("la nemesi si presenta con la sua frase", presentata)
-	await _scatta("stanza_ripulita")
-
-
-func _percorso() -> void:
-	_nuova_fase("cunicolo")
-	await _vai_a(Vector2(1070, Stanza.PAVIMENTO), 6.0)
-	await _tieni("destra", 30)
-	_verifica("in piedi nel cunicolo non si passa", _g().position.x < 1104.0, "x %.0f" % _g().position.x)
-	var rotolate := int(_passaggi.get("rotola", 0))
-	await _vai_a(Vector2(1250, Stanza.PAVIMENTO), 10.0)
-	await _scatta("alcova")
-	var g := _g()
-	_verifica("rotolata attraverso il cunicolo", g.position.x > 1200.0 and g.stato == Giocatore.Stato.NORMALE
-			and int(_passaggi.get("rotola", 0)) > rotolate, "x %.0f stato %s" % [g.position.x, Giocatore.Stato.keys()[g.stato]])
-	await _vai_a(Vector2(1000, Stanza.PAVIMENTO), 10.0)
-	_verifica("ritorno dal cunicolo", _g().position.x < 1104.0, "x %.0f" % _g().position.x)
-
-	_nuova_fase("piattaforme")
-	# Sale per piattaforme e bordi fino alla terrazza e alla piattaforma più alta, poi scende.
-	await _vai_a(Vector2(1180, 384), 10.0)
-	_verifica("sale sulla terrazza", _nav.superficie_di(_g().global_position) == "terrazza", "y %.0f" % _g().position.y)
-	await _vai_a(Vector2(676, 290), 12.0)
-	_verifica("sale fino alla piattaforma più alta", _nav.superficie_di(_g().global_position) == "p2", "y %.0f" % _g().position.y)
-	await _scatta("piattaforma")
-	await _vai_a(Vector2(348, 412), 8.0)
-	g = _g()
-	_verifica("in piedi sulla piattaforma", g.is_on_floor() and absf(g.position.y - 412.0) < 2.0, "y %.0f" % g.position.y)
-	# Si scende verso destra: sotto la piattaforma c'è la cassa, e fra la cassa e la piattaforma non si sta in piedi.
-	await _vai_a(Vector2(470, Stanza.PAVIMENTO), 10.0)
-	_verifica("discesa dalla piattaforma", _g().position.y > 430.0 and int(_passaggi.get("attraversa", 0)) > 0,
-			"y %.0f" % _g().position.y)
-	await _vai_a(Vector2(120, 392), 10.0)
-	_verifica("si aggrappa e sale sul ripiano alto", _nav.superficie_di(_g().global_position) == "ripiano", "y %.0f" % _g().position.y)
-
-	_nuova_fase("schivate")
-	await _vai_a(Vector2(900, Stanza.PAVIMENTO), 8.0)
-	await _guarda(1)
-	var schivate := Rapporto.contatore("schivate")
-	var x0 := _g().position.x
-	await _tocca("schiva")
-	await _fotogrammi(20)
-	_verifica("schivata all'indietro", Rapporto.contatore("schivate") == schivate + 1 and _g().position.x < x0 - 15.0,
-			"%.0f -> %.0f" % [x0, _g().position.x])
-	await _fotogrammi(25)
-	Input.action_press("salta")
-	await _fotogrammi(14)
-	x0 = _g().position.x
-	await _tocca("schiva")
-	await _fotogrammi(10)
-	Input.action_release("salta")
-	_verifica("scatto in aria", Rapporto.contatore("schivate") == schivate + 2 and _g().position.x > x0 + 20.0,
-			"%.0f -> %.0f" % [x0, _g().position.x])
-	await _fotogrammi(40)
 
 
 func _qualita() -> void:
@@ -1824,84 +1788,299 @@ func _affronta(n: Nemico) -> void:
 		await _combatti_contro(n, 2400)
 
 
-func _nemici_nuovi() -> void:
-	# I nemici nuovi della galleria: chi è ancora vivo si affronta (i pipistrelli appesi si svegliano
-	# andandoci vicino); poi si controlla che ognuno abbia fatto la sua mossa e si possa battere.
-	_nuova_fase("nemici_nuovi")
-	var provati := {}
-	for giro in 12:
-		var vivi := _nemici_vivi().filter(func(n: Nemico) -> bool:
-			return n.global_position.x > Stanza.CRIPTA and not provati.has(n.get_instance_id()))
-		if vivi.is_empty():
-			break
-		var n: Nemico = vivi[0]
-		provati[n.get_instance_id()] = true
-		await _affronta(n)
-		if _g().stato == Giocatore.Stato.MORTO:
-			await _rinasci()
-	await _scatta("nemici_nuovi")
-	_verifica("l'arciere tira dardi di balestra", Rapporto.contatore("dardi_nemici") > 0)
-	_verifica("il pipistrello scende in picchiata", Rapporto.contatore("picchiate_pipistrello") > 0)
-	_verifica("il saltatore balza addosso", Rapporto.contatore("balzi_saltatore") > 0)
-	_verifica("i tiri colpiscono i nemici", Rapporto.contatore("tiri_a_segno") > 0, "a segno %d su %d tiri" % [
-			Rapporto.contatore("tiri_a_segno"), Rapporto.contatore("tiri")])
-	for tipo: String in ["arciere", "pipistrello", "saltatore", "bestione"]:
-		_verifica("si batte anche il %s" % tipo, Rapporto.contatore("uccisi_" + tipo) > 0,
-				"uccisi %d, vivi %d" % [Rapporto.contatore("uccisi_" + tipo), _nemici_vivi(tipo).size()])
-	_verifica("i nemici nuovi scelgono e ricordano le tattiche", Memoria.tattiche.has("bestione") or Memoria.tattiche.has("arciere"),
-			str(Memoria.tattiche.keys()))
+# ------------------------------------------------------------------ cervello: la partita libera
+# Come il bot di Minecraft: osserva (vita, nemici, forzieri, enigmi, zone da vedere), decide l'obiettivo
+# che conviene di più adesso (con un carattere diverso a ogni partita e quello che ha imparato),
+# agisce, verifica com'è andata e lo ricorda. Nessun copione: ogni partita va in un altro modo.
+
+func _tregua(si: bool) -> void:
+	# Durante le prove tecniche i nemici restano fermi e non si possono colpire.
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		(n as Nemico).tregua(si)
 
 
-func _ondate() -> void:
-	# Quando la stanza è vuota i caduti si rialzano, più esperti, per tre volte: il bot le affronta tutte.
-	# Se muore davvero, il sogno ricomincia (e le ondate con lui): si continua finché c'è tempo.
-	_nuova_fase("ondate")
+func _partita() -> void:
+	_nuova_fase("partita")
+	_principale.ricomincia_stanza()
+	await _fotogrammi(40)
+	Equipaggiamento.indossa("arma", "spada_viandante")
+	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
 	_ondate_permesse = true
-	var ondate_prima := Rapporto.contatore("ondate")
-	var forza_massima := 0
-	var inizio := Engine.get_physics_frames()
+	_in_partita = true
+	_carica_cervello()
+	_umore = {"coraggio": _caso.randf_range(0.7, 1.3), "prudenza": _caso.randf_range(0.7, 1.3),
+			"curiosita": _caso.randf_range(0.7, 1.3), "avidita": _caso.randf_range(0.7, 1.3)}
+	Rapporto.evento("bot_carattere", _umore)
+	var uccisi_prima := Rapporto.contatore("nemici_uccisi")
 	var morti_prima := Rapporto.contatore("morti")
-	var tentativi := {}
-	while Engine.get_physics_frames() - inizio < 60 * 240:
-		var stanza: Stanza = _principale.stanza
-		if stanza.sogno_completato:
-			break
-		var vivi := _nemici_vivi()
-		for n: Nemico in vivi:
-			forza_massima = maxi(forza_massima, int(n.get("_forza")))
-		if vivi.is_empty():
-			await _veglia(30)   # la prossima ondata arriva fra poco
-			continue
-		# Il più vicino, a meno che non si sia già provato troppe volte senza riuscirci.
-		var bersaglio: Nemico = vivi[0]
-		for n: Nemico in vivi:
-			if int(tentativi.get(n.get_instance_id(), 0)) < 3:
-				bersaglio = n
-				break
-		tentativi[bersaglio.get_instance_id()] = int(tentativi.get(bersaglio.get_instance_id(), 0)) + 1
-		if Dispositivo.in_prova:
-			print("PROVA ondata %d: contro %s %s %s, vivi %d, vita %d" % [stanza.ondata, bersaglio.tipo,
-					str(bersaglio.global_position.round()), Nemico.Stato.keys()[bersaglio.stato], vivi.size(), _g().vita])
-		await _affronta(bersaglio)
-		if _g().stato == Giocatore.Stato.MORTO:
+	var ondate_prima := Rapporto.contatore("ondate")
+	var inizio := Engine.get_physics_frames()
+	var ultimi: Array = []
+	while Engine.get_physics_frames() - inizio < int(DURATA_PARTITA * 60.0) and not _fermato:
+		if _g().stato == Giocatore.Stato.MORTO or _principale._in_transizione:
+			# Chi l'ha ucciso? La prossima volta ci starà più attento (e ci ripenserà prima di affrontarlo).
+			var eventi: Array = Rapporto.get("_eventi")
+			for i in range(eventi.size() - 1, -1, -1):
+				if (eventi[i] as Dictionary).get("tipo", "") == "morte":
+					var chi := String((eventi[i] as Dictionary).get("da", "")).get_slice(" ", 0)
+					if chi != "" and chi != "trappola":
+						_pericolosi[chi] = int(_pericolosi.get(chi, 0)) + 1
+					break
 			await _rinasci()
-			tentativi.clear()
-	var stanza_ora: Stanza = _principale.stanza
-	await _scatta("ondate")
-	_verifica("le ondate arrivano: i caduti si rialzano", Rapporto.contatore("ondate") > 0,
-			"ondate %d (in questa fase %d)" % [Rapporto.contatore("ondate"), Rapporto.contatore("ondate") - ondate_prima])
-	_verifica("chi si rialza è più forte", forza_massima >= 1, "forza massima %d" % forza_massima)
-	var livelli := 0
-	for posto: String in Memoria.veterani:
-		livelli = maxi(livelli, Memoria.livello_veterano(posto))
-	_verifica("i veterani crescono con l'esperienza", livelli >= 1, str(Memoria.descrizione()["veterani"]))
-	# Superarle tutte è una prova di bravura, non un controllo: se il bot è morto davvero, lo dice il rapporto
-	# (che il sogno si quieti dopo la quarta lo controlla la prova sul computer).
-	_esito_ondate = {"completate": stanza_ora.sogno_completato, "ondata_raggiunta": stanza_ora.ondata,
-			"morti_del_bot": Rapporto.contatore("morti") - morti_prima, "forza_massima": forza_massima}
-	Rapporto.evento("ondate_bot", _esito_ondate)
+			continue
+		_visitate[_nav.superficie_di(_g().global_position)] = true
+		var scelta := _decidi(ultimi)
+		_obiettivo_ora = scelta["nome"]
+		_diario.append("%.0fs %s" % [(Engine.get_physics_frames() - inizio) / 60.0, scelta["nome"]])
+		if Dispositivo.in_prova:
+			print("PROVA cervello: %s (%.0f) vita %d" % [scelta["nome"], float(scelta["punti"]), _g().vita])
+		var vita_prima := _g().vita
+		var riuscito: bool = await _agisci(scelta)
+		var c: Array = _obiettivi.get(scelta["nome"], [0, 0])
+		_obiettivi[scelta["nome"]] = [int(c[0]) + 1, int(c[1]) + (1 if riuscito else 0)]
+		ultimi.append([scelta["nome"], riuscito])
+		if ultimi.size() > 4:
+			ultimi.pop_front()
+		if _g().vita < vita_prima - 2:
+			Rapporto.conta("bot_ferite_gravi")
+	_in_partita = false
+	_obiettivo_ora = ""
+	_salva_cervello()
+	await _scatta("partita")
+	# I controlli della partita: decide da solo, combatte, esplora, non resta bloccato. Il resto (forzieri,
+	# enigmi, ondate) dipende da come va: lo racconta il rapporto.
+	var diversi := _obiettivi.keys().size()
+	var da_vedere := _nav.superfici.keys().filter(func(id: String) -> bool:
+		return not _nav.superfici[id].get("fragile", false) and not _nav.superfici[id].has("condizione"))
+	var viste := da_vedere.filter(func(id: String) -> bool: return _visitate.has(id)).size()
+	_verifica("partita: sceglie da solo obiettivi diversi", diversi >= 5, str(_obiettivi))
+	_verifica("partita: combatte e vince", Rapporto.contatore("nemici_uccisi") - uccisi_prima >= 4,
+			"uccisi %d, morti %d" % [Rapporto.contatore("nemici_uccisi") - uccisi_prima, Rapporto.contatore("morti") - morti_prima])
+	_verifica("partita: esplora la stanza", viste * 2 >= da_vedere.size(), "%d su %d" % [viste, da_vedere.size()])
+	_verifica("partita: non resta mai bloccato", _stallo_massimo < 90.0, "fermo al massimo %.0f s" % _stallo_massimo)
+	_verifica("partita: impara quale arma usare contro chi", not _esito_armi.is_empty(), str(_esito_armi))
+	_partita_finale = {
+		"carattere": _umore, "obiettivi": _obiettivi, "diario": _diario.slice(-60), "esiti": _esiti_partita,
+		"zone_viste": "%d su %d" % [viste, da_vedere.size()], "uccisi": Rapporto.contatore("nemici_uccisi") - uccisi_prima,
+		"morti": Rapporto.contatore("morti") - morti_prima, "ondate": Rapporto.contatore("ondate") - ondate_prima,
+		"sogno_completato": _principale.stanza.sogno_completato, "armi_provate": _armi_provate.keys(),
+		"esito_armi": _esito_armi, "pericolosi": _pericolosi, "fermo_massimo_s": snappedf(_stallo_massimo, 0.1),
+		"fermate_lunghe": _fermate,
+	}
 	if Dispositivo.in_prova:
-		print("PROVA ondate del bot: %s" % str(_esito_ondate))
+		print("PROVA partita libera: %s" % JSON.stringify(_partita_finale))
+
+
+func _decidi(ultimi: Array) -> Dictionary:
+	# Osserva e dà un punteggio a ogni obiettivo possibile; vince il più conveniente.
+	var g := _g()
+	var candidati: Array = []
+	var minaccia := _minaccia()
+	var vita := g.vita
+	var poca_vita := vita <= 3
+	var munizioni_basse := int(g.munizioni["dardi"]) + int(g.munizioni["frecce"]) < 5
+	if minaccia != null:
+		var paura := 1.0 + 0.3 * float(_pericolosi.get(minaccia.tipo, 0))
+		if poca_vita:
+			candidati.append({"nome": "ritirata", "punti": 130.0 * _umore["prudenza"] * paura, "nemico": minaccia})
+		candidati.append({"nome": "combatti", "punti": 100.0 * _umore["coraggio"] / (paura if poca_vita else 1.0),
+				"nemico": minaccia})
+	# Forzieri ed enigmi (ogni obiettivo sa da sé come arrivarci e cosa fare).
+	var stanza: Stanza = _principale.stanza
+	var mecc := stanza.meccanismi
+	var cura: float = 95.0 * float(_umore["prudenza"]) if vita <= 4 else 0.0
+	if not (mecc["forziere_alcova"] as Forziere).aperto or not (mecc["leva_alcova"] as Leva).accesa:
+		candidati.append({"nome": "alcova", "punti": 45.0 * _umore["curiosita"] + cura})
+	if not (mecc["forziere_torre"] as Forziere).aperto:
+		candidati.append({"nome": "torre", "punti": 42.0 * _umore["avidita"] + cura * 0.8})
+	if not (mecc["forziere_tesoro"] as Forziere).aperto:
+		candidati.append({"nome": "cassa", "punti": 40.0 * _umore["curiosita"] + (cura * 0.5 if (mecc["piastra_tesoro"] as Piastra).da_cassa else 0.0)})
+	if not (mecc["forziere_oro"] as Forziere).aperto:
+		candidati.append({"nome": "bracieri", "punti": 40.0 * _umore["avidita"]})
+	var vivi := _nemici_vivi().filter(func(n: Nemico) -> bool: return not _ignorato(n))
+	if not vivi.is_empty():
+		var bonus_ondate := 25.0 if vivi.size() <= 3 and not stanza.sogno_completato else 0.0
+		candidati.append({"nome": "caccia", "punti": 38.0 * _umore["coraggio"] + bonus_ondate - (25.0 if poca_vita else 0.0),
+				"nemico": vivi[0]})
+	elif not stanza.sogno_completato and _nemici_vivi().is_empty():
+		candidati.append({"nome": "aspetta", "punti": 22.0})
+	var da_vedere := _nav.superfici.keys().filter(func(id: String) -> bool:
+		return not _visitate.has(id) and not _nav.superfici[id].get("fragile", false) and not _nav.superfici[id].has("condizione"))
+	if not da_vedere.is_empty():
+		candidati.append({"nome": "esplora", "punti": 32.0 * _umore["curiosita"]})
+	var pacchi := get_tree().get_nodes_in_group("raccoglibili").filter(func(r: Node) -> bool:
+		return (r as Node2D).global_position.distance_to(g.global_position) < 400.0)
+	if not pacchi.is_empty():
+		candidati.append({"nome": "raccogli", "punti": 60.0 if munizioni_basse else 26.0, "dove": (pacchi[0] as Node2D).global_position})
+	if munizioni_basse:
+		var barili := get_tree().get_nodes_in_group("rompibili").filter(func(b: Node) -> bool:
+			return is_instance_valid(b) and (b as Node2D).global_position.distance_to(g.global_position) < 300.0)
+		if not barili.is_empty():
+			candidati.append({"nome": "rompi", "punti": 30.0, "barile": barili[0]})
+	if minaccia == null and _armi_provate.size() < Armi.FAMIGLIE.size():
+		candidati.append({"nome": "prova_arma", "punti": 34.0 - 2.5 * _armi_provate.size()})
+	# Quello che ha imparato, un po' di caso, e niente ostinazione su ciò che è appena fallito.
+	var migliore: Dictionary = {"nome": "aspetta", "punti": 0.0}
+	for c: Dictionary in candidati:
+		var vecchia: Array = _obiettivi_storici.get(c["nome"], [0, 0])
+		var nuova: Array = _obiettivi.get(c["nome"], [0, 0])
+		var riuscita := (1.0 + float(vecchia[1]) + float(nuova[1])) / (2.0 + float(vecchia[0]) + float(nuova[0]))
+		var punti := float(c["punti"]) * (0.6 + 0.8 * riuscita) * _caso.randf_range(0.8, 1.2)
+		var falliti_di_fila := 0
+		for u: Array in ultimi:
+			if u[0] == c["nome"] and not u[1]:
+				falliti_di_fila += 1
+		if falliti_di_fila >= 2:
+			punti *= 0.3
+		c["punti"] = punti
+		if punti > float(migliore["punti"]):
+			migliore = c
+	return migliore
+
+
+func _agisci(scelta: Dictionary) -> bool:
+	var stanza_prima: Node = _principale.stanza
+	var mecc: Dictionary = (stanza_prima as Stanza).meccanismi
+	match String(scelta["nome"]):
+		"combatti", "caccia":
+			var n: Nemico = scelta["nemico"]
+			if not is_instance_valid(n):
+				return false
+			await _arma_adatta(n)
+			var famiglia := _g().famiglia_arma()
+			var morti := Rapporto.contatore("morti")
+			await _affronta(n)
+			var vinto := not is_instance_valid(n) or n.stato == Nemico.Stato.MORTO
+			_ricorda_arma(n.tipo if is_instance_valid(n) else String(scelta.get("tipo", "?")), famiglia, vinto)
+			return vinto and Rapporto.contatore("morti") == morti
+		"ritirata":
+			return await _ritirata(scelta["nemico"])
+		"alcova":
+			await _galleria()
+			return _principale.stanza == stanza_prima and (mecc["forziere_alcova"] as Forziere).aperto
+		"torre":
+			await _torre()
+			return _principale.stanza == stanza_prima and (mecc["forziere_torre"] as Forziere).aperto
+		"cassa":
+			await _enigma_cassa()
+			return _principale.stanza == stanza_prima and (mecc["forziere_tesoro"] as Forziere).aperto
+		"bracieri":
+			await _enigma_bracieri()
+			return _principale.stanza == stanza_prima and (mecc["forziere_oro"] as Forziere).aperto
+		"esplora":
+			var qui := _g().global_position
+			var da_vedere := _nav.superfici.keys().filter(func(id: String) -> bool:
+				return not _visitate.has(id) and not _nav.superfici[id].get("fragile", false) and not _nav.superfici[id].has("condizione"))
+			da_vedere.sort_custom(func(a: String, b: String) -> bool:
+				return _distanza_superficie(a, qui) < _distanza_superficie(b, qui))
+			# Non sempre la più vicina: un po' di curiosità per quelle lontane.
+			var id: String = da_vedere[mini(da_vedere.size() - 1, _caso.randi() % 2)]
+			await _vai_a(_meta_sicura(_nav.superfici[id]), 12.0)
+			var arrivato := _nav.superficie_di(_g().global_position) == id
+			if arrivato or not _raggiungibile(id):
+				_visitate[id] = true   # vista, oppure ora non ci si arriva (grata chiusa)
+			return arrivato
+		"raccogli":
+			return await _vai_a(scelta["dove"], 8.0)
+		"rompi":
+			var barile: Node2D = scelta["barile"]
+			if not is_instance_valid(barile):
+				return false
+			await _vai_a(barile.global_position + Vector2(-20.0 * signf(barile.global_position.x - _g().global_position.x), 0.0), 6.0)
+			if not is_instance_valid(barile):
+				return true
+			await _guarda(1 if barile.global_position.x > _g().global_position.x else -1)
+			await _tocca("attacca")
+			await _fotogrammi(20)
+			return not is_instance_valid(barile)
+		"prova_arma":
+			var da_provare := Armi.FAMIGLIA_DI.keys().filter(func(a: String) -> bool:
+				return not _armi_provate.has(Armi.famiglia(a)))
+			if da_provare.is_empty():
+				return false
+			var arma: String = da_provare[_caso.randi() % da_provare.size()]
+			Equipaggiamento.indossa("arma", arma)
+			_armi_provate[Armi.famiglia(arma)] = true
+			await _fotogrammi(10)
+			return true
+		_:
+			await _veglia(60)
+			return true
+	return false
+
+
+func _raggiungibile(id: String) -> bool:
+	var da := _nav.superficie_di(_g().global_position)
+	return da != "" and (da == id or not _nav.percorso(da, id).is_empty())
+
+
+func _ritirata(n: Nemico) -> bool:
+	# Poca vita: ci si allontana da chi minaccia (tirandogli contro, se si può) e si prende fiato.
+	var vita := _g().vita
+	for passo in 3:
+		if not is_instance_valid(n) or n.stato == Nemico.Stato.MORTO:
+			break
+		var via := -1 if n.global_position.x > _g().global_position.x else 1
+		var arma := _scegli_arma(n)
+		if arma != "" and _a_tiro(n) != 0 and absf(n.global_position.x - _g().global_position.x) > 90.0:
+			await _tira_contro(n, arma)
+			continue
+		await _cammina_verso(clampf(_g().global_position.x + via * 140.0, 60.0, Stanza.LARGHEZZA - 60.0), 10.0, 70)
+	return _g().vita >= vita
+
+
+func _arma_adatta(n: Nemico) -> void:
+	# Sceglie l'arma (come farebbe una persona dal menu): quella che contro questo nemico ha vinto di più;
+	# contro chi para (bestione, scheletro) all'inizio prova un'arma che rompe le parate.
+	var conti: Dictionary = _esito_armi.get(n.tipo, {})
+	var migliore := ""
+	var punti := -1.0
+	for famiglia: String in conti:
+		var c: Array = conti[famiglia]
+		var p := (1.0 + float(c[1])) / (2.0 + float(c[0]))
+		if p > punti:
+			punti = p
+			migliore = famiglia
+	if (migliore == "" or _caso.randf() < 0.2) and n.tipo in ["bestione", "scheletro"]:
+		migliore = ["ascia", "spadone", "bipenne"][_caso.randi() % 3]
+	if migliore == "" or migliore == _g().famiglia_arma():
+		return
+	for arma: String in Armi.FAMIGLIA_DI:
+		if Armi.famiglia(arma) == migliore:
+			Equipaggiamento.indossa("arma", arma)
+			_armi_provate[migliore] = true
+			await _fotogrammi(6)
+			return
+
+
+func _ricorda_arma(tipo: String, famiglia: String, vinto: bool) -> void:
+	if not _esito_armi.has(tipo):
+		_esito_armi[tipo] = {}
+	var c: Array = (_esito_armi[tipo] as Dictionary).get(famiglia, [0, 0])
+	_esito_armi[tipo][famiglia] = [int(c[0]) + 1, int(c[1]) + (1 if vinto else 0)]
+
+
+func _carica_cervello() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(ESPERIENZA_CERVELLO) == OK:
+		_esito_armi = cfg.get_value("cervello", "armi", {})
+		_obiettivi_storici = cfg.get_value("cervello", "obiettivi", {})
+		_pericolosi = cfg.get_value("cervello", "pericolosi", {})
+	# Si ricorda il passato (quanto gli riesce ogni obiettivo), ma ogni partita conta i suoi da capo.
+	_obiettivi = {}
+
+
+func _salva_cervello() -> void:
+	var cfg := ConfigFile.new()
+	var tutti := _obiettivi_storici.duplicate(true)
+	for nome: String in _obiettivi:
+		var a: Array = tutti.get(nome, [0, 0])
+		var b: Array = _obiettivi[nome]
+		tutti[nome] = [int(a[0]) + int(b[0]), int(a[1]) + int(b[1])]
+	cfg.set_value("cervello", "armi", _esito_armi)
+	cfg.set_value("cervello", "obiettivi", tutti)
+	cfg.set_value("cervello", "pericolosi", _pericolosi)
+	cfg.save(ESPERIENZA_CERVELLO)
 
 
 # ------------------------------------------------------------------ galleria
@@ -1982,79 +2161,6 @@ func _galleria() -> void:
 		return
 
 
-func _trappole() -> void:
-	# Spuntoni a tempo e sega a pendolo: si passa al momento giusto. Poi la piastra della balestra.
-	_nuova_fase("trappole")
-	var stanza_fase: Node = _principale.stanza
-	await _vai_a(Vector2(1530, Stanza.PAVIMENTO), 8.0)
-	if _interrotta(stanza_fase):
-		return
-	await _veglia(10)
-	if _interrotta(stanza_fase):
-		return
-	var vita := _g().vita
-	var subite := Rapporto.contatore("trappole_subite")
-	var attese := _attese_trappole
-	await _vai_a(Vector2(1900, Stanza.PAVIMENTO), 8.0)
-	if _interrotta(stanza_fase):
-		return
-	_verifica("passa spuntoni e sega aspettando il momento giusto", _g().global_position.x > 1880.0 and _attese_trappole > attese
-			and Rapporto.contatore("trappole_subite") == subite, "vita %d -> %d, attese %d, ferite %d" % [
-				vita, _g().vita, _attese_trappole - attese, Rapporto.contatore("trappole_subite") - subite])
-	await _scatta("trappole")
-	if _interrotta(stanza_fase):
-		return
-
-	# La piastra davanti alla torre fa scattare la balestra nel muro: la freccia si schiva.
-	var scoccate := Rapporto.contatore("frecce_scoccate")
-	vita = _g().vita
-	var piastra := _m("piastra_freccia") as Piastra
-	await _cammina_verso(piastra.global_position.x, 4.0, 200)
-	if _interrotta(stanza_fase):
-		return
-	await _veglia(70)
-	if _interrotta(stanza_fase):
-		return
-	_verifica("la piastra fa scattare la balestra", Rapporto.contatore("frecce_scoccate") > scoccate)
-	_verifica("la freccia si schiva", _g().vita >= vita, "vita %d -> %d, difese %s" % [vita, _g().vita, str(_difese)])
-
-	# Le trappole fanno male davvero: il bot resta apposta sugli spuntoni.
-	var punte := _m("spuntoni") as Spuntoni
-	await _vai_a(Vector2(1700, Stanza.PAVIMENTO), 6.0)
-	if _interrotta(stanza_fase):
-		return
-	for i in 300:
-		if punte.sicura_per(0.6):
-			break
-		await _fotogrammi(1)
-		if _interrotta(stanza_fase):
-			return
-	vita = _g().vita
-	subite = Rapporto.contatore("trappole_subite")
-	Input.action_press("sinistra")
-	for i in 30:
-		await _fotogrammi(1)
-		if _interrotta(stanza_fase):
-			return
-		if _g().global_position.x <= punte.global_position.x:
-			break
-	_rilascia_tutto()
-	for i in 240:
-		if _g().vita < vita:
-			break
-		await _fotogrammi(1)
-		if _interrotta(stanza_fase):
-			return
-	_verifica("gli spuntoni feriscono chi ci resta sopra", _g().vita < vita and Rapporto.contatore("trappole_subite") > subite,
-			"vita %d -> %d" % [vita, _g().vita])
-	await _fotogrammi(20)
-	if _interrotta(stanza_fase):
-		return
-	await _vai_a(Vector2(1700, Stanza.PAVIMENTO), 6.0)
-	if _interrotta(stanza_fase):
-		return
-
-
 func _torre() -> void:
 	# Ci si aggrappa allo zoccolo; le lastre fragili portano alla torre ovest (forziere) e crollano;
 	# il montacarichi porta al salone.
@@ -2114,7 +2220,7 @@ func _enigma_cassa() -> void:
 	# Prima si sistema chi c'è nella sala.
 	for giro in 8:
 		var nella_sala := _nemici_vivi().filter(func(n: Nemico) -> bool:
-			return n.global_position.x > 2208.0 and n.global_position.y > 300.0)
+			return n.global_position.x > 2208.0 and n.global_position.y > 300.0 and not _ignorato(n))
 		if nella_sala.is_empty():
 			break
 		await _combatti_contro(nella_sala[0], 1800)
@@ -2146,12 +2252,29 @@ func _enigma_cassa() -> void:
 	if _interrotta(stanza_fase):
 		return
 	Input.action_press("sinistra")
-	for i in 300:
+	var x_balconata := cassa.global_position.x
+	var liberata := false
+	for i in 420:
 		await _fotogrammi(1)
 		if _interrotta(stanza_fase):
 			return
 		if cassa.global_position.y > 420.0 or _g().global_position.x < 2484.0:
 			break
+		if i % 60 == 59:
+			if absf(cassa.global_position.x - x_balconata) < 2.0 and not liberata:
+				# La cassa non va: qualcuno dall'altra parte la blocca (un nemico la trattiene). Prima lui.
+				liberata = true
+				for n: Nemico in _nemici_vivi():
+					if n.global_position.distance_to(cassa.global_position) < 140.0:
+						_rilascia_tutto()
+						await _combatti_contro(n, 900)
+						break
+				if _interrotta(stanza_fase):
+					return
+				await _cammina_verso(cassa.global_position.x + 26.0, 3.0, 200, false)
+				await _guarda(-1)
+				Input.action_press("sinistra")
+			x_balconata = cassa.global_position.x
 	_rilascia_tutto()
 	await _fotogrammi(60)
 	if _interrotta(stanza_fase):
@@ -2179,6 +2302,26 @@ func _enigma_cassa() -> void:
 		if piastra.da_cassa:
 			break
 		var lato := 1.0 if cassa.global_position.x > piastra.global_position.x else -1.0
+		if lato > 0.0 and cassa.global_position.x > 2630.0 or tentativo >= 2:
+			# Incastrata contro la grata (non c'è posto per spingerla): la si afferra e la si tira.
+			var dalla := -lato
+			await _cammina_verso(cassa.global_position.x + 26.0 * dalla, 3.0, 600, false)
+			if _interrotta(stanza_fase):
+				return
+			await _guarda(int(lato))
+			Input.action_press("afferra")
+			await _fotogrammi(4)
+			Input.action_press("sinistra" if lato > 0.0 else "destra")
+			for i in 300:
+				await _fotogrammi(1)
+				if _interrotta(stanza_fase):
+					return
+				if piastra.da_cassa or _g().stato != Giocatore.Stato.PRESA:
+					break
+			_rilascia_tutto()
+			Rapporto.conta("bot_cassa_tirata")
+			await _fotogrammi(30)
+			continue
 		await _cammina_verso(cassa.global_position.x + 26.0 * lato, 3.0, 600, false)
 		if _interrotta(stanza_fase):
 			return
@@ -2186,12 +2329,17 @@ func _enigma_cassa() -> void:
 		if _interrotta(stanza_fase):
 			return
 		Input.action_press("sinistra" if lato > 0.0 else "destra")
+		var x_cassa := cassa.global_position.x
 		for i in 360:
 			await _fotogrammi(1)
 			if _interrotta(stanza_fase):
 				return
 			if piastra.da_cassa or _g().stato != Giocatore.Stato.NORMALE:
 				break
+			if i % 60 == 59:
+				if absf(cassa.global_position.x - x_cassa) < 3.0:
+					break   # la cassa non si muove (incastrata o non la si sta spingendo): si riprova da capo
+				x_cassa = cassa.global_position.x
 		_rilascia_tutto()
 		await _fotogrammi(30)
 		if _interrotta(stanza_fase):
@@ -2247,7 +2395,7 @@ func _enigma_bracieri() -> void:
 		return
 	for giro in 6:
 		var nel_salone := _nemici_vivi().filter(func(n: Nemico) -> bool:
-			return n.global_position.y < 200.0 and n.global_position.x > 2340.0)
+			return n.global_position.y < 200.0 and n.global_position.x > 2340.0 and not _ignorato(n))
 		if nel_salone.is_empty():
 			break
 		await _combatti_contro(nel_salone[0], 1800)
@@ -2256,7 +2404,7 @@ func _enigma_bracieri() -> void:
 	# Combattendo se ne può accendere qualcuno per caso: l'errore voluto tiene conto di quelli già accesi.
 	var sbagli := Rapporto.contatore("enigmi_sbagliati")
 	var sbagliato := -1
-	if not enigma.soluzione:
+	if not enigma.soluzione and not _in_partita:
 		var atteso: int = enigma.ordine[enigma.accesi.size()]
 		for i in enigma.bracieri.size():
 			if i != atteso and not enigma.accesi.has(i):
@@ -2307,71 +2455,6 @@ func _enigma_bracieri() -> void:
 		if _interrotta(stanza_fase):
 			return
 		Equipaggiamento.ripristina()
-
-
-func _gioco_libero() -> void:
-	# Gioca da solo, con una logica: va nella zona più vicina dove non è ancora stato (per strada usa
-	# tutte le mosse che servono, aspetta le trappole, prende il montacarichi), rompe i barili che trova,
-	# affronta chi incontra, e ogni tanto cambia aspetto. Le lastre fragili e il gradino segreto non contano.
-	_nuova_fase("gioco_libero")
-	var visitate := {}
-	var chiuse := {}
-	var fuori := 0
-	var morti_prima := Rapporto.contatore("morti")
-	var da_visitare: Array = []
-	for id: String in _nav.superfici:
-		var sup: Dictionary = _nav.superfici[id]
-		if not sup.get("fragile", false) and not sup.has("condizione"):
-			da_visitare.append(id)
-	var rng_aspetto := RandomNumberGenerator.new()
-	rng_aspetto.seed = 11
-	var passo := 0
-	var inizio := Engine.get_physics_frames()
-	while not da_visitare.is_empty() and Engine.get_physics_frames() - inizio < 60 * 240:
-		# La più vicina fra quelle ancora da vedere.
-		var qui := _g().global_position
-		da_visitare.sort_custom(func(a: String, b: String) -> bool:
-			return _distanza_superficie(a, qui) < _distanza_superficie(b, qui))
-		var id: String = da_visitare.pop_front()
-		var sup: Dictionary = _nav.superfici[id]
-		var meta := _meta_sicura(sup)
-		await _vai_a(meta, 12.0)
-		if _nav.superficie_di(_g().global_position) == id:
-			visitate[id] = true
-		else:
-			var da := _nav.superficie_di(_g().global_position)
-			if da != "" and _nav.percorso(da, id).is_empty():
-				chiuse[id] = true   # dopo una morte vera grate e gradino sono di nuovo chiusi: ora non ci si arriva
-		for b: Node in get_tree().get_nodes_in_group("rompibili"):
-			if not is_instance_valid(b):
-				continue
-			var barile := b as Node2D
-			if is_instance_valid(barile) and absf(barile.global_position.y - _g().global_position.y) < 10.0 \
-					and absf(barile.global_position.x - _g().global_position.x) < 90.0:
-				await _vai_a(barile.global_position + Vector2(-20.0 * signf(barile.global_position.x - _g().global_position.x), 0.0), 6.0)
-				if not is_instance_valid(barile):
-					continue   # rotto per strada (o stanza ricominciata)
-				await _guarda(1 if barile.global_position.x > _g().global_position.x else -1)
-				await _tocca("attacca")
-				await _fotogrammi(16)
-		passo += 1
-		if passo % 3 == 2:
-			Equipaggiamento.casuale(rng_aspetto)
-		var p := _g().global_position
-		if not (is_finite(p.x) and is_finite(p.y)) or p.x < 40.0 or p.x > Stanza.LARGHEZZA - 40.0 or p.y > Stanza.PAVIMENTO + 2.0:
-			fuori += 1
-	Equipaggiamento.ripristina()
-	await _scatta("fine")
-	# Se è morto davvero per strada, la stanza è ricominciata: quante zone ha visto lo dice il rapporto.
-	if Rapporto.contatore("morti") == morti_prima:
-		_verifica("gioco libero: raggiunge da solo tutte le zone", da_visitare.is_empty() and visitate.size() + chiuse.size() >= passo - 1
-				and chiuse.size() <= 2, "%d su %d: %s; chiuse ora: %s" % [visitate.size(), passo, ", ".join(visitate.keys()),
-				", ".join(chiuse.keys())])
-	Rapporto.evento("gioco_libero_bot", {"zone_viste": visitate.size(), "tentate": passo, "morti": Rapporto.contatore("morti") - morti_prima})
-	_verifica("gioco libero: il giocatore resta nella stanza", fuori == 0, "fuori %d" % fuori)
-	_verifica("per muoversi usa salti, prese, discese, rotoli, grate e montacarichi", _passaggi.size() >= 6
-			and int(_passaggi.get("ascensore", 0)) > 0
-			and Rapporto.contatore("scavalchi") > 0, str(_passaggi))
 
 
 func _distanza_superficie(id: String, da: Vector2) -> float:
@@ -2515,6 +2598,7 @@ func _esito(motivo: String) -> Dictionary:
 			"lastre_crollate": Rapporto.contatore("piattaforme_crollate"),
 			"tesori": _tesori_bot,
 		},
+		"partita_libera": _partita_finale,
 		"armi_e_nemici_nuovi": {
 			"tiri": Rapporto.contatore("tiri"),
 			"tiri_a_segno": Rapporto.contatore("tiri_a_segno"),
