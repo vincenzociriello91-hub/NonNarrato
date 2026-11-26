@@ -206,6 +206,18 @@ func _riscalda() -> void:
 		tiro.position = dove + Vector2(20.0 + 14.0 * i, 0.0)
 		stanza.add_child(tiro)
 		tiro.set("_vita", 0.25)   # dopo add_child: _ready dà a ogni tipo la sua durata
+	# Catena e attacco della sega a pendolo (linea e poligono illuminati): prima comparivano solo in galleria
+	# e il telefono preparava lì il loro disegno, con uno scatto di 133 ms.
+	var catena := Line2D.new()
+	catena.width = 2.0
+	catena.light_mask = Effetti.L_DAVANTI
+	catena.points = PackedVector2Array([dove, dove + Vector2(0, 20)])
+	var attacco := Polygon2D.new()
+	attacco.polygon = PackedVector2Array([dove + Vector2(-7, -4), dove + Vector2(7, -4), dove + Vector2(4, 3)])
+	attacco.light_mask = Effetti.L_DAVANTI
+	for pezzo: Node2D in [catena, attacco]:
+		stanza.add_child(pezzo)
+		get_tree().create_timer(0.5).timeout.connect(pezzo.queue_free)
 	var pacco := Raccoglibile.new()
 	pacco.position = dove + Vector2(-30.0, 0.0)
 	stanza.add_child(pacco)

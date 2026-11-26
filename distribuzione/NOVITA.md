@@ -1,5 +1,9 @@
 # Novità di NonNarrato
 
+## 0.1 — Ingresso in galleria più fluido
+
+- Entrando in galleria il gioco non dà più un piccolo scatto la prima volta che si vede la sega a pendolo: il telefono la prepara all'avvio.
+
 ## 0.1 — La galleria: trappole, enigmi, forzieri, armi a distanza e nemici nuovi
 
 - **Una galleria nuova oltre la terrazza**, su tre piani: si scende dalla passerella, si sale su una torre e si arriva fino a un salone in alto.
