@@ -257,3 +257,8 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Ombre: `Effetti.occlusore(..., fa_ombra)`; personaggio, nemici e piattaforme non fanno ombra; i blocchi solo se alti più di 60 px. `shadow_color` con alfa 0,6, PCF13/PCF5. Sul computer le ombre si vedono solo forzando `grafica/qualita` "alta" (consigliata "bassa" su 2 core): `/home/claude/strumenti/controllo/foto_punto.gd -- --dove=x,y --file=...` con Vulkan (lavapipe).
 - Frecce: `Proiettile.GRAVITA_TIPO` (freccia 150, dardo 90, freccia_eroe 140; balestre murate e magia dritte), rotazione verso la velocità a ogni passo, `Proiettile.lancio(da, a, v, g)` per mirare compensando la caduta (giocatore con bersaglio e arciere).
 - Prove in `_prova_da_giocatore` / `_prova_sul_posto`: tremolio contro la cassa, frecce che arrivano dove mirano, freccia nemica orientata, personaggi senza occlusori attivi.
+
+## Nemici in pausa visibili (0.1.27)
+
+- Vincenzo guarda spesso il bot: nelle prove tecniche i nemici in `tregua` (fisica spenta, intoccabili, attraversabili) restavano congelati a metà camminata e sembravano rotti ("bloccati e intangibili", 26/11/2026). Ora `Nemico.tregua(true)` mette l'animazione di riposo e `ALFA_TREGUA` (0,4); `tregua(false)` rimette l'opacità. La scritta del bot aggiunge "nemici in pausa per le prove" (`Bot._aggiorna_scritta`, ogni 30 fotogrammi).
+- Lezione: guardare anche le fasi tecniche del bot con gli occhi di chi gioca, non solo la partita libera.

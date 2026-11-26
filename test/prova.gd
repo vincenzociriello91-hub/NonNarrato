@@ -698,6 +698,21 @@ func _prova_da_giocatore() -> void:
 		_verifica("da giocatore: la freccia nemica punta dove vola", punta.dot(freccia.velocita.normalized()) > 0.98,
 				"%.2f" % punta.dot(freccia.velocita.normalized()))
 		freccia.queue_free()
+	# Nemici in pausa per le prove del bot: si vedono fermi e trasparenti, non congelati a metà passo.
+	var in_pausa: Nemico = null
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var e := n as Nemico
+		if e.stato not in [Nemico.Stato.DORME, Nemico.Stato.MORTO] and e.tipo != "pipistrello":
+			in_pausa = e
+			break
+	if in_pausa != null:
+		in_pausa.tregua(true)
+		await _fotogrammi(2)
+		_verifica("da giocatore: un nemico in pausa si vede fermo e trasparente",
+				in_pausa.sprite.animazione == "fermo" and in_pausa.sprite.modulate.a < 0.5,
+				"%s %.2f" % [in_pausa.sprite.animazione, in_pausa.sprite.modulate.a])
+		in_pausa.tregua(false)
+		_verifica("da giocatore: tolta la pausa torna normale", is_equal_approx(in_pausa.sprite.modulate.a, 1.0))
 	# Personaggio e nemici non fanno ombra: le loro ombre erano strisce scure dalle torce.
 	var ombre := 0
 	for n: Node in [_g()] + get_tree().get_nodes_in_group("nemici"):

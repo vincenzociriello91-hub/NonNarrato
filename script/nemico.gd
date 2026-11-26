@@ -298,8 +298,16 @@ func tregua(si: bool) -> void:
 	if stato == Stato.MORTO:
 		return
 	_bersaglio.set_deferred("monitorable", not si and stato not in [Stato.DORME, Stato.RISVEGLIO] or (not si and tipo == "pipistrello"))
+	# Chi guarda il bot deve capire che questi nemici sono in pausa apposta: fermi in posa di riposo
+	# e semitrasparenti. Prima restavano congelati a metà passo (camminata sul posto) e attraversabili,
+	# e sembravano rotti (segnalazione di Vincenzo del 26/11/2026).
 	if si:
 		velocity = Vector2.ZERO
+		if stato not in [Stato.DORME, Stato.RISVEGLIO]:
+			sprite.riproduci("vola" if tipo == "pipistrello" else "fermo")
+		sprite.modulate.a = ALFA_TREGUA
+	else:
+		sprite.modulate.a = 1.0
 
 
 func solido() -> bool:
@@ -308,6 +316,7 @@ func solido() -> bool:
 
 
 const SALTA_CASSE := ["scheletro", "saltatore", "mimic"]   # il bestione è troppo pesante
+const ALFA_TREGUA := 0.4      # nemici in pausa durante le prove del bot: si vede che sono fuori gioco
 const PAUSA_OSTACOLO := 0.35   # quanto resta fermo dopo aver trovato la strada chiusa (contro il tremolio)
 const FORZIERE_MEZZO := 15.0   # metà della larghezza visibile di un forziere (Forziere: occlusore 28 px)
 const CASSA_MEZZO := 17.0      # metà della cassa (Stanza._cassa: 34 px)

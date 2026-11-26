@@ -1305,7 +1305,7 @@ func _nuova_fase(nome: String) -> void:
 	_fase = {"nome": nome, "fotogrammi": 0, "tempo": 0.0, "peggiore_ms": 0.0, "lenti": 0, "molto_lenti": 0,
 			"qualita": Dispositivo.livello}
 	if _etichetta != null:
-		_etichetta.text = "Bot in azione · %s (%d) · premi pausa per fermarlo" % [nome.replace("_", " "), _numero_fase]
+		_aggiorna_scritta()
 
 
 func _chiudi_fase() -> void:
@@ -1420,6 +1420,8 @@ func _process(delta: float) -> void:
 				_fermate.append({"obiettivo": _obiettivo_ora, "x": roundi(qui.x), "y": roundi(qui.y)})
 				if Dispositivo.in_prova:
 					print("PROVA fermo da 20 s: %s a %s, %s" % [_obiettivo_ora, str(qui.round()), Giocatore.Stato.keys()[_g().stato]])
+	if in_corso and Engine.get_process_frames() % 30 == 0:
+		_aggiorna_scritta()
 	if _in_partita and Engine.get_process_frames() % 15 == 0 and not get_tree().paused:
 		_controlla_sovrapposti()
 	if foto_ogni > 0 and in_corso and Engine.get_physics_frames() % foto_ogni == 0 and not get_tree().paused:
@@ -2482,6 +2484,17 @@ func _lascia_la_stanza_a_chi_gioca() -> void:
 	_tregua(false)
 	if not Dispositivo.in_prova and is_instance_valid(_principale.stanza):
 		_principale.ricomincia_stanza()
+
+
+func _aggiorna_scritta() -> void:
+	if _etichetta == null:
+		return
+	var pausa_nemici := " · nemici in pausa per le prove" if _nemici_in_tregua() else ""
+	_etichetta.text = "Bot in azione · %s (%d)%s · premi pausa per fermarlo" % [fase_nome.replace("_", " "), _numero_fase, pausa_nemici]
+
+
+func _nemici_in_tregua() -> bool:
+	return get_tree().get_nodes_in_group("nemici").any(func(n: Node) -> bool: return (n as Nemico).in_tregua)
 
 
 func _tregua(si: bool) -> void:

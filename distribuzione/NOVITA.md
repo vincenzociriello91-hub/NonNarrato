@@ -1,5 +1,9 @@
 # Novità di NonNarrato
 
+## 0.1 — Quando gioca il bot si capisce quali nemici sono in pausa
+
+- **Nemici "bloccati e intoccabili" mentre gioca il bot**: nella prima parte, quella delle prove tecniche (movimento, casse, menu, sotterraneo, bottino...), il bot mette in pausa i nemici apposta per provare le cose con calma. Restavano però congelati a metà passo, sembravano camminare sul posto e si potevano attraversare: sembravano rotti. Ora in pausa stanno fermi in posa di riposo e semitrasparenti, e in alto la scritta del bot dice "nemici in pausa per le prove". Nella partita libera del bot e quando giochi tu i nemici sono sempre normali.
+
 ## 0.1 — Nemici che non tremano, ombre pulite, frecce vere
 
 - **I nemici non tremano più** quando urtano te, un compagno, una cassa o un muro: prima si fermavano e ripartivano a ogni fotogramma, come una gif impazzita. Ora, se la strada è chiusa, restano fermi davvero e riprovano dopo un po' (sempre più tardi se la strada resta chiusa).
