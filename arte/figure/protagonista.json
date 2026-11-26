@@ -196,6 +196,37 @@
 			"a": 0.75,
 			"frame": 7,
 			"fps": 14
+		},
+		{
+			"nome": "arrampica",
+			"clip": "Arrampica",
+			"ciclo": true,
+			"frame": 8,
+			"fps": 12
+		},
+		{
+			"nome": "appeso",
+			"clip": "Appeso",
+			"ciclo": true,
+			"frame": 4,
+			"fps": 4
+		},
+		{
+			"nome": "nuota",
+			"clip": "Arrampica",
+			"ciclo": true,
+			"frame": 8,
+			"fps": 10,
+			"inclina": 78,
+			"centro": 0.55,
+			"giu": 0.25
+		},
+		{
+			"nome": "galleggia",
+			"clip": "Jump_Idle",
+			"ciclo": true,
+			"frame": 4,
+			"fps": 6
 		}
 	],
 	"mosse": {

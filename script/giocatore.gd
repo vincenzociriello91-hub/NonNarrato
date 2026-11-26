@@ -4,6 +4,8 @@ extends CharacterBody2D
 # all'indietro, scavalca ostacoli bassi e si aggrappa ai bordi, afferra le casse per tirarle,
 # usa leve e apre forzieri (tasto "afferra" accanto all'oggetto), colpisce da lontano con magia,
 # dardi e frecce (tasto "tira"; con su si mira in alto; "cambia_arma" sceglie quale).
+# Si arrampica sulle pareti ruvide (stamina: scalare e restare aggrappati la consumano, a terra si
+# recupera) e nuota (sott'acqua il respiro cala; finito il respiro si perde vita).
 # I tempi sono nel codice e non dipendono dalle animazioni, così il comportamento
 # è lo stesso su ogni dispositivo.
 
@@ -11,7 +13,7 @@ signal vita_cambiata(vita: int, massima: int)
 signal armi_cambiate
 signal morto
 
-enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO, PARATA }
+enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO, PARATA, ARRAMPICATA, NUOTO }
 
 const VELOCITA := 150.0
 const ACCELERAZIONE := 1500.0
@@ -67,6 +69,25 @@ const MUNIZIONI_INIZIALI := {"dardi": 8, "frecce": 5}
 # Cosa tiene in mano mentre tira (pezzi del manichino).
 const IN_MANO := {"magia": [], "dardi": ["Viandante__Knife"], "frecce": ["Viandante__1H_Crossbow"]}
 
+# Arrampicata (pareti ruvide, vedi Stanza.SCALABILI) e stamina.
+const STAMINA_MASSIMA := 100.0
+const STAMINA_SCALA := 20.0         # al secondo salendo o scendendo
+const STAMINA_APPESO := 8.0         # al secondo restando fermi aggrappati
+const STAMINA_SALTO_MURO := 18.0
+const STAMINA_RECUPERO := 45.0      # al secondo, con i piedi a terra
+const STAMINA_ATTESA := 0.35        # a terra da almeno tanto prima di recuperare
+const STAMINA_RIPRESA := 25.0       # senza fiato non ci si riaggrappa finché non torna a questo livello
+const ARRAMPICATA_VELOCITA := 74.0
+const SALTO_MURO := Vector2(165.0, 330.0)
+# Nuoto (Stanza.ACQUE) e respiro.
+const RESPIRO_MASSIMO := 100.0
+const RESPIRO_CONSUMO := 9.0        # al secondo con la testa sott'acqua: circa 11 secondi
+const RESPIRO_RECUPERO := 60.0
+const ANNEGA_OGNI := 1.4            # senza respiro: un cuore ogni tanti secondi
+const NUOTO_VELOCITA := 96.0
+const NUOTO_SPINTA := 420.0
+const NUOTO_SALTO := 330.0          # salto fuori dall'acqua dalla superficie
+
 const ALTO := Vector2(14, 44)
 const BASSO := Vector2(14, 20)
 
@@ -119,6 +140,18 @@ var _t_raffica := 0.0
 var _tiro_alternato := false        # accessibilità "premi una volta": il tiro si carica senza tenere premuto
 var _resto_danni := 0.0             # accessibilità "danni ricevuti": le frazioni di danno si sommano
 var _t_passo := 0.0
+var stamina := STAMINA_MASSIMA
+var respiro := RESPIRO_MASSIMO
+var sott_acqua := false             # la testa è sotto la superficie
+var in_acqua := false
+var _esausto := false
+var _t_a_terra := 0.0
+var _t_annega := 0.0
+var _t_stacco := 0.0                # dopo un salto dal muro non ci si riaggrappa subito
+var _t_bolle := 0.0
+var _lato_muro := 1                 # da che parte è la parete a cui si è aggrappati
+var _zona_muro := Rect2()
+var _superficie := 0.0
 
 var _forma: CollisionShape2D
 var _rett: RectangleShape2D
@@ -188,12 +221,14 @@ func _ready() -> void:
 	Effetti.occlusore(self, Rect2(-5, -40, 10, 38))
 
 
-func limiti(riquadro: Rect2i) -> void:
+func limiti(riquadro: Rect2i, di_colpo: bool = true) -> void:
+	# di_colpo = false: la telecamera scivola ai nuovi limiti (passando fra stanza e sotterraneo).
 	camera.limit_left = riquadro.position.x
 	camera.limit_top = riquadro.position.y
 	camera.limit_right = riquadro.end.x
 	camera.limit_bottom = riquadro.end.y
-	camera.reset_smoothing()
+	if di_colpo:
+		camera.reset_smoothing()
 
 
 func _process(delta: float) -> void:
@@ -213,6 +248,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("salta"):
 		_t_memoria_salto = TEMPO_MEMORIA
 
+	_controlla_acqua()
 	match stato:
 		Stato.NORMALE:
 			_normale(delta, a_terra)
@@ -236,6 +272,10 @@ func _physics_process(delta: float) -> void:
 			_tiro(delta, a_terra)
 		Stato.PARATA:
 			_parata(delta)
+		Stato.ARRAMPICATA:
+			_arrampicata(delta)
+		Stato.NUOTO:
+			_nuoto(delta)
 
 	_velocita_caduta = velocity.y
 	move_and_slide()
@@ -264,6 +304,8 @@ func _scorri_tempi(delta: float) -> void:
 		_t_passo = 0.3
 		Suoni.suona("passo", global_position, -8.0)
 	_t_girato = maxf(0.0, _t_girato - delta)
+	_t_stacco = maxf(0.0, _t_stacco - delta)
+	_aggiorna_fiato(delta)
 	if _t_attraversa > 0.0:
 		_t_attraversa -= delta
 		if _t_attraversa <= 0.0:
@@ -283,6 +325,10 @@ func _normale(delta: float, a_terra: bool) -> void:
 	_muovi(delta, a_terra, direzione)
 	_gravita(delta)
 
+	# Pareti ruvide: in aria verso la parete, oppure su accanto alla parete, ci si aggrappa.
+	if _puo_aggrapparsi(direzione, a_terra):
+		_inizia_arrampicata()
+		return
 	# Scavalcare: da terra con su + direzione contro un ostacolo basso; in aria ci si aggrappa da soli al bordo.
 	if absf(direzione) > 0.01:
 		var arrivo: Variant = null
@@ -1000,6 +1046,12 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 	_t_protetto = PROTEZIONE_DOPO_COLPO
 	if stato == Stato.PRESA:
 		_lascia_cassa()
+	if stato == Stato.ARRAMPICATA:
+		sprite.riponi_armi(false)   # colpito sulla parete: si stacca e cade
+	if stato == Stato.NUOTO:
+		velocity = Vector2(signf(global_position.x - da.x) * spinta * 0.4, 0.0)
+		_t_protetto = PROTEZIONE_DOPO_COLPO
+		return true   # in acqua niente spinta in aria: si resta a nuotare
 	if stato != Stato.ROTOLATA:
 		var lato := signf(global_position.x - da.x)
 		if lato == 0.0:
@@ -1028,6 +1080,9 @@ func _muori() -> void:
 		assassino = String(_colpito_da.get("tipo"))
 		if "livello" in _colpito_da:
 			assassino += " (livello %d, ondata %d)" % [int(_colpito_da.get("livello")), int(_colpito_da.get("ondata"))]
+	if assassino == "trappola" and respiro <= 0.0 and sott_acqua:
+		assassino = "annegamento"
+	sprite.riponi_armi(false)
 	Rapporto.evento("morte", {"x": roundi(global_position.x), "y": roundi(global_position.y), "da": assassino})
 	Suoni.suona("morte")
 	Controlli.vibra(1.0, 0.4)
@@ -1045,6 +1100,231 @@ func _muovi(delta: float, a_terra: bool, direzione: float) -> void:
 	if a_terra:
 		accelerazione = ACCELERAZIONE if absf(direzione) > 0.01 else ATTRITO
 	velocity.x = move_toward(velocity.x, direzione * VELOCITA, accelerazione * delta)
+
+
+# ------------------------------------------------------------------ arrampicata
+
+func _stanza() -> Node:
+	var p := get_parent()
+	return p if p != null and p.has_method("zona_scalabile") else null
+
+
+func _puo_aggrapparsi(direzione: float, a_terra: bool) -> bool:
+	var stanza := _stanza()
+	if stanza == null or _t_stacco > 0.0 or in_acqua:
+		return false
+	if _esausto or stamina <= 1.0:
+		return false
+	var zona: Dictionary = stanza.zona_scalabile(global_position + Vector2(0.0, -ALTO.y * 0.5))
+	if zona.is_empty():
+		return false
+	var lato: int = zona["lato"]
+	var verso_il_muro := absf(direzione) > 0.01 and int(signf(direzione)) == lato
+	var su := Input.is_action_pressed("su")
+	if a_terra:
+		return su   # da terra: su accanto alla parete
+	return verso_il_muro or (su and velocity.y > -150.0)
+
+
+func _inizia_arrampicata() -> void:
+	var zona: Dictionary = _stanza().zona_scalabile(global_position + Vector2(0.0, -ALTO.y * 0.5))
+	_lato_muro = zona["lato"]
+	_zona_muro = zona["rett"]
+	verso = _lato_muro
+	stato = Stato.ARRAMPICATA
+	_t_stato = 0.0
+	velocity = Vector2.ZERO
+	sprite.riponi_armi(true)
+	sprite.riproduci("appeso", true)
+	Suoni.suona("presa", global_position, -4.0)
+	_conta("arrampicate")
+
+
+func _arrampicata(delta: float) -> void:
+	_t_stato += delta
+	var su_giu := Input.get_axis("su", "giu")
+	var direzione := Input.get_axis("sinistra", "destra")
+	velocity.x = _lato_muro * 30.0   # spinge appena contro la parete
+	velocity.y = su_giu * ARRAMPICATA_VELOCITA
+	var spesa := STAMINA_SCALA if absf(su_giu) > 0.1 else STAMINA_APPESO
+	if not Impostazioni.leggi("acc/stamina_infinita"):
+		stamina = maxf(0.0, stamina - spesa * delta)
+	var zona: Dictionary = _stanza().zona_scalabile(global_position + Vector2(0.0, -ALTO.y * 0.5))
+	if Input.is_action_just_pressed("salta"):
+		# Salto dal muro: sempre lontano dalla parete (costa stamina).
+		_stacca(true)
+		velocity = Vector2(-_lato_muro * SALTO_MURO.x, -SALTO_MURO.y)
+		verso = -_lato_muro
+		if not Impostazioni.leggi("acc/stamina_infinita"):
+			stamina = maxf(0.0, stamina - STAMINA_SALTO_MURO)
+		Suoni.suona("salto", global_position, -4.0)
+		_conta("salti_dal_muro")
+		return
+	if stamina <= 0.0:
+		# Senza fiato le mani scivolano: si cade e non ci si riaggrappa finché non si riprende.
+		_esausto = true
+		_stacca(false)
+		velocity = Vector2(-_lato_muro * 40.0, 0.0)
+		Suoni.suona("affanno", global_position)
+		_conta("prese_perse")
+		Rapporto.evento("stamina_finita", {"x": roundi(global_position.x), "y": roundi(global_position.y)})
+		return
+	if absf(direzione) > 0.01 and int(signf(direzione)) == -_lato_muro and _t_stato > 0.15:
+		_stacca(false)   # direzione opposta alla parete: si lascia andare
+		return
+	if zona.is_empty():
+		# Finita la parete: in cima si sale sul bordo, in fondo si torna a terra.
+		if su_giu < 0.0:
+			var arrivo: Variant = _appiglio(APPIGLIO_IN_ARIA + 10.0, 2.0)
+			if arrivo != null:
+				sprite.riponi_armi(false)
+				_inizia_scavalco(arrivo)
+				return
+			velocity.y = 0.0
+			global_position.y += 1.0
+			return
+		_stacca(false)
+		return
+	if is_on_floor() and su_giu > 0.1:
+		_stacca(false)
+		return
+	if absf(su_giu) > 0.1:
+		sprite.riproduci("arrampica")
+		sprite.velocita = absf(su_giu)
+		_t_passo -= delta
+		if _t_passo <= 0.0:
+			_t_passo = 0.35
+			Suoni.suona("presa", global_position, -10.0, 1.1)
+	else:
+		sprite.riproduci("appeso")
+
+
+func _stacca(salto: bool) -> void:
+	stato = Stato.NORMALE
+	_t_stacco = 0.28 if salto else 0.22
+	sprite.velocita = 1.0
+	sprite.riponi_armi(false)
+
+
+func aggrappato() -> bool:
+	return stato == Stato.ARRAMPICATA
+
+
+# ------------------------------------------------------------------ nuoto e respiro
+
+func _controlla_acqua() -> void:
+	var stanza := _stanza()
+	var prima := in_acqua
+	var acqua: Dictionary = stanza.acqua_in(global_position + Vector2(0.0, -ALTO.y * 0.5)) if stanza != null else {}
+	in_acqua = not acqua.is_empty()
+	if in_acqua:
+		_superficie = acqua["superficie"]
+	var testa := global_position.y - ALTO.y + 6.0
+	sott_acqua = in_acqua and testa > _superficie + 1.0
+	if in_acqua and not prima:
+		# Tuffo: schizzi e suono, il resto dello slancio si smorza.
+		Effetti.scoppio(get_parent(), Vector2(global_position.x, _superficie), Color(0.55, 0.7, 0.85, 0.8), 14,
+				80.0 + absf(velocity.y) * 0.2, 0.5, 300.0, false, 1.0, Vector2.UP, 50.0)
+		Suoni.suona("tuffo", Vector2(global_position.x, _superficie), -2.0 if velocity.y > 200.0 else -6.0)
+		_conta("tuffi")
+	if in_acqua and stato in [Stato.NORMALE, Stato.ROTOLATA, Stato.SCHIVATA, Stato.ATTACCO, Stato.TIRO, Stato.ARRAMPICATA, Stato.PARATA]:
+		if stato == Stato.ROTOLATA:
+			_imposta_forma(ALTO)
+		if stato == Stato.TIRO and sprite.has_method("mostra_in_mano"):
+			sprite.call("mostra_in_mano", [])
+		stato = Stato.NUOTO
+		_t_stato = 0.0
+		velocity *= 0.35
+		sprite.riponi_armi(true)
+	elif not in_acqua and stato == Stato.NUOTO:
+		stato = Stato.NORMALE
+		sprite.riponi_armi(false)
+
+
+func _nuoto(delta: float) -> void:
+	_t_stato += delta
+	var direzione := Input.get_axis("sinistra", "destra")
+	var su_giu := Input.get_axis("su", "giu")
+	if absf(direzione) > 0.01:
+		verso = 1 if direzione > 0.0 else -1
+	velocity.x = move_toward(velocity.x, direzione * NUOTO_VELOCITA, NUOTO_SPINTA * delta)
+	var testa := global_position.y - ALTO.y + 6.0
+	var alla_superficie := testa <= _superficie + 4.0
+	var obiettivo_y := su_giu * NUOTO_VELOCITA
+	if absf(su_giu) < 0.1:
+		# Senza comandi si torna a galla e si resta con la testa fuori.
+		obiettivo_y = -80.0 if not alla_superficie else (testa - (_superficie - 2.0)) * 6.0
+	elif su_giu < 0.0 and alla_superficie:
+		obiettivo_y = 0.0
+	velocity.y = move_toward(velocity.y, obiettivo_y, NUOTO_SPINTA * delta)
+	if Input.is_action_just_pressed("salta") and alla_superficie:
+		velocity.y = -NUOTO_SALTO   # fuori dall'acqua (a riva o su un bordo vicino)
+		global_position.y -= 2.0
+		Suoni.suona("tuffo", Vector2(global_position.x, _superficie), -10.0, 1.4)
+		_conta("uscite_dall_acqua")
+	if sott_acqua:
+		_t_bolle -= delta
+		if _t_bolle <= 0.0:
+			_t_bolle = 0.9
+			Effetti.scoppio(get_parent(), global_position + Vector2(verso * 6.0, -ALTO.y + 4.0), Color(0.7, 0.85, 1.0, 0.7), 3,
+					20.0, 0.8, -60.0, false, 0.8, Vector2.UP, 20.0)
+			Suoni.suona("bolle", global_position, -12.0)
+	var muove := absf(direzione) > 0.01 or absf(su_giu) > 0.1
+	if sott_acqua or muove:
+		sprite.riproduci("nuota")
+		sprite.velocita = 1.0 if muove else 0.4
+	else:
+		sprite.riproduci("galleggia")
+		sprite.velocita = 1.0
+
+
+func _aggiorna_fiato(delta: float) -> void:
+	# Stamina: torna con i piedi a terra (o a galla). Respiro: cala con la testa sott'acqua.
+	var a_terra := is_on_floor() and stato != Stato.ARRAMPICATA
+	_t_a_terra = _t_a_terra + delta if (a_terra or (in_acqua and not sott_acqua)) else 0.0
+	if _t_a_terra >= STAMINA_ATTESA and stamina < STAMINA_MASSIMA:
+		stamina = minf(STAMINA_MASSIMA, stamina + STAMINA_RECUPERO * delta)
+	if _esausto and stamina >= STAMINA_RIPRESA:
+		_esausto = false
+	if sott_acqua and stato != Stato.MORTO:
+		if not Impostazioni.leggi("acc/respiro_infinito"):
+			respiro = maxf(0.0, respiro - RESPIRO_CONSUMO * delta)
+		if respiro <= 0.0:
+			_t_annega += delta
+			if _t_annega >= ANNEGA_OGNI:
+				_t_annega = 0.0
+				ferita_ambiente(1, "annegamento")
+	else:
+		if respiro < RESPIRO_MASSIMO * 0.35 and in_acqua and not sott_acqua and _t_annega >= 0.0:
+			Suoni.suona("respiro", global_position, -4.0)
+			_t_annega = -1.0   # un solo respiro profondo per riemersione
+		if not sott_acqua:
+			if _t_annega < 0.0 and respiro >= RESPIRO_MASSIMO * 0.35:
+				_t_annega = 0.0
+			respiro = minf(RESPIRO_MASSIMO, respiro + RESPIRO_RECUPERO * delta)
+
+
+func ferita_ambiente(danno: int, causa: String) -> void:
+	# Danno senza spinta (annegamento): stessa regola dei "danni ricevuti" e della protezione dopo un colpo.
+	if stato == Stato.MORTO or _t_protetto > 0.0:
+		return
+	var quota: float = clampf(Impostazioni.leggi("acc/danni"), 0.0, 1.0)
+	_resto_danni += float(danno) * quota
+	var tolti := floori(_resto_danni + 0.0001)
+	_resto_danni -= tolti
+	vita = maxi(0, vita - tolti)
+	_colpito_da = null
+	vita_cambiata.emit(vita, VITA_MASSIMA)
+	Rapporto.conta("danni_" + causa)
+	Rapporto.evento("ferita", {"causa": causa, "vita": vita})
+	Effetti.lampo(sprite)
+	Suoni.suona("colpito", global_position, -4.0, 0.8)
+	Controlli.vibra(0.5, 0.15)
+	get_tree().call_group("hud", "didascalia", "[senza respiro]" if causa == "annegamento" else "[ferito]")
+	if vita <= 0:
+		_muori()
+		return
+	_t_protetto = 0.3
 
 
 func _gravita(delta: float) -> void:

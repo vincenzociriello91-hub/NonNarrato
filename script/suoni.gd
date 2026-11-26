@@ -16,7 +16,8 @@ const DIDASCALIE := {
 	"porta": "[pietra che scorre]", "crollo": "[crollo]", "spuntoni": "[spuntoni]", "pendolo": "[lama che oscilla]",
 	"ondata": "[corno lontano]", "nemesi": "[una presenza ti riconosce]", "esplosione": "[esplosione]",
 	"forziere": "[forziere aperto]", "balestra": "[scatto di balestra]", "colpito": "[ferito]",
-	"bracere": "[fiamma]", "balzo": "[balzo]",
+	"bracere": "[fiamma]", "balzo": "[balzo]", "tuffo": "[tuffo]", "muro_rotto": "[muro che crolla]",
+	"legno_rotto": "[legno spezzato]", "affanno": "[senza fiato]", "crepa": "[la pietra si crepa]",
 }
 
 var _effetti: Array[AudioStreamPlayer2D] = []

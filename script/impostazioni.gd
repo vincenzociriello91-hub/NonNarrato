@@ -70,6 +70,8 @@ const PREDEFINITE := {
 	"acc/testo": 1.0,                    # grandezza di testi e interfaccia
 	"acc/carica": "tieni",               # tieni premuto oppure premi una volta per caricare i tiri
 	"acc/didascalie": false,             # scritte per i suoni importanti
+	"acc/stamina_infinita": false,       # arrampicarsi senza stancarsi
+	"acc/respiro_infinito": false,       # sott'acqua senza bisogno di respirare
 }
 
 const SCHEDE := {

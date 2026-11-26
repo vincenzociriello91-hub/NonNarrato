@@ -37,6 +37,10 @@ var _numero_fase := 0
 var _nav: Navigatore
 var _caso := RandomNumberGenerator.new()
 var _combatte_minacce := true    # per strada affronta i nemici svegli vicini
+var _arrampicate := 0              # pareti salite (sotterraneo)
+var _riposi_mensola := 0           # soste sulle mensole per riprendere fiato
+var _respiro_minimo := 100.0       # il respiro più basso durante le nuotate
+var _foto_acqua := false
 var _in_combattimento := false
 var _difese := {}                # schivata -> [prove, riuscite]
 var _passaggi := {}              # modo di muoversi -> volte
@@ -240,8 +244,8 @@ func _guarda(v: int) -> void:
 func _atterra(massimo: int = 150) -> void:
 	for i in massimo:
 		var g := _g()
-		if g.stato == Giocatore.Stato.MORTO:
-			return
+		if g.stato == Giocatore.Stato.MORTO or g.in_acqua or g.aggrappato():
+			return   # in acqua o su una parete non si aspetta il pavimento: ci pensa _vai_a
 		if g.is_on_floor() and g.stato in [Giocatore.Stato.NORMALE, Giocatore.Stato.ATTACCO]:
 			return
 		await _fotogrammi(1)
@@ -335,6 +339,14 @@ func _vai_a(dove: Vector2, tolleranza: float = 8.0) -> bool:
 		if g.stato == Giocatore.Stato.MORTO:
 			await _rinasci()
 			continue
+		if g.in_acqua:
+			await _esci_dall_acqua(dove)
+			continue
+		if g.aggrappato():
+			# Ancora su una parete (salita non finita): ci si lascia andare e si riparte da terra.
+			await _tieni("sinistra" if g.verso > 0 else "destra", 12)
+			await _atterra()
+			continue
 		var minaccia := _minaccia() if _combatte_minacce else null
 		if minaccia != null:
 			await _combatti_contro(minaccia)
@@ -343,6 +355,14 @@ func _vai_a(dove: Vector2, tolleranza: float = 8.0) -> bool:
 		var a := _nav.superficie_per(dove)
 		if a == "":
 			return false
+		if da == "" and _su_mensola():
+			# Su una mensola a metà parete (sosta finita male, o caduti sopra): giù attraverso.
+			Input.action_press("giu")
+			await _tocca("salta")
+			await _fotogrammi(12)
+			Input.action_release("giu")
+			await _atterra()
+			continue
 		if da == "":
 			# Su una cassa: se la meta è più in alto e vicina, si salta da lì; altrimenti si scende.
 			var sup: Dictionary = _nav.superfici[a]
@@ -440,9 +460,218 @@ func _esegui_arco(arco: Dictionary) -> bool:
 			if not await _prendi_montacarichi(arco):
 				_rilascia_tutto()
 				return false
+		"arrampica":
+			if not await _arrampica(arco):
+				_rilascia_tutto()
+				return false
+		"nuota":
+			if not await _nuota(arco):
+				_rilascia_tutto()
+				return false
 	_rilascia_tutto()
 	await _atterra(120)
 	return _nav.superficie_di(_g().global_position) == arco["a"]
+
+
+# ------------------------------------------------------------------ pareti e acqua (0.1.18)
+
+func _arrampica(arco: Dictionary) -> bool:
+	# Salto pieno verso la parete (comincia sopra la testa), poi su. Se la stamina non basta fino in
+	# cima ci si posa su una mensola (ci si scende sopra) e si riprende fiato prima di continuare.
+	var v: int = arco["verso"]
+	var dir := "destra" if v > 0 else "sinistra"
+	for prova in 3:
+		await _atterra(60)
+		Input.action_press(dir)
+		Input.action_press("salta")
+		for i in 50:
+			await _fotogrammi(1)
+			if _g().aggrappato():
+				break
+		Input.action_release("salta")
+		Input.action_release(dir)
+		if _g().aggrappato():
+			break
+		await _atterra(60)
+		await _cammina_verso(_nav.stacco(arco), 3.0, 120)
+	if not _g().aggrappato():
+		return false
+	_arrampicate += 1
+	if Dispositivo.in_prova:
+		print("PROVA arrampicata: presa a %s, stamina %.0f" % [str(_g().global_position.round()), _g().stamina])
+	var stanza: Stanza = _principale.stanza
+	var mensola: Variant = null
+	var scendo := false   # deciso di posarsi sulla mensola: giù finché non ci si è sopra
+	for i in 1800:
+		var g := _g()
+		if g.stato == Giocatore.Stato.MORTO:
+			break
+		if g.stato == Giocatore.Stato.SCAVALCO:
+			Input.action_release("su")
+			await _fotogrammi(1)
+			continue
+		if g.aggrappato():
+			if scendo and g.global_position.y > (mensola as Rect2).position.y + 12.0:
+				scendo = false   # mancata (non doveva succedere): si riprende a salire
+				mensola = null
+			if mensola == null:
+				mensola = _mensola_per_riposare(g, stanza)
+				if mensola != null and Dispositivo.in_prova:
+					print("PROVA arrampicata: sosta sulla mensola a y %.0f (piedi %.0f, stamina %.0f)" % [(mensola as Rect2).position.y,
+							g.global_position.y, g.stamina])
+			if mensola != null and (scendo or g.global_position.y < (mensola as Rect2).position.y - 3.0):
+				# Coi piedi sopra la mensola: giù, ci si posa e la parete si lascia da sola.
+				scendo = true
+				Input.action_release("su")
+				Input.action_press("giu")
+			else:
+				Input.action_release("giu")
+				Input.action_press("su")
+			await _fotogrammi(1)
+			continue
+		Input.action_release("su")
+		Input.action_release("giu")
+		if g.is_on_floor() and mensola != null and absf(g.global_position.y - (mensola as Rect2).position.y) < 3.0:
+			# Sulla mensola: si riprende fiato, poi su per riaggrapparsi.
+			_riposi_mensola += 1
+			for j in 400:
+				await _fotogrammi(1)
+				if _g().stamina >= Giocatore.STAMINA_MASSIMA - 2.0:
+					break
+			mensola = null
+			scendo = false
+			await _tieni("su", 8)
+			continue
+		if g.is_on_floor():
+			break   # arrivati in cima (oppure caduti: lo dice la superficie)
+		await _fotogrammi(1)
+	_rilascia_tutto()
+	if Dispositivo.in_prova:
+		print("PROVA arrampicata: fine a %s, stamina %.0f, %s" % [str(_g().global_position.round()), _g().stamina,
+				Giocatore.Stato.keys()[_g().stato]])
+	return _g().stato != Giocatore.Stato.MORTO
+
+
+func _su_mensola() -> bool:
+	var g := _g()
+	if not g.is_on_floor():
+		return false
+	for m: Rect2 in Stanza.MENSOLE:
+		if absf(g.global_position.y - m.position.y) < 3.0 and g.global_position.x > m.position.x - 7.0 and g.global_position.x < m.end.x + 7.0:
+			return true
+	return false
+
+
+func _mensola_per_riposare(g: Giocatore, stanza: Stanza) -> Variant:
+	# Serve una sosta? Si confronta la stamina che resta con quella per arrivare in cima; se non basta,
+	# la mensola più alta sulla stessa parete che si raggiunge con la stamina di adesso.
+	var zona: Dictionary = stanza.zona_scalabile(g.global_position + Vector2(0.0, -Giocatore.ALTO.y * 0.5))
+	if zona.is_empty():
+		return null
+	var per_px := Giocatore.STAMINA_SCALA / Giocatore.ARRAMPICATA_VELOCITA
+	var cima := (zona["rett"] as Rect2).position.y + Giocatore.ALTO.y * 0.5   # i piedi in cima alla parete
+	if (g.global_position.y - cima) * per_px + 10.0 < g.stamina:
+		return null
+	var scelta: Variant = null
+	for m: Rect2 in Stanza.MENSOLE:
+		if g.global_position.x < m.position.x - 2.0 or g.global_position.x > m.end.x + 2.0:
+			continue
+		var salita := g.global_position.y - (m.position.y - 3.0)
+		if salita > 0.0 and salita * per_px + 6.0 < g.stamina and (scelta == null or m.position.y < (scelta as Rect2).position.y):
+			scelta = m
+	return scelta
+
+
+func _nuota(arco: Dictionary) -> bool:
+	# Dalla riva in acqua; prima dell'arco giù finché i piedi stanno sotto la quota di "immersione",
+	# sotto l'arco avanti, poi a galla e fuori con un salto verso la riva (il bordo si afferra da solo).
+	var v: int = arco["verso"]
+	var dir := "destra" if v > 0 else "sinistra"
+	var meta := float(arco["meta"])
+	var imm: Array = arco.get("immersione", [])
+	var vasca := _vasca_vicina(Vector2(meta, Stanza.PAVIMENTO_SOTTO))
+	var riva := vasca.end.x if v > 0 else vasca.position.x
+	var entrato := _g().in_acqua
+	var uscito := false
+	for i in 1500:
+		var g := _g()
+		if g.stato == Giocatore.Stato.MORTO:
+			break
+		if not g.in_acqua:
+			if entrato and (g.is_on_floor() or g.stato == Giocatore.Stato.SCAVALCO):
+				uscito = true
+				break
+			Input.action_press(dir)
+			await _fotogrammi(1)
+			continue
+		entrato = true
+		_respiro_minimo = minf(_respiro_minimo, g.respiro)
+		var x := g.global_position.x
+		var piedi := g.global_position.y
+		var alla_riva := (riva - x) * v   # > 0 finché non si tocca la riva
+		var sotto_arco := false
+		var all_arco := INF
+		if imm.size() == 3:
+			all_arco = (float(imm[0] if v > 0 else imm[1]) - x) * v        # < 0: già sotto l'arco
+			var passato := (x - float(imm[1] if v > 0 else imm[0])) * v    # > 0: arco superato
+			sotto_arco = all_arco < 70.0 and passato < 0.0
+		if sotto_arco:
+			if piedi < float(imm[2]) + 6.0:
+				Input.action_press("giu")
+			else:
+				Input.action_release("giu")
+			# Sotto l'arco si entra solo abbastanza in basso, altrimenti si sbatte contro la roccia.
+			if all_arco < 24.0 and all_arco > -4.0 and piedi < float(imm[2]) - 4.0:
+				Input.action_release(dir)
+			else:
+				Input.action_press(dir)
+			if fase_nome == "sotterraneo" and not _foto_acqua and all_arco < -40.0 and g.sott_acqua:
+				_foto_acqua = true
+				await _scatta("bot_sott_acqua")
+		else:
+			Input.action_release("giu")
+			if alla_riva > 10.0:
+				Input.action_press(dir)
+			elif not g.sott_acqua:
+				# A galla accanto alla riva: salto verso il bordo.
+				Input.action_press(dir)
+				Input.action_press("salta")
+				await _fotogrammi(16)
+				Input.action_release("salta")
+				continue
+			else:
+				Input.action_release(dir)
+		await _fotogrammi(1)
+	_rilascia_tutto()
+	if uscito:
+		await _atterra(60)
+		await _cammina_verso(meta, 6.0, 200)
+	return uscito
+
+
+func _vasca_vicina(dove: Vector2) -> Rect2:
+	var migliore := Rect2()
+	var distanza := INF
+	for a: Dictionary in Stanza.ACQUE:
+		var r: Rect2 = a["rett"]
+		var d := dove.distance_to(Vector2(clampf(dove.x, r.position.x, r.end.x), clampf(dove.y, r.position.y, r.end.y)))
+		if d < distanza:
+			distanza = d
+			migliore = r
+	return migliore
+
+
+func _esci_dall_acqua(dove: Vector2) -> void:
+	# Caduti (o rimasti) in acqua: si esce dalla riva dalla parte della meta, passando sotto l'arco se serve.
+	var g := _g()
+	for a: Dictionary in Stanza.ACQUE:
+		var r: Rect2 = a["rett"]
+		if r.grow(10.0).has_point(g.global_position):
+			var v := 1 if dove.x > r.get_center().x else -1
+			var riva := r.end.x if v > 0 else r.position.x
+			await _nuota({"verso": v, "meta": riva + v * 16.0, "immersione": a.get("immersione", [])})
+			return
+	await _fotogrammi(10)
 
 
 # ------------------------------------------------------------------ combattere come chi gioca
@@ -568,7 +797,7 @@ func _nemici_vivi(tipo: String = "") -> Array:
 
 
 func _nemici_cripta() -> Array:
-	return _nemici_vivi().filter(func(n: Nemico) -> bool: return n.global_position.x < Stanza.CRIPTA)
+	return _nemici_vivi().filter(func(n: Nemico) -> bool: return n.global_position.x < Stanza.CRIPTA and not n.has_meta("sotterraneo"))
 
 
 func _minaccia() -> Nemico:
@@ -1071,6 +1300,10 @@ func _process(delta: float) -> void:
 		_principale.stanza.ondate_attive = _ondate_permesse
 	if _in_partita and is_instance_valid(_principale.stanza):
 		var qui := _g().global_position
+		if Engine.get_process_frames() % 10 == 0:
+			var sotto := _nav.superficie_di(qui)
+			if sotto != "" and _g().is_on_floor():
+				_visitate[sotto] = true   # ogni zona dove passa, non solo dove decide
 		if qui.distance_to(_ultimo_posto) > 16.0 or _obiettivo_ora == "aspetta" or get_tree().paused:
 			_ultimo_posto = qui
 			_t_fermo = 0.0
@@ -1138,7 +1371,7 @@ func _esegui() -> void:
 	# in una stanza nuova, dove il bot decide da solo cosa fare. Alla fine le prestazioni.
 	_tregua(true)
 	var tecniche: Array[Callable] = [_movimento, _oggetti, _tasti_a_schermo, _qualita, _menu_e_aspetto, _mosse_in_partita,
-			_ambiente, _armi_da_mischia, _armi_a_distanza]
+			_ambiente, _sotterraneo, _armi_da_mischia, _armi_a_distanza]
 	for fase: Callable in tecniche:
 		if solo_fasi.is_empty() or solo_fasi.has(fase.get_method().trim_prefix("_")):
 			await fase.call()
@@ -1334,7 +1567,7 @@ func _menu_e_aspetto() -> void:
 		if vetrina.animazione != azione:
 			non_partite.append(azione)
 		await _attendi_in_pausa(minf(vetrina.durata(azione), 2.5) + 0.1)
-		if azione in ["colpo_rotante", "saluto", "attacco1"]:
+		if azione in ["colpo_rotante", "saluto", "attacco1", "arrampica", "appeso", "nuota", "galleggia"]:
 			await _scatta("prova_" + azione)
 	_verifica("mosse: ogni azione del menu si vede nell'anteprima", non_partite.is_empty(), str(non_partite))
 
@@ -1643,6 +1876,155 @@ func _ambiente() -> void:
 	_verifica("aggrapparsi a un bordo e salire", Rapporto.contatore("scavalchi") >= scavalchi + 2 and g.is_on_floor()
 			and absf(g.position.y - 392.0) < 3.0, "y %.0f" % g.position.y)
 	await _vai_a(Vector2(600, Stanza.PAVIMENTO), 10.0)
+
+
+# ------------------------------------------------------------------ sotterraneo (0.1.18)
+
+func _sotterraneo() -> void:
+	# Il sotterraneo come lo scoprirebbe chi gioca: muro crepato, stanzetta, pozzo, assi e fossa, cunicolo
+	# col forziere, ripiano coi dardi, la vasca sotto l'arco (respiro), la risalita con una sosta sulla
+	# mensola (stamina) fino all'alcova, giù dalla botola, di nuovo a nuoto, oltre la fossa e su per il pozzo.
+	_nuova_fase("sotterraneo")
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	_tregua(true)
+	var stanza_fase: Node = _principale.stanza
+	var stanza: Stanza = _principale.stanza
+	var muro := _m("muro_ripiano") as Struttura
+	var rotto := await _rompi_struttura(muro)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: il muro crepato si rompe a colpi", rotto and not muro.integra)
+	await _vai_a(Vector2(168, Stanza.PAVIMENTO), 6.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: dietro il muro c'è la stanza segreta", _nav.superficie_di(_g().global_position) == "stanza_segreta",
+			str(_g().global_position.round()))
+	await _scatta("stanza_segreta")
+	await _vai_a(Vector2(220, Stanza.PAVIMENTO_SOTTO), 8.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: giù per il pozzo", _nav.superficie_di(_g().global_position) == "camera_ovest" and stanza.sotto_terra,
+			str(_g().global_position.round()))
+	# Assi di legno: rotte scoprono la fossa; dalla fossa si rotola nel cunicolo fino allo stanzino.
+	var assi := _m("assi") as Struttura
+	rotto = await _rompi_struttura(assi)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: le assi si rompono e scoprono la fossa", rotto and not assi.integra)
+	var forziere := _m("forziere_sotto") as Forziere
+	var rotoli := int(_passaggi.get("rotola", 0))
+	var a_portata := await _usa(forziere)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: dalla fossa si rotola nel cunicolo fino allo stanzino", int(_passaggi.get("rotola", 0)) > rotoli
+			and _nav.superficie_di(_g().global_position) == "stanzino", str(_g().global_position.round()))
+	_verifica("sotterraneo: il forziere dello stanzino si apre", a_portata and forziere.aperto, str(forziere.contenuto))
+	await _scatta("stanzino")
+	# Ripiano di legno coi dardi: un tiro verso l'alto lo rompe e i dardi cadono.
+	var ripiano := _m("ripiano_legno") as Struttura
+	rotto = await _rompi_struttura(ripiano, "dardi")   # coi dardi: dopo c'è posto per quelli che cadono
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: un tiro verso l'alto rompe il ripiano di legno", rotto and not ripiano.integra)
+	await _fotogrammi(30)
+	var dardi: int = _g().munizioni["dardi"]
+	await _cammina_verso(492.0, 4.0, 120)
+	await _fotogrammi(20)
+	_verifica("sotterraneo: i dardi del ripiano cadono e si raccolgono", int(_g().munizioni["dardi"]) > dardi,
+			"dardi %d -> %d" % [dardi, _g().munizioni["dardi"]])
+	# La vasca: sotto l'arco si passa solo sott'acqua, col respiro che cala.
+	_respiro_minimo = Giocatore.RESPIRO_MASSIMO
+	var vita := _g().vita
+	var nuotate := int(_passaggi.get("nuota", 0))
+	await _vai_a(Vector2(1150, Stanza.PAVIMENTO_SOTTO), 8.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: a nuoto sotto l'arco fino alla camera est", int(_passaggi.get("nuota", 0)) > nuotate
+			and _nav.superficie_di(_g().global_position) == "camera_est", str(_g().global_position.round()))
+	_verifica("sotterraneo: sott'acqua il respiro cala, ma basta", _respiro_minimo < Giocatore.RESPIRO_MASSIMO - 10.0
+			and _g().vita >= vita, "respiro minimo %.0f, vita %d -> %d" % [_respiro_minimo, vita, _g().vita])
+	# Su per il pilastro fino all'alcova: la stamina non basta tutta d'un fiato, si sosta sulla mensola.
+	var riposi := _riposi_mensola
+	var prese_perse := Rapporto.contatore("prese_perse")
+	await _vai_a(Vector2(1262, Stanza.PAVIMENTO), 6.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: si risale il pilastro fino all'alcova", _nav.superficie_di(_g().global_position) == "alcova"
+			and not stanza.sotto_terra, str(_g().global_position.round()))
+	_verifica("sotterraneo: a metà salita si riprende fiato sulla mensola", _riposi_mensola > riposi
+			and Rapporto.contatore("prese_perse") == prese_perse,
+			"soste %d, prese perse %d" % [_riposi_mensola - riposi, Rapporto.contatore("prese_perse") - prese_perse])
+	await _scatta("alcova_dal_sotterraneo")
+	# Giù dalla botola, di nuovo a nuoto, oltre la fossa con un salto e su per il pozzo.
+	await _vai_a(Vector2(1180, Stanza.PAVIMENTO_SOTTO), 8.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: dalla botola dell'alcova si torna giù", _nav.superficie_di(_g().global_position) == "camera_est",
+			str(_g().global_position.round()))
+	await _vai_a(Vector2(470, Stanza.PAVIMENTO_SOTTO), 8.0)
+	if _interrotta(stanza_fase):
+		return
+	var salti := int(_passaggi.get("salto", 0))
+	await _vai_a(Vector2(200, Stanza.PAVIMENTO_SOTTO), 8.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: di nuovo a nuoto e oltre la fossa con un salto", _nav.superficie_di(_g().global_position) == "camera_ovest"
+			and int(_passaggi.get("salto", 0)) > salti, "%s, passaggi %s" % [str(_g().global_position.round()), str(_passaggi)])
+	riposi = _riposi_mensola
+	await _vai_a(Vector2(168, Stanza.PAVIMENTO), 6.0)
+	if _interrotta(stanza_fase):
+		return
+	_verifica("sotterraneo: su per il pozzo fino alla stanza segreta", _nav.superficie_di(_g().global_position) == "stanza_segreta"
+			and _riposi_mensola > riposi, "%s, soste %d" % [str(_g().global_position.round()), _riposi_mensola - riposi])
+	await _vai_a(Vector2(400, Stanza.PAVIMENTO), 8.0)
+	_verifica("sotterraneo: la telecamera torna in superficie", not stanza.sotto_terra
+			and _nav.superficie_di(_g().global_position) == "pavimento", str(_g().global_position.round()))
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	_tregua(true)
+
+
+func _rompi_struttura(s: Struttura, arma_tiro: String = "magia") -> bool:
+	# Un muro crepato o delle assi: accanto, a colpi. Un ripiano in alto: sotto, con un tiro verso l'alto.
+	if not is_instance_valid(s) or not s.integra:
+		return false
+	var c := s.centro()
+	var lato := 1.0 if _g().global_position.x > c.x else -1.0
+	var in_alto := false
+	var posto := Vector2(c.x + lato * (s.misura.x * 0.5 + 16.0), s.global_position.y + s.misura.y)   # muro: accanto, a terra
+	if s.misura.x > s.misura.y:
+		posto = Vector2(c.x + lato * (s.misura.x * 0.5 + 14.0), s.global_position.y)   # assi: di fianco, alla stessa quota
+		var sotto := _nav.superficie_per(posto)
+		if sotto == "" or absf(float(_nav.superfici[sotto]["y"]) - posto.y) > 6.0:
+			in_alto = true
+			sotto = _nav.superficie_per(Vector2(c.x - 22.0, s.global_position.y + 12.0))
+			if sotto == "":
+				return false
+			posto = Vector2(c.x - 22.0, float(_nav.superfici[sotto]["y"]))
+	await _vai_a(posto, 4.0)
+	if not is_instance_valid(s):
+		return false
+	if in_alto:
+		await _scegli_arma_col_tasto(arma_tiro)
+	else:
+		await _guarda(1 if c.x > _g().global_position.x else -1)
+	for i in 8:
+		if not s.integra or _g().stato == Giocatore.Stato.MORTO:
+			break
+		if in_alto:
+			Input.action_press("su")
+			await _tocca("tira")
+			await _fotogrammi(30)
+			Input.action_release("su")
+			await _fotogrammi(10)
+		else:
+			await _tocca("attacca")
+			await _fotogrammi(24)
+	await _fotogrammi(6)
+	if is_instance_valid(s) and not s.integra:
+		Rapporto.conta("bot_strutture_rotte")
+	return is_instance_valid(s) and not s.integra
 
 
 # ------------------------------------------------------------------ armi a distanza e nemici nuovi
@@ -1994,13 +2376,13 @@ func _decidi(ultimi: Array) -> Dictionary:
 		candidati.append({"nome": "cassa", "punti": 40.0 * _umore["curiosita"] + (cura * 0.5 if (mecc["piastra_tesoro"] as Piastra).da_cassa else 0.0)})
 	if not (mecc["forziere_oro"] as Forziere).aperto:
 		candidati.append({"nome": "bracieri", "punti": 40.0 * _umore["avidita"]})
-	var vivi := _nemici_vivi().filter(func(n: Nemico) -> bool: return not _ignorato(n))
+	var vivi := _nemici_vivi().filter(func(n: Nemico) -> bool: return not _ignorato(n) and _conosciuto(n))
 	if not vivi.is_empty():
 		var bonus_ondate := 25.0 if vivi.size() <= 3 and not stanza.sogno_completato else 0.0
 		candidati.append({"nome": "caccia", "punti": 38.0 * _umore["coraggio"] + bonus_ondate - (25.0 if poca_vita else 0.0),
 				"nemico": vivi[0]})
-	elif not stanza.sogno_completato and _nemici_vivi().is_empty():
-		candidati.append({"nome": "aspetta", "punti": 22.0})
+	elif not stanza.sogno_completato and stanza.nemici_vivi() == 0:
+		candidati.append({"nome": "aspetta", "punti": 22.0})   # la prossima ondata (quelli del sotterraneo non contano)
 	var da_vedere := _nav.superfici.keys().filter(func(id: String) -> bool:
 		return not _visitate.has(id) and not _nav.superfici[id].get("fragile", false) and not _nav.superfici[id].has("condizione"))
 	if not da_vedere.is_empty():
@@ -2014,6 +2396,11 @@ func _decidi(ultimi: Array) -> Dictionary:
 			return is_instance_valid(b) and (b as Node2D).global_position.distance_to(g.global_position) < 300.0)
 		if not barili.is_empty():
 			candidati.append({"nome": "rompi", "punti": 30.0, "barile": barili[0]})
+	# Un muro crepato o delle assi qui vicino: la curiosità di vedere cosa nascondono.
+	for st: Node in get_tree().get_nodes_in_group("strutture"):
+		if (st as Struttura).integra and (st as Struttura).centro().distance_to(g.global_position) < 240.0:
+			candidati.append({"nome": "rompi", "punti": 28.0 * _umore["curiosita"], "struttura": st})
+			break
 	if minaccia == null and _armi_provate.size() < Armi.FAMIGLIE.size():
 		candidati.append({"nome": "prova_arma", "punti": 34.0 - 2.5 * _armi_provate.size()})
 	# Quello che ha imparato, un po' di caso, e niente ostinazione su ciò che è appena fallito.
@@ -2080,6 +2467,8 @@ func _agisci(scelta: Dictionary) -> bool:
 		"raccogli":
 			return await _vai_a(scelta["dove"], 8.0)
 		"rompi":
+			if scelta.has("struttura"):
+				return await _rompi_struttura(scelta["struttura"])
 			var barile: Node2D = scelta["barile"]
 			if not is_instance_valid(barile):
 				return false
@@ -2104,6 +2493,13 @@ func _agisci(scelta: Dictionary) -> bool:
 			await _veglia(60)
 			return true
 	return false
+
+
+func _conosciuto(n: Nemico) -> bool:
+	# Chi dorme nel sotterraneo non si sa che c'è finché non ci si scende (o non si sveglia da sé).
+	if not n.has_meta("sotterraneo"):
+		return true
+	return (_principale.stanza as Stanza).sotto_terra or n.stato not in [Nemico.Stato.DORME, Nemico.Stato.RISVEGLIO]
 
 
 func _raggiungibile(id: String) -> bool:

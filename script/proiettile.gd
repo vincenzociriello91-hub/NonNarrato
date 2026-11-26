@@ -47,7 +47,10 @@ func _ready() -> void:
 			_aspetto_freccia()
 		else:
 			_aspetto_sfera(COLORE, 4.0)
-	body_entered.connect(func(_corpo: Node2D) -> void: _svanisci())
+	body_entered.connect(func(corpo: Node2D) -> void:
+		if amico() and corpo is Struttura:
+			_colpisci_nemico(corpo)   # un muro crepato o un ripiano di legno: anche un tiro lo crepa
+		_svanisci())
 	area_entered.connect(_su_area)
 
 

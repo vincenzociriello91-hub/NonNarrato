@@ -33,6 +33,35 @@ const ARMI_SFUSE := {
 }
 
 
+# Clip composte: per ogni chiave (tempo) e per ogni gruppo di ossa, la posa di una clip a un certo istante.
+# Le misure delle mani e delle ginocchia (Cheer, Running_A) scelgono gli istanti: in Cheer a 0,62 s la mano
+# sinistra è più in alto, a 1,04 s la destra; in Running_A a 0,3 s sale il ginocchio destro, a 0,7 il sinistro.
+# Braccio alto e ginocchio opposto alzato insieme, come chi si arrampica. Il nuoto è l'arrampicata
+# inclinata in avanti (vedi "inclina" in arte/figure/protagonista.json).
+const COMPOSTE := {
+	"Arrampica": {"durata": 0.8, "chiavi": [
+		{"t": 0.0, "corpo": ["Cheer", 0.62], "anche": ["Idle", 0.0], "braccio_l": ["Cheer", 0.62], "braccio_r": ["Jump_Idle", 0.0],
+			"gamba_l": ["Running_A", 0.3], "gamba_r": ["Running_A", 0.3]},
+		{"t": 0.4, "corpo": ["Cheer", 1.04], "anche": ["Idle", 0.0], "braccio_l": ["Jump_Idle", 0.0], "braccio_r": ["Cheer", 1.04],
+			"gamba_l": ["Running_A", 0.7], "gamba_r": ["Running_A", 0.7]},
+	]},
+	"Appeso": {"durata": 1.0, "chiavi": [
+		{"t": 0.0, "corpo": ["Jump_Idle", 0.0], "anche": ["Idle", 0.0], "braccio_l": ["Cheer", 0.83], "braccio_r": ["Cheer", 0.83],
+			"gamba_l": ["Jump_Idle", 0.0], "gamba_r": ["Jump_Idle", 0.0]},
+		{"t": 0.5, "corpo": ["Jump_Idle", 0.53], "anche": ["Idle", 0.0], "braccio_l": ["Cheer", 0.83], "braccio_r": ["Cheer", 0.83],
+			"gamba_l": ["Jump_Idle", 0.53], "gamba_r": ["Jump_Idle", 0.53]},
+	]},
+}
+const GRUPPI_OSSA := {
+	"anche": ["hips"],
+	"corpo": ["spine", "chest", "head"],
+	"braccio_l": ["upperarm.l", "lowerarm.l", "wrist.l", "hand.l"],
+	"braccio_r": ["upperarm.r", "lowerarm.r", "wrist.r", "hand.r"],
+	"gamba_l": ["upperleg.l", "lowerleg.l", "foot.l", "toes.l"],
+	"gamba_r": ["upperleg.r", "lowerleg.r", "foot.r", "toes.r"],
+}
+
+
 func _initialize() -> void:
 	_avvia.call_deferred()
 
@@ -131,6 +160,10 @@ func _avvia() -> void:
 	for nome in lettore_base.get_animation_list():
 		if clip_usate.has(nome):
 			libreria.add_animation(nome, lettore_base.get_animation(nome).duplicate(true))
+	# Clip che i personaggi KayKit non hanno (arrampicata, appeso): composte da pose di altre clip.
+	for nome: String in COMPOSTE:
+		if clip_usate.has(nome):
+			libreria.add_animation(nome, _componi(lettore_base, scheletro_base, COMPOSTE[nome]))
 	lettore.add_animation_library("", libreria)
 	base.free()
 
@@ -202,3 +235,36 @@ func _proprietario(nodo: Node, radice: Node) -> void:
 	for figlio in nodo.get_children():
 		figlio.owner = radice
 		_proprietario(figlio, radice)
+
+
+func _componi(lettore: AnimationPlayer, scheletro: Skeleton3D, ricetta: Dictionary) -> Animation:
+	var anim := Animation.new()
+	anim.length = float(ricetta["durata"])
+	anim.loop_mode = Animation.LOOP_LINEAR
+	for gruppo: String in GRUPPI_OSSA:
+		for osso: String in GRUPPI_OSSA[gruppo]:
+			var indice := scheletro.find_bone(osso)
+			if indice < 0:
+				continue
+			var percorso := NodePath("Rig/Skeleton3D:" + osso)
+			var traccia := anim.add_track(Animation.TYPE_ROTATION_3D)
+			anim.track_set_path(traccia, percorso)
+			var posizione := -1
+			if osso == "hips":
+				posizione = anim.add_track(Animation.TYPE_POSITION_3D)
+				anim.track_set_path(posizione, percorso)
+			for chiave: Dictionary in ricetta["chiavi"]:
+				var fonte: Array = chiave[gruppo]
+				var a := lettore.get_animation(String(fonte[0]))
+				var q := scheletro.get_bone_rest(indice).basis.get_rotation_quaternion()
+				var idx := a.find_track(percorso, Animation.TYPE_ROTATION_3D)
+				if idx >= 0:
+					q = a.rotation_track_interpolate(idx, float(fonte[1]))
+				anim.rotation_track_insert_key(traccia, float(chiave["t"]), q)
+				if posizione >= 0:
+					var p := scheletro.get_bone_rest(indice).origin
+					var idp := a.find_track(percorso, Animation.TYPE_POSITION_3D)
+					if idp >= 0:
+						p = a.position_track_interpolate(idp, float(fonte[1]))
+					anim.position_track_insert_key(posizione, float(chiave["t"]), p)
+	return anim

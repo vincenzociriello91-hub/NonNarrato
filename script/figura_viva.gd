@@ -340,7 +340,12 @@ func _aggiungi_scatti(a: Dictionary, durate: Dictionary, fps: float) -> Dictiona
 			var t := da + (fino - da) * float(i) / float(n)
 			if not a.get("ciclo", false) and n > 1:
 				t = da + (fino - da) * float(i) / float(n - 1)
-			_scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0})
+			# "inclina": tutta la figura ruotata in avanti (gradi), per esempio orizzontale per nuotare.
+			var inclina: float = a.get("inclina", 0.0)
+			if inclina != 0.0:
+				_scatti.append({"clip": clip, "t": t, "giro": -deg_to_rad(inclina), "centro": a.get("centro", 0.5), "giu": a.get("giu", 0.0)})
+			else:
+				_scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0})
 	return {"fps": fps_a, "ciclo": a.get("ciclo", false), "frame": indici}
 
 
@@ -373,6 +378,16 @@ func _prepara_pezzi() -> void:
 		_pezzi[String(mi.name)] = [mi, n]
 
 
+var armi_riposte := false        # arrampicandosi e nuotando le armi spariscono (riposte)
+
+
+func riponi_armi(si: bool) -> void:
+	if si == armi_riposte:
+		return
+	armi_riposte = si
+	_applica_aspetto()
+
+
 func mostra_in_mano(pezzi: Array) -> void:
 	# Per un attimo in mano qualcosa che non fa parte dell'equipaggiamento (la balestra per le frecce,
 	# un dardo da lanciare); l'arma di solito in mano sparisce. Lista vuota = di nuovo come prima.
@@ -388,6 +403,8 @@ func _applica_aspetto() -> void:
 	var accesi := {}
 	for posto in Equipaggiamento.POSTI:
 		if posto == "arma" and not _in_mano.is_empty():
+			continue
+		if armi_riposte and posto in ["arma", "mano_sinistra"]:
 			continue
 		for p: String in Equipaggiamento.pezzi(Equipaggiamento.indossati[posto]):
 			accesi[p] = true

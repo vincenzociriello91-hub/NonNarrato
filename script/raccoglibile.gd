@@ -36,7 +36,14 @@ func _ready() -> void:
 	add_to_group("raccoglibili")
 
 
+var permanente := false           # quelli messi nella stanza (per esempio sul ripiano di legno) non spariscono
+
+
 func _process(delta: float) -> void:
+	if permanente:
+		_t = fmod(_t + delta, 2.0 * PI)
+		_sprite.position.y = -2.0 - absf(sin(_t * 3.0)) * 3.0
+		return
 	_t += delta
 	_sprite.position.y = -2.0 - absf(sin(_t * 3.0)) * 3.0   # saltella per farsi notare
 	if _t > DURATA - 2.0:

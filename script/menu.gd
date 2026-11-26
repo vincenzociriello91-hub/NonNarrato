@@ -46,6 +46,7 @@ const AZIONI_DI_GIOCO := [
 	["rotolata", "Rotolata"], ["rotolata_indietro", "Rotolo indietro"], ["scavalco", "Scavalcare"],
 	["presa", "Afferrare"], ["spinge", "Spingere"], ["tira", "Tirare"], ["usa", "Usare"], ["tiro_magia", "Magia"],
 	["tiro_dardo", "Dardo"], ["tiro_freccia", "Freccia"], ["colpito", "Colpito"], ["morte", "Morte"],
+	["arrampica", "Arrampicata"], ["appeso", "Appeso"], ["nuota", "Nuoto"], ["galleggia", "Galleggia"],
 ]
 var _in_caricamento := false
 
@@ -276,6 +277,8 @@ func _costruisci_accessibilita(p: VBoxContainer) -> void:
 	_scelta(p, "Danni ricevuti", "acc/danni", [[1.0, "Normali"], [0.75, "75%"], [0.5, "Metà"], [0.25, "Un quarto"], [0.0, "Nessuno (invincibile)"]])
 	_scelta(p, "Aiuto alla mira", "acc/mira", [[1, "Normale"], [2, "Forte"], [0, "Spento"]])
 	_scelta(p, "Tiri da caricare", "acc/carica", [["tieni", "Tieni premuto"], ["alterna", "Premi una volta, poi di nuovo"]])
+	_interruttore(p, "Stamina infinita (arrampicarsi senza stancarsi)", "acc/stamina_infinita")
+	_interruttore(p, "Respiro infinito sott'acqua", "acc/respiro_infinito")
 	_sezione(p, "Vista")
 	_cursore(p, "Grandezza di testi e interfaccia", "acc/testo", 0.8, 1.5, 0.05, "%d%%", false, 100.0)
 	_cursore(p, "Scosse dello schermo", "acc/scuotimento", 0.0, 1.0, 0.1, "%d%%", false, 100.0)

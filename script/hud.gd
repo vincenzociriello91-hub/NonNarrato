@@ -25,6 +25,33 @@ class Cuori extends Control:
 		return PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
 
 
+class Fiato extends Control:
+	# Stamina (barra verde) e respiro (bolle): compaiono solo quando servono.
+	var stamina := 1.0
+	var respiro := 1.0
+	var esausto := false
+
+	func _draw() -> void:
+		var y := 0.0
+		if stamina < 0.999:
+			var colore := Color(0.85, 0.35, 0.3) if esausto else Color(0.45, 0.78, 0.42)
+			draw_rect(Rect2(0, y, 120, 8), Color(0.05, 0.04, 0.08, 0.85))
+			draw_rect(Rect2(1, y + 1, 118 * stamina, 6), colore)
+			draw_rect(Rect2(0, y, 120, 8), Color(0.75, 0.72, 0.82, 0.8), false, 1.0)
+			y += 14.0
+		if respiro < 0.999:
+			var bolle := 10
+			for i in bolle:
+				var c := Vector2(6.0 + i * 12.0, y + 6.0)
+				var piena := respiro * bolle > float(i) + 0.5
+				draw_circle(c, 5.0, Color(0.05, 0.06, 0.1, 0.8))
+				if piena:
+					draw_circle(c, 4.0, Color(0.6, 0.82, 1.0))
+					draw_circle(c + Vector2(-1.5, -1.5), 1.2, Color(1, 1, 1, 0.9))
+				else:
+					draw_arc(c, 4.0, 0.0, TAU, 12, Color(0.6, 0.82, 1.0, 0.35), 1.0)
+
+
 const PULSANTI := [
 	["attacca", "Colpo", 46.0], ["salta", "Salto", 42.0], ["rotola", "Rotola", 36.0],
 	["schiva", "Schiva", 36.0], ["afferra", "Afferra", 34.0], ["tira", "Tira", 34.0],
@@ -47,6 +74,7 @@ var _t_debug := 0.0
 var _tela := Vector2i(640, 360)
 var _scala := 3.0
 var _didascalie: VBoxContainer
+var _fiato: Fiato
 var _pausa := false
 var _avviso_messaggio: Tween
 
@@ -63,6 +91,11 @@ func _ready() -> void:
 	_cuori.size = Vector2(170, 30)
 	_cuori.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_radice.add_child(_cuori)
+
+	_fiato = Fiato.new()
+	_fiato.size = Vector2(130, 32)
+	_fiato.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_radice.add_child(_fiato)
 
 	_etichetta_sogno = _etichetta(15, Color(0.72, 0.7, 0.84))
 	_radice.add_child(_etichetta_sogno)
@@ -187,6 +220,7 @@ func _disponi() -> void:
 	var area := get_viewport().get_visible_rect().size
 	var m := _margini()
 	_cuori.position = Vector2(m[0] + 16.0, m[1] + 14.0)
+	_fiato.position = Vector2(m[0] + 270.0, m[1] + 16.0)
 	_etichetta_sogno.position = Vector2(m[0] + 20.0, m[1] + 46.0)
 	_armi.position = Vector2(m[0] + 20.0, m[1] + 68.0)
 	_debug.position = Vector2(m[0] + 16.0, m[1] + 100.0)
@@ -352,7 +386,20 @@ func messaggio(testo: String, durata: float, storia: bool = false) -> void:
 	_avviso_messaggio.tween_property(_messaggio, "modulate:a", 0.0, 0.6)
 
 
+func fiato_visibile() -> bool:
+	return _fiato != null and (_fiato.stamina < 0.999 or _fiato.respiro < 0.999)
+
+
 func _process(delta: float) -> void:
+	if is_instance_valid(_stanza) and is_instance_valid(_stanza.giocatore):
+		var g := _stanza.giocatore
+		var st := g.stamina / Giocatore.STAMINA_MASSIMA
+		var re := g.respiro / Giocatore.RESPIRO_MASSIMO
+		if absf(st - _fiato.stamina) > 0.004 or absf(re - _fiato.respiro) > 0.004 or _fiato.esausto != g.get("_esausto"):
+			_fiato.stamina = st
+			_fiato.respiro = re
+			_fiato.esausto = g.get("_esausto")
+			_fiato.queue_redraw()
 	# "Afferra" serve solo accanto a una cassa, a una leva o a un forziere, e dice cosa fa.
 	if _pulsanti.has("afferra"):
 		var cosa := ""

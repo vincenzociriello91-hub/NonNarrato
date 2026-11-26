@@ -7,7 +7,7 @@ e rinasce a ogni morte.
 
 Nome del gioco e del repository sono provvisori.
 
-## Stato: prototipo (una stanza di prova: cripta e galleria)
+## Stato: prototipo (una stanza di prova: cripta, galleria e sotterraneo)
 
 Serve a capire se lo stile e i comandi rendono come vogliamo, prima di costruire mondi e storia.
 L'elenco di ciò che c'è è in [distribuzione/NOVITA.md](distribuzione/NOVITA.md).
@@ -38,6 +38,9 @@ prima volta, il permesso "Installa app sconosciute". Il lavoro lo fa il plugin A
 | Tirare una leva, aprire un forziere | LB | Leva / Apri (solo accanto) | E |
 | Scavalcare un ostacolo basso | su + direzione | leva in diagonale | W + direzione |
 | Scendere da una piattaforma | giù + A | giù + Salto | S + Spazio |
+| Aggrapparsi a una parete ruvida | in aria verso la parete, o su accanto | come col controller | come col controller |
+| Sulla parete: salire, scendere, staccarsi | su / giù; A = balzo via dal muro; direzione opposta = lasciarsi | leva, Salto | W S, Spazio |
+| Nuotare; uscire dall'acqua | leva in ogni direzione (senza comandi si torna a galla); A a galla | leva, Salto | W A S D, Spazio |
 | Pausa e impostazioni | Start | II | Esc |
 | Schermata di debug | Select | dal menu | F3 |
 
@@ -108,8 +111,13 @@ si scelgono dal menu di pausa, sezione Aspetto.
 Due parti, costruite da codice in `script/stanza.gd`. La **cripta** (piattaforme, cunicolo da passare rotolando, cassa,
 barili, scheletri e mago) e, oltre la terrazza, la **galleria** su tre piani: spuntoni a tempo, sega a pendolo,
 balestra con piastra, una torre con montacarichi e lastre che crollano, la sala con l'enigma della cassa sulla piastra,
-il salone con l'enigma dei bracieri (ordine diverso a ogni sogno) e una nicchia segreta. Leve e forzieri si usano col
-tasto Afferra. I forzieri danno vita, frammenti della storia e, quello d'oro, colori rari per l'aspetto: i tesori trovati
+il salone con l'enigma dei bracieri (ordine diverso a ogni sogno) e una nicchia segreta. Sotto la cripta c'è il
+**sotterraneo** (da y 600 a 1300): un muro crepato (`script/struttura.gd`) nasconde una stanzetta e il pozzo; sotto,
+assi da rompere sopra una fossa, un cunicolo fino a uno stanzino col forziere, un ripiano di legno coi dardi, una vasca
+allagata (`script/acqua.gd`) con un arco da passare sott'acqua e un pilastro da scalare fino alla botola dell'alcova.
+Pareti scalabili e mensole sono in `Stanza.SCALABILI` e `Stanza.MENSOLE`, l'acqua in `Stanza.ACQUE`. Arrampicarsi
+consuma stamina, stare sott'acqua il respiro (`script/giocatore.gd`, stati `ARRAMPICATA` e `NUOTO`). Leve e forzieri si
+usano col tasto Afferra. I forzieri danno vita, frammenti della storia e, quello d'oro, colori rari per l'aspetto: i tesori trovati
 sono salvati in `user://equipaggiamento.cfg` (sezione `tesori`).
 
 ## Nemici e memoria del sogno
@@ -146,7 +154,8 @@ Dal menu di pausa, "Fai giocare il bot" (oppure `godot --path . -- --bot` sul co
 comandi, menu, armi e qualità a nemici fermi, poi gioca una **partita libera**: osserva (vita, nemici, forzieri,
 enigmi, zone da vedere), sceglie l'obiettivo che conviene adesso secondo un carattere diverso a ogni partita e quello
 che ha imparato (`user://bot_cervello.cfg`), agisce e ricorda com'è andata. Si muove solo con i comandi (i percorsi
-li trova `script/navigatore.gd`). Alla fine misura le prestazioni con ogni qualità e scrive tutto nel rapporto.
+li trova `script/navigatore.gd`, anche su per le pareti, con le soste sulle mensole, e a nuoto sotto l'arco). Alla
+fine misura le prestazioni con ogni qualità e scrive tutto nel rapporto.
 
 ## Prove
 

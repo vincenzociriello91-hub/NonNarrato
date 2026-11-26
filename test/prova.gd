@@ -237,6 +237,7 @@ func _esegui() -> void:
 			str(dopo) if dopo != prima else "")
 	_prova_lezione_fallita()
 	await _prova_impostazioni_suoni_aggiornamenti()
+	await _prova_sotterraneo()
 	await _prova_armi_e_bestione()
 	await _prova_nemesi_e_veterani()
 	await _prova_meccanismi()
@@ -617,3 +618,121 @@ func _prova_impostazioni_suoni_aggiornamenti() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(prova_apk))
 	_verifica("aggiornamento: senza plugin sul computer (Android lo ha)", Aggiornatore.plugin == null and Aggiornatore.testo_pulsante() != "")
 	Impostazioni.ripristina()
+
+
+func _prova_sotterraneo() -> void:
+	# Muro crepato, pozzo, arrampicata con la stamina, acqua con il respiro, assi di legno.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		(n as Nemico).tregua(true)
+	var g := _g()
+	var muro := stanza.meccanismi["muro_ripiano"] as Struttura
+	await _sposta(Vector2(216, Stanza.PAVIMENTO), -1)
+	for i in 8:
+		if not muro.integra:
+			break
+		await _tocca("attacca")
+		await _fotogrammi(24)
+	await _fotogrammi(4)
+	_verifica("sotterraneo: il muro crepato si rompe a colpi", not muro.integra and stanza.condizione("rotto:muro_ripiano"))
+	# Nella stanzetta e giù per il pozzo.
+	Input.action_press("sinistra")
+	for i in 240:
+		await _fotogrammi(1)
+		if _g().global_position.x < 124.0:
+			Input.action_release("sinistra")   # sopra il buco si lascia: tenendo verso la parete ci si aggrapperebbe
+		if _g().global_position.y > Stanza.SOTTO:
+			break
+	Input.action_release("sinistra")
+	for i in 120:
+		await _fotogrammi(1)
+		if _g().is_on_floor() and _g().global_position.y > Stanza.SOTTO:
+			break
+	g = _g()
+	_verifica("sotterraneo: giù per il pozzo fino in fondo", absf(g.global_position.y - Stanza.PAVIMENTO_SOTTO) < 3.0, str(g.global_position.round()))
+	await _fotogrammi(20)
+	_verifica("sotterraneo: la telecamera mostra il sotterraneo", stanza.sotto_terra and g.camera.limit_bottom == Stanza.FONDO_SOTTO)
+	await _scatta("sotterraneo_fondo_pozzo")
+	# Arrampicata sulla parete est del pozzo: salto verso la parete e si resta aggrappati.
+	await _sposta(Vector2(134, Stanza.PAVIMENTO_SOTTO), 1)
+	await _fotogrammi(20)
+	Input.action_press("destra")
+	Input.action_press("salta")   # salto pieno: la parete comincia sopra la testa
+	for i in 40:
+		await _fotogrammi(1)
+		if _g().stato == Giocatore.Stato.ARRAMPICATA:
+			break
+	Input.action_release("salta")
+	Input.action_release("destra")
+	g = _g()
+	_verifica("arrampicata: ci si aggrappa saltando verso la parete", g.stato == Giocatore.Stato.ARRAMPICATA, Giocatore.Stato.keys()[g.stato])
+	var prima := g.stamina
+	await _fotogrammi(60)
+	var appeso := prima - g.stamina
+	Input.action_press("su")
+	await _fotogrammi(60)
+	Input.action_release("su")
+	var salito := prima - g.stamina - appeso
+	_verifica("arrampicata: restare appesi stanca, salire stanca di più", appeso > 4.0 and salito > appeso * 1.5,
+			"appeso %.1f salito %.1f" % [appeso, salito])
+	await _scatta("arrampicata")
+	g.stamina = 3.0
+	await _fotogrammi(40)
+	_verifica("arrampicata: senza stamina si cade", g.stato != Giocatore.Stato.ARRAMPICATA and g.get("_esausto"))
+	for i in 200:
+		await _fotogrammi(1)
+		if _g().is_on_floor():
+			break
+	await _fotogrammi(90)
+	_verifica("arrampicata: a terra la stamina torna", _g().stamina > 50.0 and not _g().get("_esausto"), "%.0f" % _g().stamina)
+	# Acqua: dentro si nuota, sotto la superficie il respiro cala, a zero si perde vita.
+	g = _g()
+	g.global_position = Vector2(620, 1090)
+	g.velocity = Vector2.ZERO
+	await _fotogrammi(4)
+	_verifica("acqua: dentro si nuota", g.stato == Giocatore.Stato.NUOTO and g.in_acqua)
+	Input.action_press("giu")
+	await _fotogrammi(60)
+	Input.action_release("giu")
+	_verifica("acqua: sott'acqua il respiro cala", g.sott_acqua and g.respiro < Giocatore.RESPIRO_MASSIMO - 5.0, "%.0f" % g.respiro)
+	await _scatta("sott_acqua")
+	var vita := g.vita
+	g.respiro = 0.5
+	Input.action_press("giu")
+	await _fotogrammi(120)
+	Input.action_release("giu")
+	_verifica("acqua: senza respiro si perde vita", g.vita < vita, "vita %d -> %d" % [vita, g.vita])
+	g.vita = Giocatore.VITA_MASSIMA
+	g.vita_cambiata.emit(g.vita, Giocatore.VITA_MASSIMA)
+	Impostazioni.scrivi("acc/respiro_infinito", true)
+	g.respiro = 60.0
+	Input.action_press("giu")
+	await _fotogrammi(60)
+	Input.action_release("giu")
+	_verifica("accessibilità: respiro infinito", is_equal_approx(g.respiro, 60.0), "%.1f" % g.respiro)
+	Impostazioni.scrivi("acc/respiro_infinito", false)
+	for i in 300:
+		await _fotogrammi(1)
+		if not _g().sott_acqua:
+			break
+	await _fotogrammi(100)
+	_verifica("acqua: a galla il respiro torna", not _g().sott_acqua and _g().respiro > 90.0, "%.0f" % _g().respiro)
+	_verifica("hud: barre di stamina e respiro", _principale.hud.fiato_visibile() or _g().respiro >= Giocatore.RESPIRO_MASSIMO)
+	# Assi di legno: si rompono e sotto c'è la fossa.
+	g = _g()
+	g.global_position = Vector2(316, Stanza.PAVIMENTO_SOTTO - 2)
+	g.velocity = Vector2.ZERO
+	await _fotogrammi(10)
+	await _tieni("destra", 2)
+	var assi := stanza.meccanismi["assi"] as Struttura
+	for i in 6:
+		if not assi.integra:
+			break
+		await _tocca("attacca")
+		await _fotogrammi(24)
+	_verifica("sotterraneo: le assi di legno si rompono", not assi.integra)
+	Impostazioni.ripristina()
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)

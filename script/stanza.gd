@@ -7,6 +7,11 @@ extends Node2D
 #    una torre con un montacarichi e lastre che crollano, una sala con l'enigma della cassa sulla piastra,
 #    un salone con l'enigma dei bracieri, forzieri, una grata che si apre con una leva, e i nemici nuovi
 #    (pipistrelli, saltatore, bestione, arciere).
+#  - Il sotterraneo (sotto la cripta): dietro il muro crepato del ripiano c'è una stanzetta segreta con
+#    un pozzo che scende; sotto, una camera con assi di legno da rompere (sotto c'è una fossa e un
+#    cunicolo da fare rotolando fino a uno stanzino con un forziere), un ripiano di legno, una vasca
+#    allagata da passare sott'acqua sotto un arco di roccia, e una parete da scalare che riporta su
+#    nell'alcova attraverso una botola.
 # Tutto è costruito da codice, così ogni misura sta in un posto solo.
 
 const LARGHEZZA := 2880
@@ -46,6 +51,7 @@ const TORCE := [
 	Vector2(268, 420), Vector2(560, 250), Vector2(884, 420), Vector2(1180, 330),
 	Vector2(1420, 350), Vector2(1700, 410), Vector2(1960, 360), Vector2(2160, 300), Vector2(2420, 420),
 	Vector2(2560, 300), Vector2(2770, 452), Vector2(2366, 70), Vector2(2730, 84), Vector2(2690, -84),
+	Vector2(290, 990), Vector2(1150, 990), Vector2(116, 650), Vector2(620, 990),
 ]
 # Galleria: piattaforme attraversabili (x, y, larghezza) e lastre che crollano (nome, x sinistra, y).
 const PIATTAFORME_GALLERIA := [[2016, 312, 64]]
@@ -55,6 +61,32 @@ const COLORE_FIAMMA := Color(1.0, 0.62, 0.32)
 const RAGGIO_TORCIA := 250.0
 const ENERGIA_TORCIA := 2.3
 const PULVISCOLO := 170
+# Sotterraneo (0.1.18): da y 600 (sotto il pavimento) a 1300, da x 0 a 1344.
+const SOTTO := 600
+const PAVIMENTO_SOTTO := 1040
+const FONDO_SOTTO := 1300
+const LARGHEZZA_SOTTO := 1344
+# Pareti ruvide su cui arrampicarsi: zona in cui deve stare il centro del corpo, lato della parete
+# (1 = a destra di chi si arrampica, -1 = a sinistra).
+const SCALABILI := [
+	{"nome": "pozzo_ovest", "rett": Rect2(84, 470, 16, 570), "lato": -1},
+	{"nome": "pozzo_est", "rett": Rect2(132, 470, 16, 520), "lato": 1},
+	{"nome": "pilastro_uscita", "rett": Rect2(1236, 470, 16, 490), "lato": -1},
+]
+# Mensole a metà parete (si attraversano salendo, ci si posa sopra lasciando la parete): per riprendere fiato.
+const MENSOLE := [Rect2(126, 760, 22, 10), Rect2(84, 700, 22, 10), Rect2(1236, 760, 26, 10)]
+# "immersione": [x da, x a, quota dei piedi] = tratto sotto l'arco di roccia, da fare con i piedi sotto quella quota.
+const ACQUE := [{"nome": "vasca", "rett": Rect2(560, 1056, 520, 184), "superficie": 1056.0, "immersione": [688.0, 992.0, 1168.0]}]
+const MURO_SOTTO: Array[String] = [
+	"mmcmmomgmmomcm",
+	"cmmgmommmomgmm",
+	"mmmmomammomkmc",
+	"mgmmomcmmommmm",
+	"mmcmomgmcomamm",
+	"cmmmommmmomgmm",
+	"mmgmomcmmommcm",
+	"mmmcommgmommmm",
+]
 
 var giocatore: Giocatore
 var meccanismi := {}               # nome -> porta, leva, piastra, forziere, lastra fragile, enigma
@@ -73,6 +105,7 @@ var _nebbie: Array = []
 var _pulviscolo: CPUParticles2D
 var _tempo := 0.0
 var _t_luci := 0.0
+var sotto_terra := false           # la telecamera mostra il sotterraneo
 
 
 func _ready() -> void:
@@ -90,6 +123,7 @@ func _ready() -> void:
 	_luci()
 	_oggetti()
 	_galleria()
+	_sotterraneo()
 	_nemici()
 	_crea_giocatore()
 	_atmosfera()
@@ -111,14 +145,38 @@ func _process(delta: float) -> void:
 		_t_luci = 0.25
 		_aggiorna_luci()
 	_controlla_ondate(delta)
+	_zona_telecamera()
+
+
+func _zona_telecamera() -> void:
+	# Sopra: tutta la stanza fino al pavimento. Sotto (pozzi e sotterraneo): solo il sotterraneo.
+	# Una piccola isteresi evita il tremolio sul bordo del pozzo.
+	if not is_instance_valid(giocatore):
+		return
+	var y := giocatore.global_position.y
+	var sotto := sotto_terra
+	if not sotto_terra and y > float(PAVIMENTO) + 20.0 and giocatore.global_position.x < LARGHEZZA_SOTTO:
+		sotto = true
+	elif sotto_terra and y <= float(PAVIMENTO) + 10.0:
+		sotto = false
+	if sotto == sotto_terra:
+		return
+	sotto_terra = sotto
+	giocatore.camera.limit_smoothed = true
+	if sotto:
+		giocatore.limiti(Rect2i(0, 400, LARGHEZZA_SOTTO, FONDO_SOTTO - 400), false)
+		Rapporto.conta("discese_nel_sotterraneo")
+	else:
+		giocatore.limiti(Rect2i(0, CIELO, LARGHEZZA, FONDO - CIELO), false)
 
 
 # ------------------------------------------------------------------ ondate
 
 func nemici_vivi() -> int:
+	# Quelli del sotterraneo non contano per le ondate: si incontrano solo se lo si scopre.
 	var vivi := 0
 	for n: Node in get_tree().get_nodes_in_group("nemici"):
-		if n.get_parent() == self and (n as Nemico).stato != Nemico.Stato.MORTO:
+		if n.get_parent() == self and (n as Nemico).stato != Nemico.Stato.MORTO and not n.has_meta("sotterraneo"):
 			vivi += 1
 	return vivi
 
@@ -206,10 +264,13 @@ func _muro_di_fondo() -> void:
 
 
 func _solidi() -> void:
-	_blocco(Rect2(0, PAVIMENTO, LARGHEZZA, 120), true, false)                 # pavimento
+	# Pavimento, con due buchi: il pozzo nella stanzetta segreta (x 84-148) e la botola dell'alcova (1236-1300).
+	_blocco(Rect2(0, PAVIMENTO, 84, SOTTO - PAVIMENTO), true, false)
+	_blocco(Rect2(148, PAVIMENTO, 1088, SOTTO - PAVIMENTO), true, false)
+	_blocco(Rect2(1300, PAVIMENTO, LARGHEZZA - 1300, 120), true, false)
 	_blocco(Rect2(0, CIELO - 48, 48, PAVIMENTO - CIELO + 48), false, false)   # parete sinistra
 	_blocco(Rect2(LARGHEZZA - 48, CIELO - 48, 48, PAVIMENTO - CIELO + 48), false, false)   # parete destra
-	_blocco(Rect2(48, 392, 152, 88), true, true)                              # ripiano alto a sinistra
+	_blocco(Rect2(48, 392, 152, 18), true, true)                              # ripiano alto a sinistra (vuoto dentro)
 	_blocco(Rect2(1104, 384, 384, 36), true, true)                            # terrazza, poi passerella nella galleria
 	_blocco(Rect2(1104, 420, 96, 34), false, true)                            # sotto resta un cunicolo alto 26
 	_blocco(Rect2(1296, CIELO - 48, 48, 368 - CIELO), false, false)           # muro fra cripta e galleria (varco sopra la terrazza)
@@ -224,6 +285,22 @@ func _solidi() -> void:
 	_blocco(Rect2(2600, -48, 168, 36), true, true)                            # nicchia segreta
 	for p: Array in PIATTAFORME_GALLERIA:
 		_piattaforma(p[0], p[1], p[2])
+
+
+func zona_scalabile(punto: Vector2) -> Dictionary:
+	# La parete ruvida a cui ci si può aggrappare con il centro del corpo in "punto" ({} se nessuna).
+	for z: Dictionary in SCALABILI:
+		if (z["rett"] as Rect2).has_point(punto):
+			return z
+	return {}
+
+
+func acqua_in(punto: Vector2) -> Dictionary:
+	# L'acqua in cui sta "punto" ({} se è all'asciutto). La parte alta del rettangolo è la superficie.
+	for a: Dictionary in ACQUE:
+		if (a["rett"] as Rect2).has_point(punto):
+			return a
+	return {}
 
 
 static func superfici() -> Array:
@@ -244,6 +321,13 @@ static func superfici() -> Array:
 		{"id": "tesoro", "x0": 2712.0, "x1": 2832.0, "y": float(PAVIMENTO), "passante": false, "isolata": true},
 		{"id": "gradino", "x0": 2784.0, "x1": 2832.0, "y": 40.0, "passante": false, "condizione": "porta:gradino"},
 		{"id": "nicchia", "x0": 2600.0, "x1": 2768.0, "y": -48.0, "passante": false},
+		# Sotterraneo: tutte "isolate", i passaggi sono in passaggi_speciali().
+		{"id": "stanza_segreta", "x0": 148.0, "x1": 188.0, "y": float(PAVIMENTO), "passante": false, "isolata": true},
+		{"id": "camera_ovest", "x0": 90.0, "x1": 330.0, "y": float(PAVIMENTO_SOTTO), "passante": false, "isolata": true},
+		{"id": "fossa", "x0": 330.0, "x1": 430.0, "y": 1120.0, "passante": false, "isolata": true, "condizione": "rotto:assi"},
+		{"id": "stanzino", "x0": 150.0, "x1": 240.0, "y": 1120.0, "passante": false, "isolata": true},
+		{"id": "camera_ovest_est", "x0": 430.0, "x1": 560.0, "y": float(PAVIMENTO_SOTTO), "passante": false, "isolata": true},
+		{"id": "camera_est", "x0": 1080.0, "x1": 1300.0, "y": float(PAVIMENTO_SOTTO), "passante": false, "isolata": true},
 	]
 	for i in PIATTAFORME.size():
 		var p: Array = PIATTAFORME[i]
@@ -269,6 +353,24 @@ static func passaggi_speciali() -> Array:
 		{"da": "sala", "a": "salone", "tipo": "ascensore", "stacco": 2320.0, "verso": 1, "meta": 2385.0},
 		{"da": "salone", "a": "sala", "tipo": "ascensore", "stacco": 2320.0, "verso": -1, "meta": 2262.0},
 		{"da": "salone", "a": "sala", "tipo": "vietato"},
+		# Sotterraneo.
+		{"da": "pavimento", "a": "stanza_segreta", "tipo": "passa", "stacco": 214.0, "verso": -1, "meta": 168.0, "condizione": "rotto:muro_ripiano"},
+		{"da": "stanza_segreta", "a": "pavimento", "tipo": "passa", "stacco": 172.0, "verso": 1, "meta": 226.0, "condizione": "rotto:muro_ripiano"},
+		{"da": "stanza_segreta", "a": "camera_ovest", "tipo": "passa", "stacco": 158.0, "verso": -1, "meta": 112.0},
+		{"da": "camera_ovest", "a": "stanza_segreta", "tipo": "arrampica", "stacco": 136.0, "verso": 1},
+		{"da": "camera_ovest", "a": "camera_ovest_est", "tipo": "passa", "stacco": 320.0, "verso": 1, "meta": 452.0, "condizione": "intera:assi"},
+		{"da": "camera_ovest_est", "a": "camera_ovest", "tipo": "passa", "stacco": 440.0, "verso": -1, "meta": 308.0, "condizione": "intera:assi"},
+		{"da": "camera_ovest", "a": "camera_ovest_est", "tipo": "salto", "stacco": 326.0, "verso": 1, "condizione": "rotto:assi"},
+		{"da": "camera_ovest_est", "a": "camera_ovest", "tipo": "salto", "stacco": 434.0, "verso": -1, "condizione": "rotto:assi"},
+		{"da": "camera_ovest", "a": "fossa", "tipo": "passa", "stacco": 320.0, "verso": 1, "meta": 380.0, "condizione": "rotto:assi"},
+		{"da": "fossa", "a": "camera_ovest", "tipo": "salto", "stacco": 348.0, "verso": -1},
+		{"da": "fossa", "a": "camera_ovest_est", "tipo": "salto", "stacco": 412.0, "verso": 1},
+		{"da": "fossa", "a": "stanzino", "tipo": "rotola", "stacco": 346.0, "verso": -1},
+		{"da": "stanzino", "a": "fossa", "tipo": "rotola", "stacco": 226.0, "verso": 1},
+		{"da": "camera_ovest_est", "a": "camera_est", "tipo": "nuota", "stacco": 548.0, "verso": 1, "meta": 1096.0, "immersione": ACQUE[0]["immersione"]},
+		{"da": "camera_est", "a": "camera_ovest_est", "tipo": "nuota", "stacco": 1090.0, "verso": -1, "meta": 544.0, "immersione": ACQUE[0]["immersione"]},
+		{"da": "camera_est", "a": "alcova", "tipo": "arrampica", "stacco": 1250.0, "verso": -1},
+		{"da": "alcova", "a": "camera_est", "tipo": "attraversa", "stacco": 1282.0, "verso": 1},   # oltre la mensola sotto la botola
 	]
 
 
@@ -282,6 +384,10 @@ func condizione(nome: String) -> bool:
 		return (m as Porta).del_tutto_aperta()
 	if parti[0] == "fragile":
 		return (m as PiattaformaFragile).presente
+	if parti[0] == "rotto":
+		return not (m as Struttura).integra
+	if parti[0] == "intera":
+		return (m as Struttura).integra
 	return true
 
 
@@ -611,6 +717,15 @@ func _nemici() -> void:
 	_nemico("arciere", Vector2(2622, 352), false, -1, da_mettere)
 	_nemico("pipistrello", Vector2(2590, 398), true, -1, da_mettere)
 	_nemico("mago", Vector2(2610, 120), false, -1, da_mettere)
+	_nemici_sotto()
+
+
+func _nemici_sotto() -> void:
+	# Nel sotterraneo: uno scheletro che dorme nella camera ovest e un pipistrello appeso nella camera est.
+	# Non tornano con le ondate e non contano per finirle (vedi nemici_vivi).
+	for voce: Array in [["scheletro", Vector2(510, PAVIMENTO_SOTTO), -1], ["pipistrello", Vector2(1150, 636), 1]]:
+		var n := _nemico(voce[0], voce[1], true, voce[2], {}, "sotto:" + String(voce[0]))
+		n.set_meta("sotterraneo", true)
 
 
 func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int, nemesi_libere: Dictionary = {},
@@ -633,6 +748,96 @@ func _nemico(tipo: String, dove: Vector2, addormentato: bool, verso: int, nemesi
 	n.rialzato = ondata > 1
 	add_child(n)
 	return n
+
+
+# ------------------------------------------------------------------ sotterraneo
+
+func _sotterraneo() -> void:
+	# Roccia: parete sinistra fin giù, pareti del pozzo, pavimenti, vasca, arco, pilastro, parete est.
+	_blocco(Rect2(0, SOTTO, 48, FONDO_SOTTO - SOTTO), false, false)        # parete sinistra
+	_blocco(Rect2(48, SOTTO, 36, PAVIMENTO_SOTTO - SOTTO), false, true)    # pozzo: lato ovest
+	_blocco(Rect2(148, SOTTO, 52, 390), false, true)                         # pozzo: lato est (fino a 990, sotto si passa)
+	_blocco(Rect2(48, PAVIMENTO_SOTTO, 102, FONDO_SOTTO - PAVIMENTO_SOTTO), true, false)   # pavimento sotto il pozzo
+	_blocco(Rect2(150, PAVIMENTO_SOTTO, 180, 20), true, false)              # lastra sopra stanzino e cunicolo
+	_blocco(Rect2(240, 1060, 90, 26), false, false)                          # soffitto del cunicolo (alto 34: si passa rotolando)
+	_blocco(Rect2(150, 1120, 280, FONDO_SOTTO - 1120), true, false)         # fondo di stanzino, cunicolo e fossa
+	_blocco(Rect2(430, PAVIMENTO_SOTTO, 130, FONDO_SOTTO - PAVIMENTO_SOTTO), true, false)   # pavimento prima della vasca
+	_blocco(Rect2(560, 1240, 520, FONDO_SOTTO - 1240), false, false)        # fondo della vasca
+	_blocco(Rect2(700, SOTTO, 280, 500), false, true)                        # arco di roccia: si passa solo sott'acqua
+	_blocco(Rect2(1080, PAVIMENTO_SOTTO, 220, FONDO_SOTTO - PAVIMENTO_SOTTO), true, false)  # pavimento della camera est
+	_blocco(Rect2(1200, SOTTO, 36, 360), false, true)                        # pilastro della risalita (fino a 960)
+	_blocco(Rect2(1300, SOTTO, LARGHEZZA_SOTTO - 1300, FONDO_SOTTO - SOTTO), false, false)  # parete est
+	for m: Rect2 in MENSOLE:
+		_piattaforma(m.position.x, m.position.y, m.size.x)
+	_piattaforma(1236, PAVIMENTO, 64)                                          # botola dell'alcova (dal basso si passa)
+	# Muro di fondo del sotterraneo, più scuro, e il fondo dei buchi nel pavimento.
+	for r in MURO_SOTTO.size():
+		for c in MURO_SOTTO[r].length():
+			var t := _sprite(SIGLE[MURO_SOTTO[r][c]], Vector2(c * RIQUADRO + RIQUADRO * 0.5, SOTTO + (r + 1) * RIQUADRO), Effetti.L_SFONDO, -50)
+			t.modulate = Color(0.46, 0.48, 0.6)
+	for buco: Rect2 in [Rect2(84, PAVIMENTO, 64, SOTTO - PAVIMENTO), Rect2(1236, PAVIMENTO + 8, 64, SOTTO - PAVIMENTO - 8)]:
+		_fondo_scuro(buco, -45, 0.45)
+	# Stanzetta segreta dentro il ripiano: dietro il muro crepato, al buio finché non lo si rompe.
+	_fondo_scuro(Rect2(48, 410, 140, 70), -45, 0.5)
+	_sprite("candele", Vector2(66, PAVIMENTO), Effetti.L_DAVANTI, 0)
+	var lume := Effetti.luce(Color(1.0, 0.72, 0.4), 70.0, 1.1, 40.0)
+	lume.position = Vector2(66, 462)
+	add_child(lume)
+	var velo_stanza := _fondo_scuro(Rect2(48, 410, 140, 70), 12, 0.62)
+	_struttura("muro_ripiano", "muro", Vector2(188, 410), Vector2(12, 70), 3, [velo_stanza])
+	# Camera ovest: assi di legno sopra la fossa (dentro, il cunicolo e lo stanzino col forziere).
+	var velo_fossa := _fondo_scuro(Rect2(150, 1050, 280, 70), 12, 0.62)
+	_struttura("assi", "legno", Vector2(330, PAVIMENTO_SOTTO), Vector2(100, 10), 2, [velo_fossa])
+	_forziere("forziere_sotto", Vector2(196, 1120), false)
+	# Ripiano di legno con dei dardi sopra: rompendolo (per esempio con un tiro verso l'alto) cadono a terra.
+	var ripiano := _struttura("ripiano_legno", "legno", Vector2(440, 960), Vector2(100, 10), 2, [])
+	var dardi := Raccoglibile.new()
+	dardi.cosa = "dardi"
+	dardi.quante = 4
+	dardi.permanente = true
+	dardi.position = Vector2(490, 960)
+	add_child(dardi)
+	ripiano.rotta.connect(func() -> void:
+		if is_instance_valid(dardi):
+			var tw := dardi.create_tween()
+			tw.tween_property(dardi, "position:y", float(PAVIMENTO_SOTTO), 0.35).set_ease(Tween.EASE_IN))
+	# Vasca allagata.
+	for a: Dictionary in ACQUE:
+		var acqua := Acqua.new()
+		acqua.rett = a["rett"]
+		add_child(acqua)
+
+
+func _fondo_scuro(rett: Rect2, z: int, luce: float) -> Sprite2D:
+	# Roccia scura (fondamenta) per riempire un buco o coprire una stanza segreta.
+	var voce := SpriteAnimato.foglio("fondamenta")
+	var s := Sprite2D.new()
+	s.texture = voce["texture"]
+	s.centered = false
+	s.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	s.region_enabled = true
+	s.region_rect = Rect2(Vector2.ZERO, rett.size)
+	s.position = rett.position
+	s.light_mask = Effetti.L_SFONDO if z < 0 else Effetti.L_DAVANTI
+	s.z_index = z
+	s.modulate = Color(luce, luce, luce * 1.08)
+	add_child(s)
+	return s
+
+
+func _struttura(nome: String, tipo: String, dove: Vector2, misura: Vector2, vita: int, veli: Array) -> Struttura:
+	var st := Struttura.new()
+	st.nome = nome
+	st.tipo = tipo
+	st.position = dove
+	st.misura = misura
+	st.vita = vita
+	for v: CanvasItem in veli:
+		st.veli.append(v)
+	st.z_index = 2
+	add_child(st)
+	meccanismi[nome] = st
+	return st
 
 
 func _crea_giocatore() -> void:

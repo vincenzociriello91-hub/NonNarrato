@@ -1,5 +1,17 @@
 # Novità di NonNarrato
 
+## 0.1 — Il sotterraneo: muri da rompere, pareti da scalare, acqua da attraversare
+
+- **Un sotterraneo sotto la cripta**, tutto da scoprire. La stanza resta di prova, ma ora è un platform su due livelli: sopra la cripta e la galleria, sotto un dedalo di camere collegate da pozzi, cunicoli e una vasca allagata.
+- **Muri e legno che si rompono**: il muro crepato sotto il ripiano nasconde una stanzetta con le candele e un pozzo che scende nel buio. Sotto, le assi di legno coprono una fossa: da lì si rotola in un cunicolo fino a uno stanzino con un forziere. Un ripiano di legno in alto regge dei dardi: lo rompi con un tiro verso l'alto e i dardi cadono. Si crepano a ogni colpo (spada o tiri) e, rotti, svelano quello che c'è dietro.
+- **Pareti ruvide da scalare**: salta verso la parete (oppure premi su accanto) e ti aggrappi. Su e giù per salire e scendere, salto per staccarti con un balzo, direzione opposta per lasciarti andare. In cima sali sul bordo da solo. A metà delle pareti più alte c'è una mensola: scendi sopra e riprendi fiato.
+- **Stamina**: restare appesi stanca, salire stanca di più, il salto dal muro costa. A zero le mani scivolano e cadi; non ti riaggrappi finché non hai ripreso fiato. Torna con i piedi a terra (o a galla). La barra verde compare in alto solo quando serve.
+- **Nuoto e respiro**: nella vasca allagata si nuota in ogni direzione; senza comandi si torna a galla. Sotto un arco di roccia si passa solo sott'acqua: con la testa sotto il respiro cala (le bolle in alto), a zero si perde vita. A galla torna in fretta. Con il salto si esce dall'acqua e il bordo si afferra da solo.
+- **La telecamera segue** quando scendi: mostra il sotterraneo e torna su quando risali.
+- **Suoni nuovi**: presa sulla parete, affanno, tuffo, bolle, respiro ripreso, muro che crolla, legno che si spezza, crepe.
+- **Accessibilità**: due interruttori nuovi, **stamina infinita** e **respiro infinito**.
+- **Il bot** scopre il sotterraneo da solo: rompe il muro, scende nel pozzo, rompe le assi, rotola fino al forziere, abbatte il ripiano coi dardi, nuota sotto l'arco, risale le pareti fermandosi sulle mensole per riprendere fiato ed esce dalla botola dell'alcova. Nella partita libera, se passa vicino a un muro crepato, la curiosità gli fa venire voglia di romperlo.
+
 ## 0.1 — Impostazioni a schede, suoni e aggiornamento dentro il gioco
 
 - **Impostazioni a schede**: nel menu di pausa, in alto, cinque linguette, **Gioco**, **Schermo**, **Grafica**, **Audio** e **Accessibilità**. Con un controller si passa da una all'altra con LB e RB. Ogni scheda ha il suo tasto "Ripristina i valori consigliati". Le voci automatiche dicono tra parentesi cosa sta usando il gioco sul tuo telefono. Aspetto e mosse hanno un tasto a parte, sotto l'anteprima del personaggio.

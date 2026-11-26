@@ -435,6 +435,71 @@ def s_ui_apri():
                  ritarda(tono(1100, 0.04) * decad(0.04, 0.01), 0.12))
 
 
+# ------------------------------------------------------------------ arrampicata, acqua, crolli
+
+def s_presa():
+    # Mano che afferra la roccia: grattata secca e piccolo tonfo.
+    grattata = passa(rumore(0.07), "bandpass", [1200, 3800]) * decad(0.07, 0.012)
+    tonfo = passa(rumore(0.05), "lowpass", 500) * decad(0.05, 0.01) * 0.6
+    return somma(grattata, tonfo)
+
+
+def s_affanno():
+    # Senza fiato: soffio che scende, senza voce.
+    n = 0.5
+    return banda_mobile(rumore(n), 900, 400, 0.8) * inviluppo(n_(n), 0.04, 0.25)
+
+
+def s_tuffo():
+    n = 0.7
+    schizzo = passa(rumore(n), "bandpass", [600, 5000]) * inviluppo(n_(n), 0.004, 0.18)
+    tonfo = tono(scorri(140, 60, 0.2), 0.2) * decad(0.2, 0.05) * 0.8
+    gocce = np.zeros(n_(n))
+    for _ in range(10):
+        k = n_(rng.uniform(0.08, 0.55))
+        f = rng.uniform(900, 2400)
+        g = tono(scorri(f, f * 1.6, 0.05), 0.05) * decad(0.05, 0.012) * rng.uniform(0.2, 0.5)
+        gocce[k:k + len(g)] += g[: max(0, len(gocce) - k)]
+    return somma(schizzo, tonfo, gocce)
+
+
+def s_bolle():
+    out = np.zeros(n_(0.45))
+    for _ in range(5):
+        k = n_(rng.uniform(0.0, 0.35))
+        f = rng.uniform(300, 700)
+        b = tono(scorri(f, f * 2.2, 0.06), 0.06) * decad(0.06, 0.02) * rng.uniform(0.4, 1.0)
+        out[k:k + len(b)] += b[: max(0, len(out) - k)]
+    return passa(out, "lowpass", 2500)
+
+
+def s_respiro():
+    # Riemersione: un respiro profondo (solo aria, niente voce).
+    n = 0.6
+    return passa(rumore(n), "bandpass", [500, 2400]) * np.sin(np.linspace(0, np.pi, n_(n))) ** 1.5
+
+
+def s_muro_rotto():
+    out = s_crollo()
+    colpo = passa(rumore(0.12), "lowpass", 600) * decad(0.12, 0.03)
+    return somma(colpo * 1.5, out)
+
+
+def s_legno_rotto():
+    out = np.zeros(n_(0.5))
+    for _ in range(9):
+        k = n_(rng.uniform(0.0, 0.2))
+        schianto = passa(rumore(0.08), "bandpass", [rng.uniform(500, 900), rng.uniform(1800, 3500)]) * decad(0.08, 0.015)
+        out[k:k + len(schianto)] += schianto * rng.uniform(0.4, 1.0)
+    return somma(out, tono(scorri(220, 140, 0.1), 0.1) * decad(0.1, 0.025) * 0.5)
+
+
+def s_crepa():
+    # Un colpo su una struttura che si sta crepando.
+    return somma(passa(rumore(0.1), "lowpass", 900) * decad(0.1, 0.02),
+                 passa(rumore(0.05), "bandpass", [1500, 3500]) * decad(0.05, 0.008) * 0.6)
+
+
 # ------------------------------------------------------------------ anelli (ambiente e musica)
 
 def anello(x, sr, coda):
@@ -507,9 +572,11 @@ SUONI = {
     "spuntoni": s_spuntoni, "pendolo": s_pendolo, "crollo": s_crollo, "barile": s_barile, "bracere": s_bracere,
     "piastra": s_piastra, "ondata": s_ondata, "nemesi": s_nemesi, "sogno_quieto": s_sogno_quieto,
     "ui_tocco": s_ui_tocco, "ui_indietro": s_ui_indietro, "ui_apri": s_ui_apri,
+    "presa": s_presa, "affanno": s_affanno, "tuffo": s_tuffo, "bolle": s_bolle, "respiro": s_respiro,
+    "muro_rotto": s_muro_rotto, "legno_rotto": s_legno_rotto, "crepa": s_crepa,
 }
 LUNGHI = {"ambiente": s_ambiente, "musica": s_musica}
-LIVELLI = {"passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5, "ambiente": 0.7, "musica": 0.7}
+LIVELLI = {"presa": 0.5, "bolle": 0.5, "passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5, "ambiente": 0.7, "musica": 0.7}
 
 
 def main():
