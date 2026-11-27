@@ -1854,7 +1854,9 @@ func _menu_impostazioni(menu: Menu) -> void:
 	# Grafica: risoluzione interna al 50% con SGSR, livello, dettaglio a mano, ripristino.
 	menu.mostra_scheda("grafica")
 	await _fotogrammi_in_pausa(1)
-	var prima: Vector2i = mondo.size
+	# La tela (size_2d_override) non cambia; il mondo si disegna più piccolo. Con le figure dettagliate
+	# (0.1.37) il mondo è al doppio della tela: si confronta con la tela, non con il disegno di prima.
+	var prima: Vector2i = mondo.size_2d_override if mondo.size_2d_override != Vector2i.ZERO else mondo.size
 	menu.scegli("grafica/risoluzione", 0.5)
 	menu.scegli("grafica/filtro", "sgsr")
 	await _fotogrammi_in_pausa(3)
@@ -1873,7 +1875,8 @@ func _menu_impostazioni(menu: Menu) -> void:
 	await _fotogrammi_in_pausa(2)
 	# Dalla 0.1.36 la vista può avere sempre il materiale (bagliore, toni del livello): conta che il filtro torni "nitido".
 	var filtro_dopo: int = int((vista.material as ShaderMaterial).get_shader_parameter("filtro")) if vista.material != null else 0
-	_verifica("grafica: ripristino dei valori consigliati", mondo.size == prima and filtro_dopo == 0 and not Impostazioni.personalizzata(),
+	var tela_dopo: Vector2i = mondo.size_2d_override if mondo.size_2d_override != Vector2i.ZERO else mondo.size
+	_verifica("grafica: ripristino dei valori consigliati", tela_dopo == prima and mondo.size.x >= prima.x and filtro_dopo == 0 and not Impostazioni.personalizzata(),
 			"%s -> %s, filtro %d" % [prima, mondo.size, filtro_dopo])
 	Impostazioni.scrivi("grafica/qualita", "alta")   # come all'inizio del bot (misure confrontabili)
 	# Audio: volumi sui canali, mono, ripristino.
