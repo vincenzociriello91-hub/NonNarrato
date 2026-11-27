@@ -119,7 +119,7 @@ var _contatore_id := 0
 func _ready() -> void:
 	_caso.seed = 7331
 	var cfg := ConfigFile.new()
-	if cfg.load(PERCORSO) != OK:
+	if Salvataggio.leggi_cfg(cfg, PERCORSO) != OK:
 		return
 	nemesi = cfg.get_value("memoria", "nemesi", [])
 	abitudini = cfg.get_value("memoria", "abitudini", {})
@@ -461,5 +461,5 @@ func _salva() -> void:
 	cfg.set_value("memoria", "tattiche", tattiche)
 	cfg.set_value("memoria", "sogni", sogni)
 	cfg.set_value("memoria", "contatore", _contatore_id)
-	cfg.save(PERCORSO)
+	Salvataggio.scrivi_cfg(cfg, PERCORSO)
 	cambiata.emit()

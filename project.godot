@@ -28,6 +28,7 @@ Equipaggiamento="*res://script/equipaggiamento.gd"
 Memoria="*res://script/memoria.gd"
 Suoni="*res://script/suoni.gd"
 Aggiornatore="*res://script/aggiornatore.gd"
+Partita="*res://script/partita.gd"
 
 [display]
 

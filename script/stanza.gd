@@ -107,6 +107,9 @@ var _nebbie: Array = []
 var _pulviscolo: CPUParticles2D
 var _tempo := 0.0
 var _t_luci := 0.0
+var _t_tensione := 0.0
+var _t_ultima_lotta := -99.0       # la musica di lotta resta qualche secondo dopo l'ultimo nemico vicino
+var tensione_automatica := true    # le prove la fermano per comandare la musica a mano
 var sotto_terra := false           # la telecamera mostra il sotterraneo
 
 
@@ -137,6 +140,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_tempo += delta
+	_t_tensione -= delta
+	if _t_tensione <= 0.0 and tensione_automatica:
+		_t_tensione = 0.25
+		Suoni.imposta_tensione(tensione_musicale())
 	for t: Dictionary in _torce:
 		var fase: float = t["fase"]
 		var tremolio := sin(_tempo * 13.0 + fase) * 0.5 + sin(_tempo * 7.3 + fase * 2.0) * 0.3 + sin(_tempo * 23.0 + fase * 3.0) * 0.2
@@ -956,7 +963,27 @@ func _primo_piano() -> void:
 		_sagome_sotto.append(sagoma)
 
 
+func tensione_musicale() -> int:
+	# Quanta tensione deve avere la musica: 2 = un nemico ti sta addosso, 1 = nemici svegli nei paraggi, 0 = quiete.
+	if not is_instance_valid(giocatore) or giocatore.stato == Giocatore.Stato.MORTO:
+		return 0
+	var presenza := false
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		var e := n as Nemico
+		if e == null or e.in_tregua or e.stato in [Nemico.Stato.DORME, Nemico.Stato.MORTO]:
+			continue
+		var d := e.global_position.distance_to(giocatore.global_position)
+		if d < 300.0 and e.stato in [Nemico.Stato.INSEGUE, Nemico.Stato.ATTACCO, Nemico.Stato.LANCIA, Nemico.Stato.COLPITO]:
+			_t_ultima_lotta = _tempo
+		elif d < 460.0:
+			presenza = true
+	if _tempo - _t_ultima_lotta < 3.0:
+		return 2
+	return 1 if presenza else 0
+
+
 func _sagome_per_zona(sotto: bool) -> void:
+	Suoni.imposta_zona(sotto)
 	for gruppo: Array in [[_sagome_sopra, not sotto], [_sagome_sotto, sotto]]:
 		for sagoma: CanvasItem in gruppo[0]:
 			var mostra: bool = gruppo[1]

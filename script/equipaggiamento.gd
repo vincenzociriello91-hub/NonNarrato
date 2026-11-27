@@ -137,7 +137,7 @@ var frammenti: Array = []        # indici dei frammenti già letti
 func _ready() -> void:
 	_predefiniti()
 	var cfg := ConfigFile.new()
-	if cfg.load(PERCORSO) != OK:
+	if Salvataggio.leggi_cfg(cfg, PERCORSO) != OK:
 		return
 	for posto in POSTI:
 		var id: String = str(cfg.get_value("oggetti", posto, ""))
@@ -331,4 +331,4 @@ func _salva() -> void:
 	cfg.set_value("mosse", "scelta", mosse_scelte)
 	cfg.set_value("tesori", "colori", trovati)
 	cfg.set_value("tesori", "frammenti", frammenti)
-	cfg.save(PERCORSO)
+	Salvataggio.scrivi_cfg(cfg, PERCORSO)

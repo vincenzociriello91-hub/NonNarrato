@@ -2,7 +2,7 @@
 """Genera tutti i suoni di NonNarrato per sintesi: niente registrazioni né pacchetti esterni.
 I suoni nascono da rumore, toni e filtri calcolati qui (CC0 per costruzione).
 Uso: python3 strumenti/genera_suoni.py [nome ...]   (senza nomi li rifà tutti)
-Scrive arte/suoni/<nome>.wav (mono, 16 bit). Seme fisso: stesso risultato a ogni esecuzione."""
+Scrive arte/suoni/<nome>.wav (mono, 16 bit) e, per musica e ambiente, <nome>.ogg (stereo). Seme fisso: stesso risultato a ogni esecuzione."""
 import sys
 import wave
 from pathlib import Path
@@ -546,55 +546,300 @@ def anello(x, sr, coda):
     return corpo
 
 
-def s_ambiente():
-    sr = SR_LUNGHI
-    n = 26.0
-    tt = t(n, sr)
-    drone = (np.sin(2 * np.pi * 41.0 * tt) + np.sin(2 * np.pi * 41.35 * tt) + 0.5 * np.sin(2 * np.pi * 61.7 * tt)) * 0.35
-    vento = passa(rumore_marrone(n, sr), "lowpass", 380, 2, sr) * (0.6 + 0.4 * np.sin(2 * np.pi * tt / 13.0))
-    gocce = np.zeros(len(tt))
-    for _ in range(22):
-        k = int(rng.uniform(0.2, n - 1.0) * sr)
-        f = rng.uniform(900, 2200)
-        g = tono(scorri(f, f * 0.6, 0.18, sr), 0.18, sr=sr) * decad(0.18, 0.03, sr) * rng.uniform(0.15, 0.4)
-        gocce[k:k + len(g)] += g
-    gocce = riverbero(gocce, 1.2, 0.6, sr, 3000)[: len(tt)]
-    out = drone * 0.8 + vento * 0.6 + gocce
-    return anello(out, sr, 2.0), sr
+def piega(x, n):
+    # Rende un brano lungo esattamente n campioni e ripetibile senza scatti: la coda oltre n si somma all'inizio.
+    out = np.zeros((n,) + x.shape[1:])
+    m = min(len(x), n)
+    out[:m] = x[:m]
+    resto = x[n:]
+    while len(resto) > 0:
+        k = min(len(resto), n)
+        out[:k] += resto[:k]
+        resto = resto[n:]
+    return out
 
 
-def s_musica():
-    sr = SR_LUNGHI
-    battuta = 4.0
-    accordi = [(110.0, 130.8, 164.8), (87.3, 110.0, 130.8), (73.4, 87.3, 110.0), (82.4, 103.8, 123.5)]
-    giri = 2
-    n = battuta * len(accordi) * giri + 4.0  # 32 s di musica più la coda che torna all'inizio
-    out = np.zeros(int(n * sr))
-    melodia = [659.3, 587.3, 523.3, 493.9, 440.0, 523.3, 493.9, 415.3]
-    pos = 0.0
-    m = 0
-    for _ in range(giri):
-        for ac in accordi:
-            k = int(pos * sr)
-            durata = battuta + 1.5
-            for f in ac:
-                v = tono(f * (1 + 0.002 * rng.standard_normal()), durata, "sega", sr) + tono(f * 1.003, durata, "sega", sr)
-                v = passa(v, "lowpass", 700, 2, sr) * inviluppo(int(durata * sr), 1.2, 2.5, sr, 2.0) * 0.12
-                fine = min(len(out), k + len(v))
-                out[k:fine] += v[: fine - k]
-            basso = tono(ac[0] / 2, durata, "seno", sr) * inviluppo(int(durata * sr), 0.4, 2.5, sr, 2.0) * 0.25
-            fine = min(len(out), k + len(basso))
-            out[k:fine] += basso[: fine - k]
-            for j in range(2):
-                if rng.uniform() < 0.8:
-                    kk = int((pos + 0.5 + j * 2.0 + rng.uniform(0, 0.4)) * sr)
-                    c = campana(melodia[m % len(melodia)], 2.0, sr, tau=0.9) * 0.18
-                    fine = min(len(out), kk + len(c))
-                    out[kk:fine] += c[: fine - kk]
-                    m += 1
-            pos += battuta
-    out = riverbero(out, 2.5, 0.5, sr, 2200)[: len(out)]
-    return anello(out, sr, 4.0), sr
+def corda_veloce(freq, durata, smorza=0.994, sr=SR, chiaro=0.5):
+    # Karplus-Strong calcolato con un filtro (molto più veloce del ciclo): corda pizzicata.
+    n = int(durata * sr)
+    p = max(2, int(round(sr / freq)))
+    x = np.zeros(n)
+    eccita = passa(rng.uniform(-1, 1, p), "lowpass", 400 + 6000 * chiaro, 1, sr)
+    x[:p] = eccita
+    a = np.zeros(p + 2)
+    a[0] = 1.0
+    a[p] = -smorza * 0.5
+    a[p + 1] = -smorza * 0.5
+    return signal.lfilter([1.0], a, x)
+
+
+def stereo(sx, dx):
+    n = max(len(sx), len(dx))
+    out = np.zeros((n, 2))
+    out[: len(sx), 0] = sx
+    out[: len(dx), 1] = dx
+    return out
+
+
+def metti(out, k, suono, pan=0.0, vol=1.0):
+    # Somma un suono mono (o stereo) nel brano stereo alla posizione k, con il panorama -1..1.
+    if k >= len(out):
+        return
+    if suono.ndim == 1:
+        sx = suono * vol * np.sqrt(0.5 * (1.0 - pan))
+        dx = suono * vol * np.sqrt(0.5 * (1.0 + pan))
+        suono = np.stack([sx, dx], axis=1)
+    else:
+        suono = suono * vol
+    fine = min(len(out), k + len(suono))
+    out[k:fine] += suono[: fine - k]
+
+
+def riverbero_stereo(x, durata, quantita, sr, scuro=2500):
+    # Due code di riverbero diverse a sinistra e a destra: il suono si allarga come in una cripta.
+    sx = riverbero(x[:, 0], durata, quantita, sr, scuro)
+    dx = riverbero(x[:, 1], durata, quantita, sr, scuro)
+    return stereo(sx, dx)
+
+
+def campana_risset(freq, durata, sr, tau=8.0):
+    # Campana con parziali inarmoniche (alla Risset): rintocco cupo da cattedrale.
+    parziali = ((0.56, 1.0), (0.92, 0.67), (1.19, 1.0), (1.71, 1.8), (2.0, 2.67), (2.74, 1.67), (3.0, 1.46), (3.76, 1.33), (4.07, 1.33))
+    out = np.zeros(int(durata * sr))
+    for i, (k, amp) in enumerate(parziali):
+        out += amp * tono(freq * k * (1 + 0.0015 * i), durata, sr=sr) * decad(durata, tau / (1.0 + 0.55 * i), sr)
+    return out
+
+
+def voce_coro(freq, durata, sr, vocale_da="a", vocale_a="o"):
+    # Coro sintetico: una sega con vibrato filtrata dalle formanti di una vocale che passa lentamente a un'altra.
+    formanti = {"a": (800, 1150, 2900), "o": (450, 800, 2830), "u": (325, 700, 2530)}
+    tt = t(durata, sr)
+    vibrato = 1.0 + 0.0087 * np.sin(2 * np.pi * 5.0 * tt + rng.uniform(0, 6.28))
+    sorgente = tono(freq * vibrato, durata, "sega", sr) + 0.3 * rumore(durata, sr) * 0.2
+    meta = len(tt) // 2
+    out = np.zeros(len(tt))
+    for parte, vocale, peso in ((sorgente[:meta + sr], vocale_da, np.linspace(1, 0, meta + sr) ** 0.5),
+                                (sorgente[meta - sr:], vocale_a, np.linspace(0, 1, len(tt) - meta + sr) ** 0.5)):
+        y = np.zeros(len(parte))
+        for j, f in enumerate(formanti[vocale]):
+            y += passa(parte, "bandpass", [f * 0.88, f * 1.12], 2, sr) * (1.0, 0.5, 0.18)[j]
+        y *= peso
+        if vocale == vocale_da:
+            out[: len(y)] += y
+        else:
+            out[meta - sr: meta - sr + len(y)] += y
+    return out
+
+
+# Musica a strati (0.1.29): tre brani lunghi uguali che suonano insieme e si alzano o abbassano col gioco.
+# Mi frigio (la seconda minore Mi-Fa è il colore "minaccioso"), 60 battiti al minuto, 16 battute = 64 secondi.
+MUSICA_SR = 32000
+MUSICA_S = 64.0
+BATTITO = 1.0
+# Un accordo ogni 4 battute: Mi minore, Fa (II bemolle del frigio), Re minore, Do con la settima.
+ACCORDI = [
+    (82.41, (164.81, 196.00, 246.94)),
+    (87.31, (174.61, 220.00, 261.63)),
+    (73.42, (146.83, 174.61, 220.00)),
+    (65.41, (130.81, 164.81, 196.00, 246.94)),
+]
+
+
+def s_musica_base():
+    # Esplorazione: bordone basso (Mi + quinta + tritono), tappeto d'archi scuri, rintocchi rari.
+    sr = MUSICA_SR
+    n = int(MUSICA_S * sr)
+    coda = 10.0
+    durata = MUSICA_S + coda
+    tt = t(durata, sr)
+    out = np.zeros((len(tt), 2))
+    # Bordone: frequenze dell'ondulazione intere sui 64 s, così il giro si ripete senza scatti.
+    lfo = 0.5 + 0.5 * np.sin(2 * np.pi * (3.0 / MUSICA_S) * tt)
+    for f, vol, pan in ((41.20, 1.0, -0.2), (41.38, 0.8, 0.2), (61.74, 0.5, 0.0), (58.27, 0.22, 0.4)):
+        v = tono(f, durata, "sega", sr)
+        v = passa(v, "lowpass", 260, 2, sr) * (0.55 + 0.45 * lfo)
+        metti(out, 0, v, pan, vol * 0.18)
+    # Archi: ogni accordo dura 16 s, entra in 3 s e sfuma in 6 s sopra il successivo.
+    for i, (basso, note) in enumerate(ACCORDI):
+        k = int(i * 16.0 * sr)
+        d = 16.0 + 6.0
+        env = inviluppo(int(d * sr), 3.0, 1e9, sr)
+        rilascio = int(6.0 * sr)
+        env[-rilascio:] *= np.linspace(1, 0, rilascio) ** 1.5
+        for j, f in enumerate(note):
+            for dt, pan in ((-0.004, -0.6), (0.004, 0.6)):
+                v = tono(f * (1 + dt) * (1 + 0.0015 * j), d, "sega", sr)
+                v = passa(v, "lowpass", 1300, 2, sr) * env
+                metti(out, k, v, pan, 0.13)
+            # Un velo un'ottava sopra (seno): sull'altoparlante del telefono i bassi non si sentono, questo sì.
+            metti(out, k, tono(f * 2.003, d, sr=sr) * env, (-0.3, 0.3, 0.0, 0.15)[j % 4], 0.035)
+        b = passa(tono(basso / 2, d, "sega", sr), "lowpass", 180, 2, sr) * env
+        metti(out, k, b, 0.0, 0.22)
+    # Rintocchi: pochi, lontani, in punti fissi (seme fisso) e non sopra il cambio d'accordo.
+    for quando, f in ((5.0, 164.81), (19.5, 174.61), (29.0, 246.94), (41.5, 146.83), (52.0, 196.00), (60.5, 164.81)):
+        c = campana_risset(f, 9.0, sr, tau=7.0)
+        metti(out, int(quando * sr), c, rng.uniform(-0.5, 0.5), 0.07)
+    out = riverbero_stereo(out, 3.2, 0.55, sr, 2000)
+    return piega(out, n), sr
+
+
+def s_musica_presenza():
+    # Tensione: battito lento nel petto, un grappolo di note che vibra, un coro lontano che segue gli accordi.
+    sr = MUSICA_SR
+    n = int(MUSICA_S * sr)
+    durata = MUSICA_S + 8.0
+    out = np.zeros((int(durata * sr), 2))
+    battito = somma(tono(scorri(62, 44, 0.16, sr), 0.16, sr=sr) * decad(0.16, 0.05, sr),
+                    passa(rumore(0.04, sr), "lowpass", 220, 2, sr) * decad(0.04, 0.008, sr) * 0.4,
+                    tono(124, 0.12, sr=sr) * decad(0.12, 0.03, sr) * 0.35)   # armonica: il battito si sente anche dal telefono
+    for b in range(int(MUSICA_S / BATTITO)):
+        if b % 2 == 0:
+            k = int(b * BATTITO * sr)
+            metti(out, k, battito, 0.0, 0.8)
+            metti(out, k + int(0.27 * sr), battito, 0.0, 0.55)
+    # Grappolo (Mi-Fa-Fa#) che sale e scende ogni 8 s, con un tremolo di 6 Hz.
+    tt = t(MUSICA_S, sr)
+    onda = (0.5 - 0.5 * np.cos(2 * np.pi * tt / 8.0)) ** 2
+    tremolo = 0.75 + 0.25 * np.sin(2 * np.pi * 6.0 * tt)
+    for f, pan in ((329.63, -0.5), (349.23, 0.5), (369.99, 0.0)):
+        v = passa(tono(f, MUSICA_S, "triangolo", sr), "lowpass", 1800, 2, sr) * onda * tremolo
+        metti(out, 0, v, pan, 0.06)
+    for i, (_basso, note) in enumerate(ACCORDI):
+        for j, f in enumerate(note[:3]):
+            v = voce_coro(f, 15.0, sr, "a" if i % 2 == 0 else "o", "o" if i % 2 == 0 else "u")
+            env = inviluppo(len(v), 3.5, 1e9, sr)
+            env[-int(5 * sr):] *= np.linspace(1, 0, int(5 * sr))
+            metti(out, int((i * 16.0 + 0.5) * sr), v * env, (-0.5, 0.5, 0.0)[j], 0.16)
+    out = riverbero_stereo(out, 2.6, 0.5, sr, 2400)
+    return piega(out, n), sr
+
+
+def s_musica_lotta():
+    # Combattimento: tamburi gravi in ottavi (sembra il doppio della velocità), corde pizzicate ostinate,
+    # un colpo di metallo a ogni frase. Segue gli stessi accordi degli altri strati.
+    sr = MUSICA_SR
+    n = int(MUSICA_S * sr)
+    durata = MUSICA_S + 6.0
+    out = np.zeros((int(durata * sr), 2))
+    tamburo = somma(tono(np.concatenate([scorri(110, 46, 0.18, sr), np.full(int(0.24 * sr), 46.0)]), 0.42, sr=sr) * decad(0.42, 0.11, sr),
+                    passa(rumore(0.06, sr), "lowpass", 380, 2, sr) * decad(0.06, 0.012, sr) * 0.8)
+    legno = passa(rumore(0.05, sr), "bandpass", [1800, 4200], 2, sr) * decad(0.05, 0.01, sr)
+    ritmi = ([1, 0, 0, 1, 0, 0, 1, 0], [1, 0, 0, 1, 0, 1, 0, 0], [1, 0, 0, 1, 0, 0, 1, 0], [1, 0, 1, 0, 1, 1, 1, 1])
+    ottavo = BATTITO / 2.0
+    for battuta in range(16):
+        ritmo = ritmi[battuta % 4]
+        for j, colpo in enumerate(ritmo):
+            k = int((battuta * 4 + j * 0.5) * sr)
+            if colpo:
+                accento = 1.0 if j == 0 else 0.7
+                metti(out, k, tamburo * (0.97 + 0.06 * rng.uniform()), rng.uniform(-0.15, 0.15), 0.55 * accento)
+            if j in (2, 6):
+                metti(out, k, legno, 0.45 if j == 2 else -0.45, 0.10)
+    # Corde pizzicate: la fondamentale dell'accordo, con la seconda minore e la terza (frigio), in sedicesimi.
+    figura = [0, 0, 1, 0, 3, 0, 1, 0]
+    for battuta in range(16):
+        basso = ACCORDI[battuta // 4][0]
+        scala = [basso, basso * 2 ** (1 / 12), basso * 2 ** (3 / 12), basso * 2 ** (3 / 12) * 1.0]
+        for j in range(16):
+            f = scala[figura[j % 8]]
+            k = int((battuta * 4 + j * 0.25) * sr)
+            c = corda_veloce(f, 0.6, 0.992, sr, 0.35)
+            c = passa(c, "lowpass", 1400, 2, sr)
+            metti(out, k, c, -0.3 if j % 2 else 0.3, 0.16 if j % 4 == 0 else 0.11)
+    # Ottoni scuri a ogni frase di 4 battute: quinta vuota che si apre.
+    for frase in range(4):
+        basso = ACCORDI[frase][0]
+        d = 3.0
+        apre = np.linspace(300, 1400, int(d * sr))
+        for f in (basso, basso * 1.5, basso * 2):
+            v = tono(f, d, "sega", sr)
+            v = banda_mobile(v, 300, 1300, 1.2, sr, 12) * inviluppo(int(d * sr), 0.25, 1.2, sr, 2.0)
+            metti(out, int(frase * 16.0 * sr), v, 0.0, 0.10)
+        met = metallo(basso * 4, 2.5, sr, 0.5)
+        metti(out, int(frase * 16.0 * sr), met, 0.0, 0.06)
+    out = riverbero_stereo(out, 1.4, 0.3, sr, 3000)
+    return piega(out, n), sr
+
+
+AMBIENTE_S = 48.0
+
+
+def goccia(sr):
+    f0 = rng.uniform(1300, 1800)
+    d = 0.09
+    frequenza = np.concatenate([scorri(f0, f0 * 0.42, 0.03, sr), np.full(int(d * sr), f0 * 0.42)])
+    return tono(frequenza, d, sr=sr) * decad(d, 0.03, sr)
+
+
+def s_ambiente_cripta():
+    # Vento che passa fra le pietre, gocce che cadono lontano con molta eco, un rombo bassissimo.
+    sr = MUSICA_SR
+    n = int(AMBIENTE_S * sr)
+    durata = AMBIENTE_S + 4.0
+    tt = t(durata, sr)
+    out = np.zeros((len(tt), 2))
+    for lato, fase in ((-0.7, 0.0), (0.7, 2.1)):
+        v = rumore_marrone(durata, sr)
+        mod = 0.55 + 0.45 * np.sin(2 * np.pi * (2.0 / AMBIENTE_S) * tt + fase) * np.sin(2 * np.pi * (5.0 / AMBIENTE_S) * tt + fase * 0.5)
+        v = banda_mobile(v, 180, 520, 0.9, sr, 16) * mod
+        metti(out, 0, v, lato, 0.5)
+    rombo = passa(rumore_marrone(durata, sr), "lowpass", 70, 2, sr)
+    metti(out, 0, rombo, 0.0, 0.6)
+    gocce = np.zeros((len(tt), 2))
+    quando = 0.6
+    while quando < AMBIENTE_S:
+        metti(gocce, int(quando * sr), goccia(sr), rng.uniform(-0.9, 0.9), rng.uniform(0.12, 0.35))
+        quando += rng.uniform(0.8, 4.0)
+    out += riverbero_stereo(gocce, 2.2, 0.8, sr, 3500)[: len(tt)]
+    return piega(out, n), sr
+
+
+def s_ambiente_sotto():
+    # Sotterraneo: acqua che scorre e gorgoglia, gocce più vicine, un bordone basso che si sente appena.
+    sr = MUSICA_SR
+    n = int(AMBIENTE_S * sr)
+    durata = AMBIENTE_S + 4.0
+    tt = t(durata, sr)
+    out = np.zeros((len(tt), 2))
+    for lato in (-0.6, 0.6):
+        acqua = passa(rumore(durata, sr), "bandpass", [380, 1900], 2, sr)
+        granuli = np.zeros(len(tt))
+        for _ in range(int(durata * 30)):
+            k = int(rng.uniform(0, len(tt) - 800))
+            g = tono(rng.uniform(300, 900), 0.02, sr=sr) * np.hanning(int(0.02 * sr))
+            granuli[k:k + len(g)] += g * rng.uniform(0.1, 0.5)
+        mod = 0.7 + 0.3 * np.sin(2 * np.pi * (3.0 / AMBIENTE_S) * tt + lato)
+        metti(out, 0, (acqua * 0.35 + granuli * 0.4) * mod, lato, 0.45)
+    bordone = passa(tono(41.2, durata, "sega", sr), "lowpass", 120, 2, sr)
+    metti(out, 0, bordone, 0.0, 0.10)
+    gocce = np.zeros((len(tt), 2))
+    quando = 0.3
+    while quando < AMBIENTE_S:
+        metti(gocce, int(quando * sr), goccia(sr), rng.uniform(-0.9, 0.9), rng.uniform(0.2, 0.45))
+        quando += rng.uniform(0.6, 2.5)
+    out += riverbero_stereo(gocce, 1.4, 0.6, sr, 4000)[: len(tt)]
+    return piega(out, n), sr
+
+
+def scrivi_ogg(nome, x, sr, livello, qualita=3):
+    # Brani lunghi: OGG Vorbis stereo (molto più leggero del WAV), con ffmpeg.
+    import subprocess
+    import tempfile
+    x = np.asarray(x, dtype=np.float64)
+    x -= np.mean(x, axis=0)
+    x = x / (np.max(np.abs(x)) + 1e-9) * livello
+    dati = (np.clip(x, -1, 1) * 32767).astype("<i2")
+    canali = 1 if dati.ndim == 1 else dati.shape[1]
+    with tempfile.TemporaryDirectory() as cartella:
+        wav = Path(cartella) / "brano.wav"
+        with wave.open(str(wav), "wb") as w:
+            w.setnchannels(canali)
+            w.setsampwidth(2)
+            w.setframerate(sr)
+            w.writeframes(dati.tobytes())
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(wav), "-c:a", "libvorbis",
+                        "-q:a", str(qualita), "-map_metadata", "-1", str(CARTELLA / f"{nome}.ogg")], check=True)
 
 
 SUONI = {
@@ -612,8 +857,11 @@ SUONI = {
     "muro_rotto": s_muro_rotto, "legno_rotto": s_legno_rotto, "crepa": s_crepa,
     "bevi": s_bevi, "pozione_cade": s_pozione_cade, "mimic_ruggito": s_mimic_ruggito, "mimic_morso": s_mimic_morso,
 }
-LUNGHI = {"ambiente": s_ambiente, "musica": s_musica}
-LIVELLI = {"pozione_cade": 0.5, "presa": 0.5, "bolle": 0.5, "passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5, "ambiente": 0.7, "musica": 0.7}
+# Brani lunghi in OGG: livello di picco (gli strati della musica suonano insieme: la somma resta sotto 1).
+LUNGHI = {"musica_base": (s_musica_base, 0.42), "musica_presenza": (s_musica_presenza, 0.30),
+          "musica_lotta": (s_musica_lotta, 0.42), "ambiente_cripta": (s_ambiente_cripta, 0.55),
+          "ambiente_sotto": (s_ambiente_sotto, 0.55)}
+LIVELLI = {"pozione_cade": 0.5, "presa": 0.5, "bolle": 0.5, "passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5}
 
 
 def main():
@@ -622,8 +870,9 @@ def main():
         if nome in SUONI:
             scrivi(nome, SUONI[nome](), LIVELLI.get(nome, 0.85))
         elif nome in LUNGHI:
-            x, sr = LUNGHI[nome]()
-            scrivi(nome, x, LIVELLI.get(nome, 0.8), sr, sfuma=0.0)
+            funzione, livello = LUNGHI[nome]
+            x, sr = funzione()
+            scrivi_ogg(nome, x, sr, livello)
         else:
             print("sconosciuto:", nome)
             continue

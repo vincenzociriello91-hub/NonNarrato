@@ -2497,7 +2497,7 @@ func _lascia_la_stanza_a_chi_gioca() -> void:
 	# senza i muri rotti, i mimic forzati e le casse spostate dal bot. Non conta come un sogno nuovo.
 	_tregua(false)
 	if not Dispositivo.in_prova and is_instance_valid(_principale.stanza):
-		_principale.ricomincia_con_velo("Tocca a te")   # senza await: il bot ha finito
+		_principale.dopo_il_bot()   # senza await: il bot ha finito; si torna al titolo, da cui si riprende il proprio sogno
 
 
 func _aggiorna_scritta() -> void:
@@ -2827,7 +2827,7 @@ func _ricorda_arma(tipo: String, famiglia: String, vinto: bool) -> void:
 
 func _carica_cervello() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load(ESPERIENZA_CERVELLO) == OK:
+	if Salvataggio.leggi_cfg(cfg, ESPERIENZA_CERVELLO) == OK:
 		_esito_armi = cfg.get_value("cervello", "armi", {})
 		_obiettivi_storici = cfg.get_value("cervello", "obiettivi", {})
 		_pericolosi = cfg.get_value("cervello", "pericolosi", {})
@@ -2845,7 +2845,7 @@ func _salva_cervello() -> void:
 	cfg.set_value("cervello", "armi", _esito_armi)
 	cfg.set_value("cervello", "obiettivi", tutti)
 	cfg.set_value("cervello", "pericolosi", _pericolosi)
-	cfg.save(ESPERIENZA_CERVELLO)
+	Salvataggio.scrivi_cfg(cfg, ESPERIENZA_CERVELLO)
 
 
 # ------------------------------------------------------------------ galleria

@@ -253,6 +253,15 @@ func _componi(motivo: String) -> Dictionary:
 	var equipaggiamento := get_node_or_null("/root/Equipaggiamento")
 	if equipaggiamento != null:
 		dati["aspetto"] = equipaggiamento.descrizione()
+	var partita := get_node_or_null("/root/Partita")
+	if partita != null:
+		dati["salvataggi"] = {
+			"sogno_salvato": partita.descrizione(), "salvataggi_partita": partita.salvataggi,
+			"scritture": Salvataggio.scritture, "ripresi_dalla_copia": Salvataggio.recuperati,
+		}
+	var suoni := get_node_or_null("/root/Suoni")
+	if suoni != null:
+		dati["audio"] = suoni.stato()
 	if controlli != null:
 		dati["comandi"] = {
 			"modo": controlli.nome_modo(),

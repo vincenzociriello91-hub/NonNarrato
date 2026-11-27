@@ -91,7 +91,7 @@ var _valori := {}
 func _ready() -> void:
 	_valori = PREDEFINITE.duplicate()
 	var cfg := ConfigFile.new()
-	if cfg.load(PERCORSO) != OK:
+	if Salvataggio.leggi_cfg(cfg, PERCORSO) != OK:
 		return
 	for chiave: String in PREDEFINITE:
 		var parti := chiave.split("/")
@@ -176,4 +176,4 @@ func _salva() -> void:
 	for chiave: String in _valori:
 		var parti := chiave.split("/")
 		cfg.set_value(parti[0], parti[1], _valori[chiave])
-	cfg.save(PERCORSO)
+	Salvataggio.scrivi_cfg(cfg, PERCORSO)

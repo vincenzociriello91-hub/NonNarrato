@@ -257,6 +257,7 @@ func _esegui() -> void:
 	await _prova_dispositivo()
 	await _prova_compenetrazioni()
 	await _prova_da_giocatore()
+	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
 	await _prova_bottino()
 	await _prova_armi_e_bestione()
@@ -269,6 +270,118 @@ func _esegui() -> void:
 	Impostazioni.ripristina()
 	print("PROVA FINE falliti: %d" % _falliti)
 	get_tree().quit(1 if _falliti > 0 else 0)
+
+
+func _aspetta_transizione(massimo: int = 400) -> void:
+	for i in massimo:
+		await get_tree().process_frame
+		if not bool(_principale.get("_in_transizione")):
+			return
+
+
+func _prova_titolo_e_salvataggi() -> void:
+	# Scrittura sicura: .tmp poi rinomina, copia .bak, lettura dalla copia se il file è rovinato.
+	var file := "user://prova_salvataggio.cfg"
+	Salvataggio.cancella(file)
+	var cfg := ConfigFile.new()
+	cfg.set_value("a", "b", 1)
+	var primo := Salvataggio.scrivi_cfg(cfg, file)
+	cfg.set_value("a", "b", 2)
+	var secondo := Salvataggio.scrivi_cfg(cfg, file)
+	_verifica("salvataggi: scrittura sicura con copia di riserva", primo and secondo and FileAccess.file_exists(file)
+			and FileAccess.file_exists(file + ".bak") and not FileAccess.file_exists(file + ".tmp"))
+	var rovinato := FileAccess.open(file, FileAccess.WRITE)
+	rovinato.store_string("[a\nb = = = \"")
+	rovinato.close()
+	var recuperati := Salvataggio.recuperati
+	var letto := ConfigFile.new()
+	var esito := Salvataggio.leggi_cfg(letto, file)
+	_verifica("salvataggi: un file rovinato si riprende dalla copia", esito == OK and int(letto.get_value("a", "b", 0)) == 1
+			and Salvataggio.recuperati == recuperati + 1, "esito %d, valore %s" % [esito, str(letto.get_value("a", "b", 0))])
+	Salvataggio.cancella(file)
+	_verifica("salvataggi: si cancellano anche le copie", not FileAccess.file_exists(file) and not FileAccess.file_exists(file + ".bak"))
+
+	# Partita in corso: si salva e si riprende.
+	var memoria_prima := Memoria.stato()
+	var percorso_vero := Partita.percorso
+	Partita.percorso = "user://prova_partita.cfg"
+	Partita.cancella()
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	var stanza: Stanza = _principale.stanza
+	stanza.ondata = 3
+	_g().vita = 5
+	_g().munizioni["dardi"] = 3
+	_g().arma_distanza = "frecce"
+	_principale.set("sogno", 4)
+	var salvata := Partita.salva(_principale)
+	Partita.carica()
+	_verifica("partita: si salva e si rilegge", salvata and Partita.esiste() and int(Partita.dati["ondata"]) == 3
+			and int(Partita.dati["vita"]) == 5 and Partita.descrizione() == "Sogno 4 · terza ondata", Partita.descrizione())
+
+	# Schermata iniziale: Continua riporta il sogno salvato.
+	var titolo: Titolo = _principale.titolo
+	_principale.mostra_titolo()
+	await _fotogrammi(30)
+	await _scatta("titolo")
+	var hud: Hud = _principale.hud
+	_verifica("titolo: si apre sopra il gioco in pausa", titolo.visible and get_tree().paused and not hud.visible
+			and (titolo.tasti["continua"] as Button).visible and not Partita.attiva)
+	_principale.ricomincia_stanza()   # come all'avvio: la stanza dietro il titolo è nuova
+	await get_tree().process_frame
+	(titolo.tasti["continua"] as Button).pressed.emit()
+	await _aspetta_transizione()
+	stanza = _principale.stanza
+	_verifica("titolo: Continua riprende ondata, vita, munizioni e arma", not titolo.visible and not get_tree().paused
+			and hud.visible and Partita.attiva and stanza.ondata == 3 and _g().vita == 5 and int(_g().munizioni["dardi"]) == 3
+			and _g().arma_distanza == "frecce" and int(_principale.get("sogno")) == 4,
+			"ondata %d vita %d dardi %d arma %s sogno %d" % [stanza.ondata, _g().vita, _g().munizioni["dardi"], _g().arma_distanza, _principale.get("sogno")])
+	# Dal menu di pausa si salva e si torna al titolo.
+	_g().vita = 6
+	_principale.call("_alterna_pausa")
+	await _fotogrammi(4)
+	var menu: Menu = _principale.menu
+	menu.get("_al_titolo").visible = true
+	(menu.get("_al_titolo") as Button).pressed.emit()
+	await _fotogrammi(4)
+	Partita.carica()
+	_verifica("pausa: \"Salva e torna al titolo\" salva e mostra il titolo", titolo.visible and get_tree().paused and not menu.aperto
+			and int(Partita.dati.get("vita", 0)) == 6 and not Partita.attiva, str(Partita.dati))
+	# Impostazioni aperte dal titolo: chiudendole si resta al titolo.
+	(titolo.tasti["impostazioni"] as Button).pressed.emit()
+	await _fotogrammi(4)
+	var riprendi := menu.get("_riprendi") as Button
+	var aperto_bene := menu.aperto and riprendi.text == "Indietro" and not (menu.get("_al_titolo") as Button).visible
+	menu.chiudi()
+	await _fotogrammi(4)
+	_verifica("titolo: le impostazioni si aprono e si torna al titolo", aperto_bene and titolo.visible and get_tree().paused)
+	# Tasto Indietro: la prima volta avvisa, la seconda chiude (qui non si chiude davvero).
+	var prima_volta := titolo.indietro()
+	var seconda_volta := titolo.indietro()
+	_verifica("titolo: Indietro due volte per uscire", not prima_volta and seconda_volta)
+	# Nuovo sogno con una partita salvata: prima la conferma, poi un sogno nuovo dall'inizio.
+	(titolo.tasti["nuovo"] as Button).pressed.emit()
+	await _fotogrammi(2)
+	var chiede := titolo.in_conferma()
+	(titolo.tasti["conferma_si"] as Button).pressed.emit()
+	await _aspetta_transizione()
+	stanza = _principale.stanza
+	_verifica("titolo: Nuovo sogno chiede conferma e riparte da capo", chiede and not titolo.visible and int(_principale.get("sogno")) == 5
+			and stanza.ondata == 1 and _g().vita == Giocatore.VITA_MASSIMA and int(Partita.dati.get("sogno", 0)) == 5,
+			"sogno %d ondata %d vita %d" % [_principale.get("sogno"), stanza.ondata, _g().vita])
+	# Una nuova ondata salva la partita.
+	var quante := Partita.salvataggi
+	stanza.ondata = 2
+	await _fotogrammi(3)
+	_verifica("partita: una nuova ondata la salva", Partita.salvataggi > quante and int(Partita.dati.get("ondata", 0)) == 2)
+	Partita.attiva = false
+	Partita.cancella()
+	Partita.percorso = percorso_vero
+	Partita.carica()
+	Memoria.ripristina_stato(memoria_prima)
+	_principale.set("sogno", 1)
+	_principale.ricomincia_stanza()
+	await _fotogrammi(10)
 
 
 func _prova_armi_e_bestione() -> void:
@@ -604,10 +717,75 @@ func _prova_impostazioni_suoni_aggiornamenti() -> void:
 	_verifica("schermo: limiti FPS sempre con 30 e 60", Dispositivo.fps_possibili().has(30) and Dispositivo.fps_possibili().has(60))
 	# Suoni: ogni file c'è, i canali esistono, suonare conta, le didascalie compaiono.
 	var mancanti: Array = []
-	for nome in ["passo", "salto", "fendente", "colpo", "colpito", "magia", "esplosione", "forziere", "porta", "ondata", "musica", "ambiente", "ui_tocco"]:
+	for nome in ["passo", "salto", "fendente", "colpo", "colpito", "magia", "esplosione", "forziere", "porta", "ondata", "ui_tocco"]:
 		if not ResourceLoader.exists(Suoni.CARTELLA + nome + ".wav"):
 			mancanti.append(nome)
+	for nome: String in Suoni.STRATI + Suoni.AMBIENTI:
+		if not ResourceLoader.exists(Suoni.CARTELLA + nome + ".ogg"):
+			mancanti.append(nome)
 	_verifica("suoni: file presenti", mancanti.is_empty(), str(mancanti))
+	# Musica a strati: stessi 64 s per tutti (suonano insieme), si ripetono senza fine.
+	var lunghezze: Array = []
+	var ripetuti := true
+	for nome: String in Suoni.STRATI:
+		var b := load(Suoni.CARTELLA + nome + ".ogg") as AudioStreamOggVorbis
+		lunghezze.append(snappedf(b.get_length(), 0.01))
+		ripetuti = ripetuti and (Suoni.get("_strati") as AudioStreamSynchronized).get_sync_stream(Suoni.STRATI.find(nome)).loop
+	_verifica("musica: tre strati lunghi uguali e ripetuti", lunghezze.all(func(l: float) -> bool: return is_equal_approx(l, 64.0)) and ripetuti,
+			str(lunghezze))
+	# La tensione alza e abbassa gli strati: la lotta entra in fretta ed esce piano.
+	_principale.stanza.tensione_automatica = false
+	Suoni.imposta_tensione(2)
+	for i in 17:
+		Suoni.call("_process", 0.1)
+	var in_lotta: Array = Suoni.guadagni_musica()
+	Suoni.imposta_tensione(0)
+	for i in 10:
+		Suoni.call("_process", 0.1)
+	var appena_dopo: Array = Suoni.guadagni_musica()
+	for i in 30:
+		Suoni.call("_process", 0.1)
+	var quiete: Array = Suoni.guadagni_musica()
+	_principale.stanza.tensione_automatica = true
+	_verifica("musica: la lotta entra in fretta ed esce piano", float(in_lotta[2]) > 0.95 and float(appena_dopo[2]) > 0.5
+			and float(quiete[2]) < 0.05 and float(quiete[0]) > 0.95, "%s %s %s" % [in_lotta, appena_dopo, quiete])
+	# Nemico sveglio che insegue vicino = tensione 2; nessuno = 0.
+	var vicino := Nemico.new()
+	vicino.tipo = "scheletro"
+	vicino.position = g.global_position + Vector2(120, 0)
+	_principale.stanza.add_child(vicino)
+	await _fotogrammi(2)
+	vicino.stato = Nemico.Stato.INSEGUE
+	var con_nemico: int = _principale.stanza.tensione_musicale()
+	vicino.queue_free()
+	await _fotogrammi(2)
+	_principale.stanza.set("_t_ultima_lotta", -99.0)
+	_verifica("musica: un nemico addosso è tensione di lotta", con_nemico == 2, "tensione %d" % con_nemico)
+	# Scossa della telecamera: trauma che cala da solo e sposta la vista con un rumore morbido.
+	g.set("_scossa", 0.6)
+	g.call("_process", 0.1)
+	var spostata := g.camera.offset.length() > 0.0
+	var dopo_un_attimo: float = g.trauma()
+	for i in 6:
+		g.call("_process", 0.1)
+	_verifica("scossa: trauma che sposta la vista e cala da solo", spostata and absf(dopo_un_attimo - 0.42) < 0.01
+			and g.trauma() == 0.0 and g.camera.offset == Vector2.ZERO, "%.2f %s" % [dopo_un_attimo, g.camera.offset])
+	# Atterraggio pesante: il personaggio si schiaccia un attimo e torna com'era.
+	g.set("_velocita_caduta", 620.0)
+	g.call("_atterrato")
+	var schiacciato := g.sprite.scale.x > 1.1 and g.sprite.scale.y < 0.9
+	await get_tree().create_timer(0.25).timeout
+	_verifica("atterraggio: schiacciato e poi di nuovo dritto", schiacciato and g.sprite.scale.is_equal_approx(Vector2.ONE), str(g.sprite.scale))
+	# Sotterraneo: ambiente dell'acqua ed eco più lunga; sott'acqua tutto ovattato.
+	Suoni.imposta_zona(true)
+	for i in 22:
+		Suoni.call("_process", 0.1)
+	var amb: Array = Suoni.guadagni_ambiente()
+	Suoni.imposta_sott_acqua(true)
+	var ovattato := AudioServer.is_bus_effect_enabled(AudioServer.get_bus_index(&"Effetti"), 0)
+	Suoni.stanza_tolta()
+	_verifica("suoni: sotterraneo con il suo ambiente, sott'acqua ovattato", float(amb[1]) > 0.95 and float(amb[0]) < 0.05 and ovattato
+			and not AudioServer.is_bus_effect_enabled(AudioServer.get_bus_index(&"Effetti"), 0) and Suoni.zona == "cripta", str(amb))
 	var canali := ["Musica", "Effetti", "Ambiente", "Interfaccia"].all(func(b: String) -> bool: return AudioServer.get_bus_index(b) > 0)
 	_verifica("suoni: canali musica, effetti, ambiente, interfaccia", canali)
 	var prima: int = Suoni.suonati

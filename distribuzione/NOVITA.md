@@ -1,5 +1,14 @@
 # Novità di NonNarrato
 
+## 0.1 — Schermata iniziale, salvataggi, musica che segue il combattimento
+
+- **Schermata iniziale**: all'avvio trovi il nome del gioco sopra la stanza in penombra e i tasti Continua, Nuovo sogno, Impostazioni e Fai giocare il bot. Il tasto Indietro, premuto due volte, chiude il gioco.
+- **Il sogno si salva da solo**: a ogni ondata, ogni 20 secondi, quando passi a un'altra app e quando torni al titolo. Con "Continua" riparti dall'inizio della stanza, all'ondata in cui eri, con la stessa vita, le stesse munizioni e la stessa arma. Nel menu di pausa c'è "Salva e torna al titolo".
+- **Salvataggi più sicuri**: impostazioni, aspetto, memoria del Dormiente e partita si scrivono prima su un file a parte e solo alla fine prendono il posto di quello vecchio, di cui resta una copia. Se il telefono si spegne a metà, non si perde niente.
+- **Musica nuova a strati**: in esplorazione suona un tappeto cupo con rintocchi lontani; quando ci sono nemici svegli vicino entra un battito con un coro lontano; quando combatti entrano tamburi e corde. Gli strati entrano in fretta ed escono piano, sempre a tempo.
+- **Suoni d'ambiente nuovi**: vento e gocce nella cripta, acqua che scorre nel sotterraneo. Sott'acqua tutto si sente ovattato e nella pietra c'è un po' d'eco (l'eco si spegne con la grafica "bassa").
+- **Colpi più pesanti**: la scossa dello schermo è più morbida e si somma se i colpi sono tanti; il colpo che uccide un nemico e quello che ricevi fermano il gioco per un istante; atterrando da un salto alto il personaggio si schiaccia un attimo. Le scosse si regolano in Accessibilità, i fermi si tolgono con "meno lampi".
+
 ## 0.1 — Niente più strisce dalle torce, il bot non si "teletrasporta"
 
 - **Basta strisce scure dalle torce**: le ombre delle torce sono spente in automatico a ogni livello di grafica, e casse, barili, forzieri, porte, bracieri e muri rompibili non fanno più ombra. Chi le vuole può accenderle a mano in Impostazioni > Grafica > "Torce con ombra" (le fanno solo muri e pilastri).

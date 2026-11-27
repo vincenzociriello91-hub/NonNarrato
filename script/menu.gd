@@ -8,6 +8,7 @@ extends CanvasLayer
 
 signal chiuso
 signal bot_richiesto
+signal titolo_richiesto
 
 const SCHEDE := [["gioco", "Gioco"], ["schermo", "Schermo"], ["grafica", "Grafica"], ["audio", "Audio"], ["accessibilita", "Accessibilità"]]
 const QUALITA := ["auto", "bassa", "media", "alta"]
@@ -20,6 +21,9 @@ var _fondo: ColorRect
 var _pannello: PanelContainer
 var _scorri: ScrollContainer
 var _riprendi: Button
+var _al_titolo: Button
+var dal_titolo := false           # aperto dalla schermata iniziale: "Indietro" invece di "Riprendi"
+var _titolo_menu: Label
 var _linguette := {}              # scheda -> Button
 var _pagine := {}                 # scheda (o "aspetto") -> VBoxContainer
 var _controlli := {}              # chiave -> {"tipo", "nodo", "opzioni", ...}
@@ -95,11 +99,11 @@ func _costruisci() -> void:
 	var corpo := VBoxContainer.new()
 	corpo.add_theme_constant_override("separation", 10)
 	_pannello.add_child(corpo)
-	var titolo := Label.new()
-	titolo.text = "NonNarrato — pausa"
-	titolo.add_theme_font_size_override("font_size", 28)
-	titolo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	corpo.add_child(titolo)
+	_titolo_menu = Label.new()
+	_titolo_menu.text = "NonNarrato — pausa"
+	_titolo_menu.add_theme_font_size_override("font_size", 28)
+	_titolo_menu.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	corpo.add_child(_titolo_menu)
 	var riga := HBoxContainer.new()
 	riga.add_theme_constant_override("separation", 20)
 	corpo.add_child(riga)
@@ -110,6 +114,7 @@ func _costruisci() -> void:
 	sinistra.add_theme_constant_override("separation", 8)
 	riga.add_child(sinistra)
 	_riprendi = _pulsante(sinistra, "Riprendi", chiudi)
+	_al_titolo = _pulsante(sinistra, "Salva e torna al titolo", func() -> void: titolo_richiesto.emit())
 
 	# A destra: linguette e pagina della scheda scelta.
 	var destra := VBoxContainer.new()
@@ -681,7 +686,11 @@ func _dopo_prova(azione: String) -> void:
 
 # ------------------------------------------------------------------ apertura
 
-func apri() -> void:
+func apri(da_titolo: bool = false) -> void:
+	dal_titolo = da_titolo
+	_riprendi.text = "Indietro" if da_titolo else "Riprendi"
+	_titolo_menu.text = "NonNarrato — impostazioni" if da_titolo else "NonNarrato — pausa"
+	_al_titolo.visible = not da_titolo
 	aperto = true
 	_prepara_vetrina()
 	vetrina.process_mode = Node.PROCESS_MODE_INHERIT

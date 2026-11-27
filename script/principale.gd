@@ -9,6 +9,7 @@ var hud: Hud
 var menu: Menu
 var sogno := 1
 var bot: Bot
+var titolo: Titolo
 
 var _vista: TextureRect
 var _filtro: ColorRect
@@ -17,6 +18,8 @@ var _scritta_velo: Label
 var _scala := 3.0
 var _in_transizione := false
 var _materiale_vista: ShaderMaterial
+var _ultima_ondata := -1
+var _al_titolo := false
 
 
 func _ready() -> void:
@@ -85,7 +88,18 @@ func _ready() -> void:
 	menu = Menu.new()
 	menu.chiuso.connect(_riprendi)
 	menu.bot_richiesto.connect(avvia_bot)
+	menu.titolo_richiesto.connect(torna_al_titolo)
 	add_child(menu)
+
+	titolo = Titolo.new()
+	titolo.continua.connect(continua_partita)
+	titolo.nuovo_sogno.connect(nuovo_sogno)
+	titolo.impostazioni.connect(func() -> void: menu.apri(true))
+	titolo.bot.connect(avvia_bot)
+	titolo.esci.connect(func() -> void: get_tree().quit())
+	add_child(titolo)
+	if Partita.esiste():
+		sogno = int(Partita.dati.get("sogno", 1))
 
 	_materiale_vista = ShaderMaterial.new()
 	_materiale_vista.shader = load("res://shader/vista.gdshader")
@@ -107,6 +121,11 @@ func _ready() -> void:
 		add_child(prova)
 	elif OS.get_cmdline_user_args().has("--bot"):
 		get_tree().create_timer(1.5).timeout.connect(avvia_bot)
+	else:
+		# Chi gioca parte dalla schermata iniziale (Continua / Nuovo sogno). Prima mezzo secondo a gioco acceso
+		# dietro il velo nero: gli effetti di _riscalda devono disegnarsi, altrimenti il telefono li prepara a metà partita.
+		get_tree().create_timer(0.6).timeout.connect(mostra_titolo)
+		return
 
 	var tw := create_tween()
 	tw.tween_interval(0.35)
@@ -114,14 +133,107 @@ func _ready() -> void:
 	hud.messaggio("Il Dormiente ti sogna.", 2.4)
 
 
+func _process(_delta: float) -> void:
+	# A ogni nuova ondata la partita si salva (Continua riparte da lì).
+	if Partita.attiva and is_instance_valid(stanza) and stanza.ondata != _ultima_ondata:
+		_ultima_ondata = stanza.ondata
+		Partita.salva(self)
+
+
+# ------------------------------------------------------------------ schermata iniziale
+
+func mostra_titolo() -> void:
+	# Il gioco resta in pausa dietro, in penombra; la musica continua a pieno volume.
+	Partita.attiva = false
+	get_tree().paused = true
+	Suoni.imposta_tensione(0)
+	hud.visible = false
+	hud.in_pausa(true)
+	titolo.mostra()
+	var tw := create_tween()
+	tw.tween_property(_velo, "color:a", 0.45, 0.8)
+	Rapporto.evento("titolo", {"partita": Partita.descrizione()})
+
+
+func continua_partita() -> void:
+	await _entra(true)
+
+
+func nuovo_sogno() -> void:
+	await _entra(false)
+
+
+func _entra(riprendi: bool) -> void:
+	if _in_transizione:
+		return
+	_in_transizione = true
+	titolo.nascondi()
+	var tw := create_tween()
+	tw.tween_property(_velo, "color:a", 1.0, 0.3)
+	await tw.finished
+	var frase := "Il Dormiente ti sogna."
+	if riprendi and Partita.esiste() and not bool(Partita.dati.get("completato", false)):
+		sogno = int(Partita.dati.get("sogno", 1))
+		_nuova_stanza(clampi(int(Partita.dati.get("ondata", 1)), 1, Stanza.ONDATE))
+		Partita.applica(stanza)
+		frase = "Il Dormiente ti sogna ancora."
+	else:
+		# Nuovo sogno (o quello salvato era già finito): come rinascere, i nemici ricordano.
+		if Partita.esiste() or Memoria.sogni > 0:
+			sogno = int(Partita.dati.get("sogno", Memoria.sogni)) + 1
+			Memoria.nuovo_sogno()
+		else:
+			sogno = 1
+		_nuova_stanza()
+	Rapporto.evento("partita", {"riprende": riprendi, "sogno": sogno, "ondata": stanza.ondata})
+	get_tree().paused = false
+	hud.visible = true
+	hud.in_pausa(false)
+	Partita.attiva = true
+	_ultima_ondata = stanza.ondata
+	Partita.salva(self)
+	var tw2 := create_tween()
+	tw2.tween_property(_velo, "color:a", 0.0, 0.6)
+	hud.messaggio(frase, 2.4)
+	await tw2.finished
+	_in_transizione = false
+
+
+func torna_al_titolo() -> void:
+	# Dal menu di pausa: si salva il sogno e si torna alla schermata iniziale (il gioco resta in pausa).
+	if Partita.attiva:
+		Partita.salva(self)
+	_al_titolo = true
+	menu.chiudi()
+	_al_titolo = false
+	mostra_titolo()
+
+
+func dopo_il_bot() -> void:
+	# Il bot ha finito (o è stato fermato): stanza pulita e di nuovo il titolo, da cui si riprende il proprio sogno.
+	if _in_transizione:
+		return
+	_in_transizione = true
+	var tw := create_tween()
+	tw.tween_property(_velo, "color:a", 1.0, 0.35)
+	await tw.finished
+	_nuova_stanza()
+	_in_transizione = false
+	mostra_titolo()
+
+
 func _notification(cosa: int) -> void:
 	if cosa == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if is_node_ready() and titolo.visible and not menu.aperto:
+			if titolo.indietro():
+				get_tree().quit()
+			return
 		_pausa_da_utente()
 	elif cosa == NOTIFICATION_APPLICATION_PAUSED:
 		# Il gioco va in secondo piano: al ritorno lo si trova in pausa (e il bot si ferma).
 		if bot != null and bot.in_corso:
 			bot.ferma()
-		elif is_node_ready() and not menu.aperto and not Dispositivo.in_prova:
+		elif is_node_ready() and not menu.aperto and not titolo.visible and not Dispositivo.in_prova:
 			_alterna_pausa()
 
 
@@ -138,6 +250,10 @@ func _pausa_da_utente() -> void:
 	if bot != null and bot.in_corso:
 		bot.ferma()
 		return
+	if titolo.visible:
+		if menu.aperto:
+			menu.chiudi()
+		return
 	_alterna_pausa()
 
 
@@ -146,6 +262,15 @@ func avvia_bot() -> Bot:
 		return bot
 	if bot != null:
 		bot.queue_free()
+	if Partita.attiva:
+		Partita.salva(self)   # il sogno di chi gioca resta salvato: dopo il bot si riprende dal titolo
+	Partita.attiva = false
+	if titolo.visible:
+		titolo.nascondi()
+		get_tree().paused = false
+		hud.visible = true
+		hud.in_pausa(false)
+		create_tween().tween_property(_velo, "color:a", 0.0, 0.4)
 	bot = Bot.new()
 	add_child(bot)
 	if not Dispositivo.in_prova:
@@ -191,6 +316,9 @@ func _alterna_pausa() -> void:
 
 
 func _riprendi() -> void:
+	if titolo.visible or _al_titolo:
+		titolo.riprendi_focus()   # menu aperto dalla schermata iniziale: si torna lì, il gioco resta in pausa
+		return
 	get_tree().paused = false
 	hud.in_pausa(false)
 	Suoni.in_pausa(false)
@@ -271,11 +399,12 @@ func _applica_profilo() -> void:
 	_filtro.visible = Dispositivo.profilo.get("palette", true)
 
 
-func _nuova_stanza() -> void:
+func _nuova_stanza(ondata_iniziale: int = 1) -> void:
 	if stanza != null:
 		Suoni.stanza_tolta()
 		stanza.queue_free()
 	stanza = Stanza.new()
+	stanza.ondata = ondata_iniziale   # riprendendo un sogno: i caduti tornano già con l'esperienza di quell'ondata
 	mondo.add_child(stanza)
 	stanza.giocatore.morto.connect(_su_morte)
 	hud.collega(stanza, sogno)
@@ -360,6 +489,9 @@ func _su_morte() -> void:
 	_scritta_velo.text = "Il Dormiente ti sogna di nuovo."
 	Memoria.nuovo_sogno()
 	_nuova_stanza()
+	if Partita.attiva:
+		_ultima_ondata = stanza.ondata
+		Partita.salva(self)
 	var tw2 := create_tween()
 	tw2.tween_property(_scritta_velo, "modulate:a", 1.0, 0.4)
 	tw2.tween_interval(1.1)

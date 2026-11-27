@@ -228,11 +228,11 @@ func riassunto() -> Dictionary:
 
 func _carica() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load(PERCORSO) == OK:
+	if Salvataggio.leggi_cfg(cfg, PERCORSO) == OK:
 		esperienza = cfg.get_value("bot", "esperienza", {})
 
 
 func _salva() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("bot", "esperienza", esperienza)
-	cfg.save(PERCORSO)
+	Salvataggio.scrivi_cfg(cfg, PERCORSO)

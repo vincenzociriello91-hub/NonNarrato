@@ -1,5 +1,9 @@
 extends Node
 # Suoni del gioco: effetti, ambiente e musica (tutti sintetizzati da strumenti/genera_suoni.py).
+# Musica a strati (0.1.29): tre brani da 64 s che suonano sempre insieme e a tempo (AudioStreamSynchronized):
+# base (esplorazione), presenza (nemici svegli vicini), lotta (combattimento). La stanza dice quanta tensione c'è
+# (tensione 0/1/2) e gli strati entrano in 1,5 s ed escono in 3,5 s. Ambiente: cripta e sotterraneo in dissolvenza.
+# Sott'acqua tutto si fa ovattato (filtro passa-basso); nella cripta un po' d'eco, nel sotterraneo di più.
 # Cinque canali (bus) con il loro volume: Generale (Master), Musica, Effetti, Ambiente, Interfaccia.
 # Si regola da solo in base a dove va il suono (altoparlante, cuffie, Bluetooth) e alla suoneria del telefono:
 # sull'altoparlante gamma dinamica ridotta e bassi più leggeri, in cuffia suono pieno.
@@ -25,8 +29,23 @@ var _effetti: Array[AudioStreamPlayer2D] = []
 var _piatti: Array[AudioStreamPlayer] = []
 var _prossimo := 0
 var _prossimo_piatto := 0
+const STRATI := ["musica_base", "musica_presenza", "musica_lotta"]
+const LIVELLI_TENSIONE := [[1.0, 0.0, 0.0], [1.0, 0.75, 0.0], [0.85, 0.6, 1.0]]   # guadagno di ogni strato
+const ENTRATA_S := 1.5
+const USCITA_S := 3.5
+const AMBIENTI := ["ambiente_cripta", "ambiente_sotto"]
+const ECO := {"cripta": [0.55, 0.1], "sotto": [0.8, 0.2]}   # zona -> [grandezza della stanza, quantità d'eco]
+
 var _musica: AudioStreamPlayer
-var _ambiente: AudioStreamPlayer
+var _strati: AudioStreamSynchronized
+var _guadagni := [1.0, 0.0, 0.0]
+var tensione := 0                  # 0 esplorazione, 1 presenza, 2 lotta (la decide la stanza)
+var _ambienti: Array[AudioStreamPlayer] = []
+var _guadagni_ambiente := [1.0, 0.0]
+var zona := "cripta"
+var sotto_acqua := false
+var _ovattati: Array[AudioEffectLowPassFilter] = []
+var _eco: AudioEffectReverb
 var _flussi := {}
 var _ultimo_suono := {}          # nome -> tempo: lo stesso suono non si accavalla più di tanto
 var _compressore: AudioEffectCompressor
@@ -53,14 +72,19 @@ func _ready() -> void:
 		p.bus = &"Interfaccia"
 		add_child(p)
 		_piatti.append(p)
-	_musica = _lungo("musica", &"Musica")
-	_ambiente = _lungo("ambiente", &"Ambiente")
+	_crea_musica()
+	for nome: String in AMBIENTI:
+		_ambienti.append(_lungo(nome, &"Ambiente"))
 	Impostazioni.cambiata.connect(_su_impostazione)
 	Dispositivo.audio_cambiato.connect(applica)
+	Dispositivo.profilo_cambiato.connect(_applica_eco)
 	applica()
+	_applica_mix()
+	_applica_eco()
 	if not Dispositivo.in_prova:
 		_musica.play()
-		_ambiente.play()
+		for p in _ambienti:
+			p.play()
 
 
 func _crea_bus() -> void:
@@ -86,20 +110,114 @@ func _crea_bus() -> void:
 	var master := AudioServer.get_bus_index(&"Master")
 	for e: AudioEffect in [_bassi, _compressore, _mono, limitatore]:
 		AudioServer.add_bus_effect(master, e)
+	# Sott'acqua: musica, effetti e ambiente ovattati (l'interfaccia no). Spenti finché non si va sotto.
+	for nome: String in ["Musica", "Effetti", "Ambiente"]:
+		var filtro := AudioEffectLowPassFilter.new()
+		filtro.cutoff_hz = 650.0
+		filtro.resonance = 0.6
+		var i := AudioServer.get_bus_index(nome)
+		AudioServer.add_bus_effect(i, filtro, 0)
+		AudioServer.set_bus_effect_enabled(i, 0, false)
+		_ovattati.append(filtro)
+	# Eco della pietra sugli effetti (spenta con la grafica "bassa": costa un po' di calcolo).
+	_eco = AudioEffectReverb.new()
+	_eco.damping = 0.5
+	_eco.spread = 0.8
+	_eco.predelay_msec = 70.0
+	_eco.hipass = 0.15
+	_eco.dry = 1.0
+	AudioServer.add_bus_effect(AudioServer.get_bus_index(&"Effetti"), _eco)
 
 
 func _lungo(nome: String, bus: StringName) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.bus = bus
-	var flusso := _flusso(nome) as AudioStreamWAV
-	if flusso != null:
-		flusso = flusso.duplicate() as AudioStreamWAV
-		flusso.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		flusso.loop_begin = 0
-		flusso.loop_end = int(flusso.get_length() * flusso.mix_rate)
-		p.stream = flusso
+	p.stream = _brano(nome)
 	add_child(p)
 	return p
+
+
+func _brano(nome: String) -> AudioStreamOggVorbis:
+	# Brani lunghi in OGG, ripetuti senza fine (sono costruiti per ricominciare senza scatti).
+	var percorso := CARTELLA + nome + ".ogg"
+	if not ResourceLoader.exists(percorso):
+		return null
+	var b := (load(percorso) as AudioStreamOggVorbis).duplicate() as AudioStreamOggVorbis
+	b.loop = true
+	return b
+
+
+func _crea_musica() -> void:
+	_strati = AudioStreamSynchronized.new()
+	_strati.stream_count = STRATI.size()
+	for i in STRATI.size():
+		_strati.set_sync_stream(i, _brano(STRATI[i]))
+	_musica = AudioStreamPlayer.new()
+	_musica.bus = &"Musica"
+	_musica.stream = _strati
+	add_child(_musica)
+
+
+func imposta_tensione(livello: int) -> void:
+	tensione = clampi(livello, 0, 2)
+
+
+func imposta_zona(sotto: bool) -> void:
+	var nuova := "sotto" if sotto else "cripta"
+	if nuova != zona:
+		zona = nuova
+		_applica_eco()
+
+
+func imposta_sott_acqua(si: bool) -> void:
+	if si == sotto_acqua:
+		return
+	sotto_acqua = si
+	for nome: String in ["Musica", "Effetti", "Ambiente"]:
+		AudioServer.set_bus_effect_enabled(AudioServer.get_bus_index(nome), 0, si)
+
+
+func _applica_eco() -> void:
+	var valori: Array = ECO[zona]
+	_eco.room_size = valori[0]
+	_eco.wet = valori[1]
+	var i := AudioServer.get_bus_index(&"Effetti")
+	AudioServer.set_bus_effect_enabled(i, AudioServer.get_bus_effect_count(i) - 1, Dispositivo.livello != "bassa")
+
+
+func _process(delta: float) -> void:
+	# Gli strati vanno verso i guadagni della tensione di adesso: salgono in fretta, scendono piano.
+	var obiettivo: Array = LIVELLI_TENSIONE[tensione]
+	var cambiato := false
+	for i in _guadagni.size():
+		var g: float = _guadagni[i]
+		var o: float = obiettivo[i]
+		if not is_equal_approx(g, o):
+			var passo := delta / (ENTRATA_S if o > g else USCITA_S)
+			_guadagni[i] = move_toward(g, o, passo)
+			cambiato = true
+	var ambiente_obiettivo := [1.0, 0.0] if zona == "cripta" else [0.0, 1.0]
+	for i in _guadagni_ambiente.size():
+		if not is_equal_approx(_guadagni_ambiente[i], ambiente_obiettivo[i]):
+			_guadagni_ambiente[i] = move_toward(_guadagni_ambiente[i], ambiente_obiettivo[i], delta / 2.0)
+			cambiato = true
+	if cambiato:
+		_applica_mix()
+
+
+func _applica_mix() -> void:
+	for i in _guadagni.size():
+		_strati.set_sync_stream_volume(i, linear_to_db(maxf(float(_guadagni[i]), 0.0001)))
+	for i in _ambienti.size():
+		_ambienti[i].volume_db = linear_to_db(maxf(float(_guadagni_ambiente[i]), 0.0001))
+
+
+func guadagni_musica() -> Array:
+	return _guadagni.duplicate()
+
+
+func guadagni_ambiente() -> Array:
+	return _guadagni_ambiente.duplicate()
 
 
 func _flusso(nome: String) -> AudioStream:
@@ -230,6 +348,10 @@ func _didascalia(nome: String, dove: Variant) -> void:
 
 func stanza_tolta() -> void:
 	# Prima di liberare una stanza i lettori posizionali tornano qui, altrimenti sparirebbero con lei.
+	# La stanza nuova parte dalla cripta, fuori dall'acqua e senza nemici svegli.
+	imposta_zona(false)
+	imposta_sott_acqua(false)
+	imposta_tensione(0)
 	for p in _effetti:
 		if p.get_parent() != self:
 			if p.get_parent() != null:
@@ -241,4 +363,5 @@ func stato() -> Dictionary:
 	return {
 		"uscita": Dispositivo.uscita_audio, "suoneria": Dispositivo.suoneria, "notte": notte_attiva(),
 		"bassi": bassi_scelti(), "mono": Impostazioni.leggi("audio/mono"), "silenziato": silenziato(), "suonati": suonati,
+		"tensione": tensione, "zona": zona, "sott_acqua": sotto_acqua,
 	}

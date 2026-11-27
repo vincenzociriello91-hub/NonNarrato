@@ -75,7 +75,18 @@ qualità consigliato (`consiglia_da`) e lo abbassa con il caldo, gli scatti, il 
 ## Suoni
 
 Tutti sintetizzati da `strumenti/genera_suoni.py` (rumore, toni e filtri: nessuna registrazione, CC0), file in
-`arte/suoni/`. Li suona l'autoload `Suoni` (`script/suoni.gd`), con suoni posizionali nel mondo e didascalie.
+`arte/suoni/` (effetti in WAV, musica e ambiente in OGG). Li suona l'autoload `Suoni` (`script/suoni.gd`), con suoni
+posizionali nel mondo e didascalie. La musica è a tre strati da 64 s in Mi frigio (base, presenza, lotta) che suonano
+insieme: la stanza misura la tensione (nemici svegli vicini, combattimento) e gli strati entrano e escono da soli.
+L'ambiente cambia fra cripta e sotterraneo; sott'acqua tutto si fa ovattato, nella pietra c'è un po' d'eco.
+
+## Schermata iniziale e salvataggi
+
+All'avvio la schermata iniziale (`script/titolo.gd`) mostra Continua, Nuovo sogno, Impostazioni, Fai giocare il bot.
+Il sogno in corso (ondata, vita, munizioni, arma) è salvato dall'autoload `Partita` in `user://partita.cfg` a ogni
+ondata, ogni 20 s, quando il gioco va in secondo piano e quando si torna al titolo dal menu di pausa. Tutti i file in
+`user://` si scrivono con `Salvataggio` (`script/salvataggio.gd`): file temporaneo, copia `.bak`, rinomina; se un file
+è rovinato si riprende dalla copia.
 
 ## Come nasce la grafica
 

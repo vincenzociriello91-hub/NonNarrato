@@ -129,7 +129,12 @@ var _gia_colpiti: Array = []
 var _scatto_usato := false
 var _schivata_in_aria := false
 var _velocita_caduta := 0.0
-var _scossa := 0.0
+var _scossa := 0.0                 # "trauma" della telecamera (0..1): ogni colpo ne aggiunge, cala da solo
+var _t_scossa := 0.0
+var _rumore_scossa: FastNoiseLite
+const SCOSSA_MASSIMA := 14.0       # pixel della tela a trauma pieno
+const SCOSSA_CALO := 1.8           # trauma perso al secondo
+const SCOSSA_RITMO := 22.0         # quante "onde" al secondo (rumore morbido, non tremolio a caso)
 var _morte_segnalata := false
 var _verso_prima := 1
 var _t_girato := 0.0
@@ -250,9 +255,17 @@ func limiti(riquadro: Rect2i, di_colpo: bool = true) -> void:
 
 
 func _process(delta: float) -> void:
+	# Scossa alla Eiserloh (GDC 2016): spostamento = trauma² × rumore morbido. Più colpi vicini si sommano,
+	# un colpo solo resta leggero; il rumore continuo evita il tremolio a scatti del caso puro.
 	if _scossa > 0.0:
-		_scossa = maxf(0.0, _scossa - 30.0 * delta)
-		camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _scossa
+		_scossa = maxf(0.0, _scossa - SCOSSA_CALO * delta)
+		_t_scossa += delta * SCOSSA_RITMO
+		if _rumore_scossa == null:
+			_rumore_scossa = FastNoiseLite.new()
+			_rumore_scossa.noise_type = FastNoiseLite.TYPE_PERLIN
+			_rumore_scossa.frequency = 1.0
+		var forza := _scossa * _scossa * SCOSSA_MASSIMA * 1.4
+		camera.offset = Vector2(_rumore_scossa.get_noise_2d(_t_scossa, 0.0), _rumore_scossa.get_noise_2d(0.0, _t_scossa + 50.0)) * forza
 	else:
 		camera.offset = Vector2.ZERO
 
@@ -1134,6 +1147,7 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 	Controlli.vibra(0.8, 0.2)
 	scuoti(5.0)
 	Effetti.lampo(sprite)
+	Effetti.fermo_immagine(self, 0.09)   # un attimo per capire cosa ti ha colpito
 	Suoni.suona("colpito", global_position)
 	if vita <= 0:
 		_muori()
@@ -1184,8 +1198,13 @@ func _muori() -> void:
 
 
 func scuoti(forza: float) -> void:
+	# forza in pixel "di prima" (2 = colpo leggero, 5 = colpo subito): diventa trauma che si somma.
 	if not Dispositivo.in_prova:
-		_scossa = maxf(_scossa, forza * clampf(Impostazioni.leggi("acc/scuotimento"), 0.0, 1.0))
+		_scossa = minf(1.0, _scossa + forza / 10.0 * clampf(Impostazioni.leggi("acc/scuotimento"), 0.0, 1.0))
+
+
+func trauma() -> float:
+	return _scossa
 
 
 # ------------------------------------------------------------------ movimento
@@ -1321,6 +1340,7 @@ func _controlla_acqua() -> void:
 	# Sott'acqua il personaggio si disegna sopra il velo dell'acqua (z 15), tinto di blu:
 	# sotto il velo scuro si vedeva appena (controllo da giocatore, 0.1.23).
 	z_index = Z_SOTT_ACQUA if sott_acqua else Z_NORMALE
+	Suoni.imposta_sott_acqua(sott_acqua)   # tutto ovattato con la testa sott'acqua
 	sprite.self_modulate = TINTA_SOTT_ACQUA if sott_acqua else Color.WHITE
 	if in_acqua and not prima:
 		# Tuffo: schizzi e suono, il resto dello slancio si smorza.
@@ -1529,6 +1549,11 @@ func _atterrato() -> void:
 		_polvere(5)
 		Controlli.vibra(0.2, 0.05)
 		Suoni.suona("atterra", global_position, -3.0)
+		# Schiacciato un attimo dall'atterraggio (il perno è ai piedi: resta appoggiato a terra).
+		var peso := clampf((_velocita_caduta - 220.0) / 400.0, 0.0, 1.0)
+		sprite.scale = Vector2(1.0 + 0.14 * peso, 1.0 - 0.14 * peso)
+		var tw := sprite.create_tween()
+		tw.tween_property(sprite, "scale", Vector2.ONE, 0.11).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 # ------------------------------------------------------------------ aspetto

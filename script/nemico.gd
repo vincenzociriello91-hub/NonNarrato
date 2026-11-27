@@ -1444,6 +1444,8 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 
 func _muori(lato: float) -> void:
 	Suoni.suona("morte_nemico", global_position, 0.0, 0.7 if tipo == "bestione" else (1.5 if tipo == "pipistrello" else 1.0))
+	# L'ultimo colpo pesa più degli altri: fermo un po' più lungo (vince su quello del colpo).
+	Effetti.fermo_immagine(self, 0.1 if tipo in ["bestione", "mimic"] or not nemesi.is_empty() else 0.07)
 	_cambia(Stato.MORTO)
 	velocity = Vector2(lato * 60.0, -80.0)
 	collision_layer = 0
