@@ -99,6 +99,9 @@ ma le torce li illuminano come se avessero volume. Un ultimo filtro porta i colo
    ai fogli in `arte/sprite/` (serve uno schermo, anche virtuale). Cosa renderizzare è scritto in `strumenti/render_sprite.json`.
 
 I fogli già pronti sono nel repository: questi due passaggi servono solo quando si cambia un personaggio o un oggetto.
+Personaggi e nemici hanno anche un foglio in **doppia definizione** (`<nome>_x2`, il doppio dei pixel): con la grafica
+"alta" e "ultra" il mondo si disegna al doppio della risoluzione e le figure si vedono con tutti i pixel in più.
+Ogni fotogramma tiene solo la parte disegnata, così i fogli restano leggeri.
 
 Il protagonista è diverso: cambia aspetto con l'equipaggiamento e ha più **gruppi di mosse** (una mano, affondi,
 due mani, doppia arma, scudo, magia, a mani nude) scelti dall'arma o a mano. Le clip di ogni gruppo e le azioni da

@@ -50,4 +50,9 @@ salti, nuoto al passo.
 A tappe: una versione per passo, Vincenzo controlla sul Pixel prima di andare avanti.
 
 Tappa 1 fatta nella 0.1.36: bagliore di fiamme e magie, raggi di luce dalle finestre con la polvere, colori del film,
-livello "ultra". Prossime tappe: personaggi e nemici più dettagliati, poi ambienti più ricchi.
+livello "ultra".
+Tappa 2, prima parte, fatta nella 0.1.37: personaggio e nemici in doppia definizione (il doppio dei pixel), mondo
+disegnato al doppio in "alta" e "ultra", fogli ritagliati. Da decidere con Vincenzo (immagine di confronto mandata):
+passare ai modelli Quaternius CC0 con proporzioni vere (Universal Base Characters, Modular Character Outfits -
+Fantasy, Universal Animation Library 1 e 2, stesso scheletro) invece dei KayKit "chibi". Con i KayKit il doppio dei
+pixel aggiunge poco perché i modelli hanno colori piatti; i Quaternius hanno texture e rilievi. Poi ambienti più ricchi.

@@ -59,6 +59,11 @@ Pixel 8 Pro, 25/11/2026, versioni 0.1.7 e 0.1.8 (bot completo): Mali-G715, Vulka
 
 Pixel 8 Pro, 26/11/2026, versioni 0.1.18 e 0.1.20 (rapporti da Drive): con limite 120 il gioco va davvero a 120 FPS (risolto il problema di Swappy). Il plugin legge tutto: Tensor G3 (Android dice soc_modello "Tensor G3", produttore "Google"), 9 core fino a 2,91 GHz, 11,3 GB di RAM, Android 17, classe di prestazioni 34, giroscopio, vibrazione dosabile. Bot 0.1.20: 13 fasi tecniche senza errori, poi fermato con la pausa → nemici rimasti in tregua (corretto nella 0.1.21).
 
+Pixel 8 Pro, 27/11/2026, versione 0.1.36 (bot, rapporto da Drive): "alta" con tela 748x336 ×4, 61 FPS medi, ultra 60,5 FPS
+medi (peggiore 27 ms), stato termico 0, nessun errore del motore. Unico controllo fallito: "grafica: ripristino dei valori
+consigliati" (il controllo voleva la vista senza materiale, ma in "alta" i colori del film lo tengono): corretto nella 0.1.37.
+I picchi da 140 ms (uno o due per fase) sono probabilmente i cambi di stanza: da verificare.
+
 Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il gioco e rispegnere lo schermo):
 `curl` dell'APK in `/data/local/tmp`, `pm install -r`, `am start -n com.vincenzo.nonnarrato/com.godot.game.GodotApp`,
 `input keyevent`/`input tap`/`input swipe` per i comandi, foto con `odin_schermo`, rapporto in Download,
@@ -361,4 +366,14 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Raggi: `Stanza._raggi()` dalle finestre "g" di `MURO` e `MURO_GALLERIA` (non dal sotterraneo), tre poligoni additivi sempre più larghi e tenui (la penombra li smorza: alfa 0,26), lunghi fino al primo blocco di pietra sotto (`_rett_solidi`, riempito da `_blocco`), polvere dentro, respiro in `_process`. Finestre coperte da un blocco: niente raggio.
 - Profilo: `bagliore` (0/1/1/2), `raggi`, `toni` (bassa no; media, alta, ultra sì); a mano `grafica/bagliore` (0-2), `grafica/raggi`, `grafica/toni`; il caldo li riduce. Livello `ultra` in `Dispositivo.LIVELLI` (particelle 1,4, bagliore forte), consigliato solo con `GPU_ULTRA` (Adreno 75x/8xx, Immortalis recenti) e almeno 11 GB: il Pixel 8 Pro (Mali-G715) resta "alta". Il bot misura anche `prestazioni_ultra`.
 - Prova: `_prova_atmosfera` in `test/prova.gd`.
+
+## Figure in doppia definizione (0.1.37, punto 4 tappa 2 prima parte)
+
+- Personaggio e nemici col doppio dei pixel, stessa grandezza e stessi tempi. Il mondo (SubViewport) si disegna a `resa` = 2 × `dimensione` con `size_2d_override` (stesso meccanismo della risoluzione interna al 50%): `Dispositivo.risoluzione_interna` dà anche `densita` (2 solo con profilo `figure`, scala ≥ 2 e risoluzione interna piena). `Principale._ridimensiona` imposta `SpriteAnimato.densita_figure` e chiama il gruppo `figure_dense` (`aggiorna_densita`); `_applica_profilo` ora chiama `_ridimensiona`.
+- Profilo `figure` (bassa e media no, alta e ultra sì; il caldo la spegne), impostazione `grafica/figure` ("Figure dettagliate").
+- Fogli: le voci con `"doppia": true` in `render_sprite.json` (scheletro, mago, arciere, bestione, saltatore, pipistrello, mimic) producono anche `<nome>_x2` (`voce_doppia`: cella, ppu, piedi ×2, contorno di 2 pixel, `densita` 2). Fotogrammi ritagliati (`impacchetta`): `"fotogrammi": [x, y, largo, alto, da_x, da_y]`, rettangolo largo uguale ai due lati dei piedi (flip_h non lo sposta: Godot specchia dentro lo stesso rettangolo), 2 pixel di margine, 4 fra un fotogramma e l'altro. JSON senza a capo quando ci sono i fotogrammi.
+- `SpriteAnimato`: `densita_px`, `scala_base` (= 1/densità; gli schiacciamenti e gli slanci la moltiplicano: mai più `Vector2.ONE` nei tween di `scale`), `dimensione()`/`piedi()` in pixel di gioco, segnale `densita_cambiata` (il contorno dell'accessibilità dei nemici si rifà). `FiguraViva._imposta_densita`: viewport 96 → 192, stessa camera; `densita_fissa` 2 per l'anteprima del menu; lo shader del contorno ricava lo spessore da `cella_base`.
+- Ombre: `Ombra.materiale(densita)` (sfocatura e sfumatura in pixel di gioco); `Effetti.materiale_contorno(colore, spessore)`. Il campo di distanze delle ombre dei muri è già in pixel di gioco anche col mondo al doppio (misurato con un viewport di prova): non va scalato.
+- Modelli Quaternius scaricati e provati (non ancora nel repository): itch.io "Name your own price" (POST `download_url`, poi POST `file/<id>?source=game_download` con il csrf), UAL1 anche su opengameart. UAL1 per Unreal (FBX) ha ossa uguali a UAL2 e agli Outfits ma misure in centimetri (posizioni ×100). QAL (Characters - Fantasy Races, Bestiary) non è CC0: non usarla.
+- Prove: `_prova_figure` in `test/prova.gd`, fase `qualita` del bot ("figure dettagliate in alta"). La prova senza schermo ha una finestra minuscola: la densità 2 si prova solo con `--resolution 1280x720`.
 

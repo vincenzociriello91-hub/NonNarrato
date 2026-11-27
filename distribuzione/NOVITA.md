@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Personaggio e nemici più dettagliati (grafica, seconda tappa)
+
+- **Figure in doppia definizione**: il Non Narrato e tutti i nemici hanno ora il doppio dei pixel in larghezza e in altezza (quattro volte tanti in tutto). Restano grandi uguali e i tempi delle mosse non cambiano, ma spade, elmi, ossa, cappucci e mantelli sono molto più nitidi e la luce delle torce ci scivola sopra con più sfumature.
+- **Il mondo si disegna al doppio della risoluzione**: è quello che permette di vedere i pixel in più. Si attiva da solo con la grafica "alta" e "ultra" (il Pixel 8 Pro è in "alta"); con "bassa" e "media" resta come prima, per risparmiare. Se il telefono si scalda, torna da solo alla definizione normale.
+- **Nuova voce in Impostazioni > Grafica: "Figure dettagliate"** (automatico, sì, no). Anche l'anteprima nel menu Aspetto è in doppia definizione.
+- **Fogli dei nemici più leggeri**: ogni fotogramma tiene solo la parte disegnata. Così la versione dettagliata occupa poco più memoria di prima, e quella normale meno della metà.
+- **Corretto**: il ripristino dei valori consigliati della grafica risultava fallito nel rapporto del Pixel (il controllo non teneva conto dei colori del film della 0.1.36).
+
 ## 0.1 — Luce e atmosfera (grafica, prima tappa)
 
 - **Bagliore di fiamme e magie**: torce, bracieri, magie e scintille ora brillano davvero, con un alone morbido che si posa sulla pixel art. Costa pochissimo: si calcola su un'immagine piccola a parte.

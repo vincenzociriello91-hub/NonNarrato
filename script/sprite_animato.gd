@@ -53,8 +53,14 @@ static func foglio(nome: String) -> Dictionary:
 	return voce
 
 
+static var _doppie := {}
+
+
 static func ha_doppia(nome: String) -> bool:
-	return FileAccess.file_exists("res://arte/sprite/%s%s.json" % [nome, SUFFISSO_DOPPIA])
+	# Una sola domanda per foglio (frecce e pozioni nascono di continuo).
+	if not _doppie.has(nome):
+		_doppie[nome] = FileAccess.file_exists("res://arte/sprite/%s%s.json" % [nome, SUFFISSO_DOPPIA])
+	return _doppie[nome]
 
 
 func carica(nome: String) -> void:
