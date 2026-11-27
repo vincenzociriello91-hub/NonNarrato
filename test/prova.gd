@@ -212,6 +212,11 @@ func _esegui() -> void:
 	await _fotogrammi(10)
 	Impostazioni.scrivi("grafica/limite_fps", 120)   # così il bot prova anche la fase col limite di chi gioca
 	var prima := {"impostazioni": Impostazioni.tutte(), "aspetto": Equipaggiamento.stato()}
+	var memoria_prima := Memoria.stato()
+	var cervello_prima := ConfigFile.new()
+	Salvataggio.leggi_cfg(cervello_prima, Bot.ESPERIENZA_CERVELLO)
+	var giri_prima: int = (cervello_prima.get_value("crescita", "cronologia", []) as Array).size()
+	var xp_prima: Dictionary = cervello_prima.get_value("crescita", "abilita", {})
 	var bot: Bot = _principale.avvia_bot()
 	bot.chiudi_alla_fine = false
 	bot.scritta = false
@@ -226,6 +231,9 @@ func _esegui() -> void:
 	bot.avvia()
 	var falliti_bot: int = await bot.finito
 	_falliti += falliti_bot
+	# Coi nemici sempre svegli una prova può essere rovinata fino all'ultimo tentativo: deve succedere di rado.
+	_verifica("prove rovinate dai nemici fino all'ultimo: al massimo 2", bot.disturbate.size() <= 2,
+			str(bot.disturbate.map(func(c: Dictionary) -> String: return c["nome"])))
 
 	# Un fotogramma lento finisce nel rapporto con il contesto della partita.
 	Rapporto.call("_registra_scatto", 0.12, 3)
@@ -238,12 +246,55 @@ func _esegui() -> void:
 	var dopo := {"impostazioni": Impostazioni.tutte(), "aspetto": Equipaggiamento.stato()}
 	_verifica("il bot rimette impostazioni e aspetto di prima", not FileAccess.file_exists(Bot.SEGNO) and dopo == prima,
 			str(dopo) if dopo != prima else "")
+	# Una sola memoria che cresce: il bot non la azzera e non rimette quella di prima.
+	var memoria_dopo := Memoria.stato()
+	var cresciuta := int(memoria_dopo["sogni"]) >= int(memoria_prima["sogni"])
+	for posto: String in (memoria_prima["veterani"] as Dictionary):
+		cresciuta = cresciuta and (memoria_dopo["veterani"] as Dictionary).has(posto) \
+				and float(memoria_dopo["veterani"][posto]["xp"]) >= float(memoria_prima["veterani"][posto]["xp"])
+	for azione: String in (memoria_prima.get("abitudini_totali", {}) as Dictionary):
+		cresciuta = cresciuta and int(memoria_dopo["abitudini_totali"].get(azione, 0)) >= int(memoria_prima["abitudini_totali"][azione])
+	var xp_nuova := 0.0
+	var xp_vecchia := 0.0
+	for veterano: Dictionary in (memoria_dopo["veterani"] as Dictionary).values():
+		xp_nuova += float(veterano["xp"])
+	for veterano: Dictionary in (memoria_prima["veterani"] as Dictionary).values():
+		xp_vecchia += float(veterano["xp"])
+	var giro_intero := bot.solo_fasi.is_empty()   # con --fasi= il bot fa poco: si controlla solo che nulla si cancelli
+	_verifica("memoria dei nemici: il bot non la cancella e i nemici crescono", cresciuta and (xp_nuova > xp_vecchia or not giro_intero),
+			"xp veterani %.0f -> %.0f, sogni %d -> %d" % [xp_vecchia, xp_nuova, memoria_prima["sogni"], memoria_dopo["sogni"]])
+	# Il bot cresce: la sua esperienza si somma a quella di sempre e il giro finisce nella cronologia.
+	var cervello_dopo := ConfigFile.new()
+	Salvataggio.leggi_cfg(cervello_dopo, Bot.ESPERIENZA_CERVELLO)
+	var giri_dopo: int = (cervello_dopo.get_value("crescita", "cronologia", []) as Array).size()
+	var xp_dopo: Dictionary = cervello_dopo.get_value("crescita", "abilita", {})
+	var mai_scesa := true
+	var salita := false
+	for a: String in Bot.ABILITA:
+		mai_scesa = mai_scesa and float(xp_dopo.get(a, 0.0)) >= float(xp_prima.get(a, 0.0))
+		salita = salita or float(xp_dopo.get(a, 0.0)) > float(xp_prima.get(a, 0.0))
+	_verifica("bot: cresce e ricorda ogni giro", giri_dopo == giri_prima + 1 and mai_scesa and (salita or not giro_intero),
+			"%s -> %s" % [xp_prima, xp_dopo])
+	_verifica("bot: livelli dall'esperienza", Bot.livello_da_xp(0.0) == 0 and Bot.livello_da_xp(30.0) == 1
+			and Bot.livello_da_xp(750.0) == 5 and Bot.livello_da_xp(1e9) == 10)
+	# Ogni giro le prove tecniche cambiano ordine: due semi diversi, due ordini diversi (e tutte le prove ci sono).
+	var a := Bot.ordine_prove(1)
+	var b := Bot.ordine_prove(2)
+	var c := Bot.ordine_prove(3)
+	var tutte := a.duplicate()
+	tutte.sort()
+	var attese := Bot.PROVE.duplicate()
+	attese.sort()
+	_verifica("bot: l'ordine delle prove cambia a ogni giro", (a != b or b != c) and tutte == attese, "%s / %s" % [a, b])
+	# I controlli che seguono provano una cosa alla volta e vogliono nemici "di base": la memoria vera si mette
+	# da parte e si rimette intera alla fine (niente si perde: è solo per questi controlli sul computer).
+	var memoria_vera := Memoria.stato()
+	Memoria.ripristina_stato({})
 	_prova_lezione_fallita()
-	# Bot fermato durante le prove tecniche: i nemici non devono restare fermi e intoccabili.
+	# Il bot non mette mai in pausa i nemici: non ha nemmeno il modo di farlo. Fermato, i nemici restano vivi.
+	_verifica("il bot non può mettere in pausa i nemici", not bot.has_method("_tregua"))
 	_principale.ricomincia_stanza()
 	await _fotogrammi(30)
-	bot.call("_tregua", true)
-	await _fotogrammi(2)
 	bot.call("_lascia_la_stanza_a_chi_gioca")
 	await _fotogrammi(4)
 	var fermi: Array = []
@@ -267,6 +318,8 @@ func _esegui() -> void:
 	if bot.solo_fasi.is_empty() or bot.solo_fasi.has("prestazioni"):
 		_verifica("il bot prova anche il limite FPS di chi gioca", bot.fasi.any(func(f: Dictionary) -> bool: return f["nome"] == "prestazioni_120fps"))
 	print("PROVA bot: %d controlli, fasi %s" % [bot.controlli.size(), JSON.stringify(bot.fasi.map(func(f: Dictionary) -> String: return "%s %.0fs" % [f["nome"], f["secondi"]]))])
+	Memoria.ripristina_stato(memoria_vera)
+	_verifica("la memoria vera torna intera dopo i controlli", Memoria.stato() == memoria_vera)
 	Impostazioni.ripristina()
 	print("PROVA FINE falliti: %d" % _falliti)
 	get_tree().quit(1 if _falliti > 0 else 0)
@@ -876,21 +929,6 @@ func _prova_da_giocatore() -> void:
 		_verifica("da giocatore: la freccia nemica punta dove vola", punta.dot(freccia.velocita.normalized()) > 0.98,
 				"%.2f" % punta.dot(freccia.velocita.normalized()))
 		freccia.queue_free()
-	# Nemici in pausa per le prove del bot: si vedono fermi e trasparenti, non congelati a metà passo.
-	var in_pausa: Nemico = null
-	for n: Node in get_tree().get_nodes_in_group("nemici"):
-		var e := n as Nemico
-		if e.stato not in [Nemico.Stato.DORME, Nemico.Stato.MORTO] and e.tipo != "pipistrello":
-			in_pausa = e
-			break
-	if in_pausa != null:
-		in_pausa.tregua(true)
-		await _fotogrammi(2)
-		_verifica("da giocatore: un nemico in pausa si vede fermo e trasparente",
-				in_pausa.sprite.animazione == "fermo" and in_pausa.sprite.modulate.a < 0.5,
-				"%s %.2f" % [in_pausa.sprite.animazione, in_pausa.sprite.modulate.a])
-		in_pausa.tregua(false)
-		_verifica("da giocatore: tolta la pausa torna normale", is_equal_approx(in_pausa.sprite.modulate.a, 1.0))
 	# Il bot ricomincia la stanza dietro il velo nero (prima sembrava teletrasportarsi).
 	var stanza_prima: Node = _principale.stanza
 	var velo := _principale.get("_velo") as ColorRect

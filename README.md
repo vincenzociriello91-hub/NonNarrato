@@ -177,11 +177,15 @@ raffica di dardi, arco carico che trapassa.
 ## Bot di prova
 
 Dal menu di pausa, "Fai giocare il bot" (oppure `godot --path . -- --bot` sul computer). `script/bot.gd` prima prova
-comandi, menu, armi e qualità a nemici fermi, poi gioca una **partita libera**: osserva (vita, nemici, forzieri,
+comandi, menu, armi e qualità, in un ordine diverso a ogni giro e con i nemici sempre svegli (mai in pausa: se lo
+disturbano si difende e rifà la prova), poi gioca una **partita libera**: osserva (vita, nemici, forzieri,
 enigmi, zone da vedere), sceglie l'obiettivo che conviene adesso secondo un carattere diverso a ogni partita e quello
 che ha imparato (`user://bot_cervello.cfg`), agisce e ricorda com'è andata. Si muove solo con i comandi (i percorsi
 li trova `script/navigatore.gd`, anche su per le pareti, con le soste sulle mensole, e a nuoto sotto l'arco). Alla
-fine misura le prestazioni con ogni qualità e scrive tutto nel rapporto.
+fine misura le prestazioni con ogni qualità e scrive tutto nel rapporto. Il bot **cresce** come quello di Minecraft:
+cinque bravure (combattere, schivare, muoversi, enigmi, tirare) che salgono con l'esperienza e cambiano come gioca;
+i nemici crescono con lui (veterani, nemesi, tattiche). Nessuna memoria viene mai cancellata: ogni giro finisce in
+una cronologia (rapporto, sezione `bot.crescita`).
 
 ## Prove
 

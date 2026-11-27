@@ -112,6 +112,11 @@ var sogni := 0
 var armi := {}                  # famiglia d'arma di chi gioca -> quanto la usa (con decadimento)
 var veterani := {}              # posto nella stanza -> {xp, morti, uccisioni, ondate}
 var sogni_completati := 0       # sogni finiti superando tutte le ondate
+# Niente si cancella mai (decisione di Vincenzo, 27/11/2026): le abitudini recenti pesano di più nelle scelte,
+# ma lo storico completo resta; le nemesi che non tornano più finiscono nella cronaca, non spariscono.
+var abitudini_totali := {}      # azione -> conteggio di sempre (senza decadimento)
+var armi_totali := {}           # famiglia d'arma -> colpi di sempre
+var cronaca: Array = []         # nemesi che riposano o hanno lasciato il posto, con come è finita
 var _caso := RandomNumberGenerator.new()
 var _contatore_id := 0
 
@@ -129,6 +134,9 @@ func _ready() -> void:
 	veterani = cfg.get_value("memoria", "veterani", {})
 	sogni_completati = int(cfg.get_value("memoria", "sogni_completati", 0))
 	_contatore_id = int(cfg.get_value("memoria", "contatore", 0))
+	abitudini_totali = cfg.get_value("memoria", "abitudini_totali", {})
+	armi_totali = cfg.get_value("memoria", "armi_totali", {})
+	cronaca = cfg.get_value("memoria", "cronaca", [])
 
 
 # ------------------------------------------------------------------ abitudini
@@ -137,6 +145,7 @@ func registra(azione: String) -> void:
 	if not PESI.has(azione):
 		return
 	abitudini[azione] = float(abitudini.get(azione, 0.0)) + 1.0
+	abitudini_totali[azione] = int(abitudini_totali.get(azione, 0)) + 1
 
 
 func abitudine_principale() -> String:
@@ -156,6 +165,7 @@ func lezione_attuale() -> String:
 
 func registra_arma(famiglia: String) -> void:
 	armi[famiglia] = float(armi.get(famiglia, 0.0)) + 1.0
+	armi_totali[famiglia] = int(armi_totali.get(famiglia, 0)) + 1
 
 
 func arma_preferita() -> String:
@@ -266,6 +276,7 @@ func nemico_sconfitto(n: Node, famiglia_arma: String = "") -> String:
 			return ""
 		rec["sconfitte"] = int(rec["sconfitte"]) + 1
 		if int(rec["sconfitte"]) >= SCONFITTE_PER_RIPOSARE:
+			_archivia(rec, "riposa per sempre")
 			nemesi.erase(rec)
 			Rapporto.evento("nemesi_riposa", {"nome": nome_completo(rec)})
 			_salva()
@@ -332,6 +343,7 @@ func _nuova_nemesi(tipo: String) -> Dictionary:
 		for r: Dictionary in nemesi:
 			if int(r["potere"]) < int(debole["potere"]):
 				debole = r
+		_archivia(debole, "ha lasciato il posto a una nemesi nuova")
 		nemesi.erase(debole)
 	_contatore_id += 1
 	var nome := ""
@@ -388,6 +400,13 @@ func sogno_completato() -> void:
 	_salva()
 
 
+func _archivia(rec: Dictionary, come: String) -> void:
+	var r := rec.duplicate(true)
+	r["fine"] = come
+	r["sogno_fine"] = sogni
+	cronaca.append(r)
+
+
 func _trova(id: String) -> Dictionary:
 	for r: Dictionary in nemesi:
 		if r["id"] == id:
@@ -405,7 +424,8 @@ func _metti(rec: Dictionary) -> void:
 func stato() -> Dictionary:
 	return {"nemesi": nemesi.duplicate(true), "abitudini": abitudini.duplicate(), "tattiche": tattiche.duplicate(true),
 			"sogni": sogni, "contatore": _contatore_id, "armi": armi.duplicate(), "veterani": veterani.duplicate(true),
-			"sogni_completati": sogni_completati}
+			"sogni_completati": sogni_completati, "abitudini_totali": abitudini_totali.duplicate(),
+			"armi_totali": armi_totali.duplicate(), "cronaca": cronaca.duplicate(true)}
 
 
 func ripristina_stato(s: Dictionary) -> void:
@@ -417,6 +437,9 @@ func ripristina_stato(s: Dictionary) -> void:
 	armi = (s.get("armi", {}) as Dictionary).duplicate()
 	veterani = (s.get("veterani", {}) as Dictionary).duplicate(true)
 	sogni_completati = int(s.get("sogni_completati", 0))
+	abitudini_totali = (s.get("abitudini_totali", {}) as Dictionary).duplicate()
+	armi_totali = (s.get("armi_totali", {}) as Dictionary).duplicate()
+	cronaca = (s.get("cronaca", []) as Array).duplicate(true)
 	_salva()
 
 
@@ -439,6 +462,35 @@ func descrizione() -> Dictionary:
 		"sogni_completati": sogni_completati,
 		"tattiche": tat,
 		"sogni": sogni,
+		"abitudini_di_sempre": abitudini_totali,
+		"armi_di_sempre": armi_totali,
+		"cronaca": cronaca.map(func(r: Dictionary) -> String:
+			return "%s (%s, potere %d): %s al sogno %d" % [nome_completo(r), r["tipo"], int(r["potere"]), r.get("fine", ""), int(r.get("sogno_fine", 0))]),
+	}
+
+
+func crescita() -> Dictionary:
+	# Quanto sono cresciuti i nemici (per il rapporto e la cronologia del bot): numeri piccoli e confrontabili.
+	var livelli: Array = veterani.keys().map(func(p: String) -> int: return livello_veterano(p))
+	var somma := 0
+	var massimo := 0
+	for l: int in livelli:
+		somma += l
+		massimo = maxi(massimo, l)
+	var prove := 0
+	var riuscite := 0
+	for tipo: String in tattiche:
+		for t: String in tattiche[tipo]:
+			prove += int(tattiche[tipo][t][0])
+			riuscite += int(tattiche[tipo][t][1])
+	var xp := 0.0
+	for p: String in veterani:
+		xp += float((veterani[p] as Dictionary).get("xp", 0.0))
+	return {
+		"sogni": sogni, "veterani": veterani.size(), "xp_veterani": snappedf(xp, 0.1),
+		"livello_medio": snappedf(float(somma) / maxf(1.0, livelli.size()), 0.01), "livello_massimo": massimo,
+		"nemesi": nemesi.size(), "potere_massimo": nemesi.reduce(func(m: int, r: Dictionary) -> int: return maxi(m, int(r["potere"])), 0),
+		"tattiche_provate": prove, "tattiche_riuscite": riuscite, "nemesi_in_cronaca": cronaca.size(),
 	}
 
 
@@ -461,5 +513,8 @@ func _salva() -> void:
 	cfg.set_value("memoria", "tattiche", tattiche)
 	cfg.set_value("memoria", "sogni", sogni)
 	cfg.set_value("memoria", "contatore", _contatore_id)
+	cfg.set_value("memoria", "abitudini_totali", abitudini_totali)
+	cfg.set_value("memoria", "armi_totali", armi_totali)
+	cfg.set_value("memoria", "cronaca", cronaca)
 	Salvataggio.scrivi_cfg(cfg, PERCORSO)
 	cambiata.emit()

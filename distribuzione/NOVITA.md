@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Nemici sempre svegli, bot e nemici che imparano e crescono
+
+- **Durante il bot i nemici non vanno mai in pausa**: niente più nemici fermi o trasparenti. Restano svegli e attaccano in ogni prova; il bot si difende, combatte e, se un nemico gli ha rovinato una prova, la rifà.
+- **Il bot non fa più sempre le stesse cose**: l'ordine delle prove cambia a ogni giro, e anche il lato da cui corre, l'ordine delle armi e dei gruppi di mosse, le schivate e le scelte nella partita libera.
+- **Il bot cresce come quello di Minecraft**: cinque bravure (combattere, schivare, muoversi, enigmi, tirare) che salgono con l'esperienza di ogni giro e non si azzerano mai. Più cresce, più reagisce in fretta e più osa le combinazioni. Il livello si vede nella scritta in alto.
+- **I nemici crescono con lui**: la loro memoria non si cancella più a ogni giro del bot. Veterani, nemesi, tattiche e abitudini si accumulano giro dopo giro e partita dopo partita, anche le tue. Le nemesi che non tornano restano nella cronaca del sogno.
+- **Nel rapporto si vede la crescita**: livelli del bot, esperienza dei nemici e un riassunto di ogni giro.
+
 ## 0.1 — Schermata iniziale, salvataggi, musica che segue il combattimento
 
 - **Schermata iniziale**: all'avvio trovi il nome del gioco sopra la stanza in penombra e i tasti Continua, Nuovo sogno, Impostazioni e Fai giocare il bot. Il tasto Indietro, premuto due volte, chiude il gioco.

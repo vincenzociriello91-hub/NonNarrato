@@ -91,7 +91,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 - Decisione di Vincenzo (25/11/2026): un bot che gioca in locale, fa tutto e alla chiusura manda il rapporto.
 - Il bot non si teletrasporta mai: `_vai_a()` usa il `Navigatore` (superfici da `Stanza.superfici()`, archi salto/salto_su/attraversa/caduta/rotola, Dijkstra, esperienza in `user://bot_esperienza.cfg` che corregge il punto di stacco dopo un errore). Le casse sulla strada si scavalcano (su + direzione); i nemici svegli vicini si affrontano. In combattimento legge la carica del colpo nemico, attacca quando è scoperto e sceglie la schivata che ha funzionato di più (scatto indietro, rotolo indietro o avanti, salto, colpo sulla sfera).
-- Ordine delle fasi: vedi "Bot con cervello" più sotto (prove tecniche, partita libera, prestazioni). Il bot non muore mai apposta. All'inizio il bot azzera la memoria del sogno e alla fine rimette quella di chi gioca.
+- Ordine delle fasi: vedi "Bot con cervello" più sotto (prove tecniche, partita libera, prestazioni). Il bot non muore mai apposta. La memoria dei nemici NON si azzera e NON si rimette com'era (regola del 27/11/2026, vedi "Nemici sempre svegli").
 - `script/bot.gd` contiene tutto lo scenario: lo usano il tasto "Fai giocare il bot" del menu, `-- --bot` e la prova automatica (`test/prova.gd` lo avvia senza chiudere e aggiunge solo controlli da computer). Nuove funzioni = nuovi controlli nel bot.
 - Prima di partire salva impostazioni e aspetto di chi gioca in `user://bot_in_corso.txt` (var_to_str, non JSON: i tipi devono restare); alla fine li rimette. Se il gioco muore a metà, `Bot.ripara_se_interrotto()` all'avvio.
 - Durante il bot: vibrazione spenta, adattamento automatico della qualità fermo (`Dispositivo.bot_attivo`), pausa di chi gioca = stop del bot.
@@ -137,7 +137,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 ## Bot con cervello (0.1.16)
 
-- Ordine: prove tecniche a nemici fermi (`_tregua`, `Nemico.tregua`): movimento, cassa e barili, tasti a schermo, qualità, menu, mosse, ambiente, armi da mischia, armi a distanza; poi `_partita` (420 s di gioco, stanza nuova, ondate attive); poi prestazioni.
+- Ordine: prove tecniche (dalla 0.1.30 in ordine casuale e con i nemici svegli, vedi sotto); poi `_partita` (420 s di gioco, stanza nuova, ondate attive); poi prestazioni.
 - `_partita`: ciclo osserva-decidi-agisci-ricorda. `_decidi` dà un punteggio a: combatti, ritirata, alcova, torre, cassa, bracieri (riusano `_galleria`, `_torre`, `_enigma_cassa`, `_enigma_bracieri`), caccia, aspetta, esplora, raccogli, rompi, prova_arma; pesi dal carattere (`_umore`, a caso per partita), dalla riuscita passata, ±20% di caso, penalità a ciò che è fallito due volte. Nella partita `_verifica` registra risultati in `_esiti_partita` (non sono errori) e `_nuova_fase` non apre fasi.
 - `seme`: 0 = a caso (telefono); la prova sul computer usa 4242. Memoria del cervello in `user://bot_cervello.cfg` (obiettivi, armi contro ogni nemico, chi l'ha ucciso).
 - Contro lo stallo: `_ignorati` (nemico irraggiungibile lasciato 20-25 s), controllo dei progressi in `_combatti_contro`, `_fermate` nel rapporto (fermo 20 s). Controlli finali: obiettivi diversi ≥ 5, almeno 4 uccisi, metà delle zone viste, mai bloccato 90 s, esiti delle armi.
@@ -261,7 +261,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 ## Nemici in pausa visibili (0.1.27)
 
-- Vincenzo guarda spesso il bot: nelle prove tecniche i nemici in `tregua` (fisica spenta, intoccabili, attraversabili) restavano congelati a metà camminata e sembravano rotti ("bloccati e intangibili", 26/11/2026). Ora `Nemico.tregua(true)` mette l'animazione di riposo e `ALFA_TREGUA` (0,4); `tregua(false)` rimette l'opacità. La scritta del bot aggiunge "nemici in pausa per le prove" (`Bot._aggiorna_scritta`, ogni 30 fotogrammi).
+- SUPERATA dalla 0.1.30: la pausa dei nemici era sbagliata in sé. Vincenzo: "I mob durante la prova bot non devono mai andare in pausa! Io te l'ho sempre detto". Niente tregua e niente trasparenza.
 - Lezione: guardare anche le fasi tecniche del bot con gli occhi di chi gioca, non solo la partita libera.
 
 ## Bot e cambi di stanza (0.1.28)
@@ -284,3 +284,16 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - I domini aggiunti da Vincenzo (opengameart, kenney, quaternius, itch) valgono solo nelle sessioni aperte dopo il 26/11/2026 sera: in una sessione vecchia il proxy li rifiuta (403). Pacchetti scaricati solo CC0 con la licenza nella pagina; mai Sonniss nel repository (la licenza vieta di ridistribuire i file).
 - Colpi: scossa a trauma (`Giocatore._scossa` 0..1, `scuoti(forza)` aggiunge forza/10, spostamento = trauma² × 14 px × rumore Perlin, cala 1,8/s); fermo immagine 0,09 s quando si è colpiti e 0,07 s (0,1 bestione, mimic, nemesi) quando muore un nemico; schiacciamento all'atterraggio da più di 220 px/s (perno ai piedi).
 - Strumento fuori dal repository: `/home/claude/strumenti/controllo/foto_avvio.sh FILE.png [secondi]` = avvio come chi gioca (titolo) e foto dello schermo con ffmpeg x11grab.
+
+## Nemici sempre svegli, bot e nemici che imparano e crescono (0.1.30)
+
+- REGOLE FISSE di Vincenzo (27/11/2026), da non violare mai:
+  - Durante il bot i nemici NON vanno MAI in pausa (niente tregua, niente trasparenza, niente fermi). Il bot non ha più `_tregua`; `Nemico.tregua()` esiste solo per i controlli automatici di `test/prova.gd` sul computer. Controllo "i nemici non vanno mai in pausa durante il bot" (`Bot._controlla_pause`, `_pause_viste` = 0).
+  - Una sola memoria, MAI cancellata: il bot non azzera `Memoria` all'inizio e non rimette quella di prima alla fine (`_rimetti` ignora "memoria"). Bot e nemici imparano da tutte le partite, del bot e di chi gioca.
+  - Bot e nemici devono IMPARARE e CRESCERE "come il bot di Minecraft e il Nemesis System".
+  - Il bot non deve fare sempre le stesse azioni.
+  - Lavori grossi: prima impegno, modello, Ricerca; poi aspettare "via".
+- Prove tecniche: `Bot.ordine_prove(seme)` mescola `PROVE` (sul telefono seme a caso, sul computer 4242); prima di ogni prova dopo la prima `ricomincia_con_velo("Prossima prova: …")` (le prove precedenti rompono barili e spostano casse). `_prova_tecnica`: `_sicurezza()` (affronta i nemici svegli che vengono verso di te entro 300 px, chi dorme entro 200 px e maghi/arcieri svegli in vista entro 450 px, `_minaccia_vicina`; lì non si "lascia perdere" nessuno, massimo 60 s), poi la prova con i controlli trattenuti (`_in_tentativo`, `_tentativo`); se qualcosa fallisce e nel frattempo il bot è stato colpito, è morto o ha combattuto (`_lotte`), la prova si rifà dalla stanza com'era, fino a `TENTATIVI_PROVA` (4). Se anche l'ultimo tentativo è disturbato, i controlli falliti vanno in `Bot.disturbate` (rapporto `disturbate_dai_nemici`, "PROVA DISTURBATA"), non fra i falliti; la prova sul computer accetta al massimo 2 disturbate. Ripetizioni in `prove_ripetute`. Con la memoria cresciuta (nemici veterani) le ripetizioni aumentano: è normale.
+- `test/prova.gd`: dopo il bot la memoria vera si mette da parte (`Memoria.stato()`), i controlli singoli girano su una memoria di base, poi si rimette intera ("la memoria vera torna intera dopo i controlli"). Dentro le prove: lato della corsa a caso, armi da mischia e gruppi di mosse in ordine mescolato (`_mescola`).
+- Crescita del bot (`user://bot_cervello.cfg`, sezione `crescita`, mai azzerata): `ABILITA` combattere, schivare, muoversi, enigmi, tirare; xp di sempre, livello = radice(xp/30) max 10 (`livello_da_xp`). `_cresci()` a fine giro: uccisi ×3 + combattimenti ×0,5; schivate riuscite; passaggi ×0,3 + arrampicate + scavalchi ×0,2; enigmi ×5 + forzieri; tiri a segno ×0,5. Effetti: riflessi (ritardo prima della schivata 4 fotogrammi → 0), esplorazione delle schivate 35% → 10% (mai zero: varietà), coraggio nelle combinazioni (secondo colpo 45% → 85%, terzo dal livello 5). Le statistiche delle schivate (`_difese`) restano fra un giro e l'altro. `_cronologia`: un riassunto per giro (livelli, xp, uccisi, colpi subiti, morti, prove ripetute, `Memoria.crescita()`), mai cancellata. Rapporto: `bot.crescita`, `bot.ordine_prove`. Scritta "Bot livello N".
+- Nemici: `Memoria.abitudini_totali` e `armi_totali` (storico senza decadimento; per le scelte contano le abitudini recenti), `cronaca` (nemesi che riposano o lasciano il posto: archiviate, non cancellate), `Memoria.crescita()` (veterani, livello medio e massimo, xp, nemesi, potere massimo, tattiche provate/riuscite).
