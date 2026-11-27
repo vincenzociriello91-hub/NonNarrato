@@ -2,6 +2,11 @@
 
 Gioco Android di Vincenzo (Godot 4.7.2, GDScript). Repository pubblico `vincenzociriello91-hub/NonNarrato`.
 Scrivi a Vincenzo in italiano, poche righe, senza gergo. Tutto quello che puoi fare tu, fallo tu.
+Leggi anche `ROADMAP.md`: i prossimi lavori decisi da Vincenzo, un punto per volta.
+
+**Regola (Vincenzo, 27/11/2026): si corregge il difetto, non si toglie ciò che funziona.** Prima di togliere qualcosa
+chiediti se il problema è la cosa o solo il suo difetto, e confrontala con Dead Cells e Blasphemous: si toglie solo se
+lì non c'è. (Errore da non ripetere: per i coni neri delle torce erano state tolte tutte le ombre.)
 
 ## Decisioni di Vincenzo (25/11/2026)
 
