@@ -1538,8 +1538,11 @@ func _esegui() -> void:
 	await _fotogrammi(60)
 	var g := _g()
 	_verifica("avvio: giocatore a terra", g.is_on_floor() and absf(g.position.y - Stanza.PAVIMENTO) < 2.0, str(g.position))
-	_verifica("avvio: qualità alta, ombre delle torce spente in automatico", Dispositivo.livello == "alta" and _principale.stanza.torce_con_ombra() == 0,
-			"%s, torce con ombra %d" % [Dispositivo.livello, _principale.stanza.torce_con_ombra()])
+	var coni: int = _principale.stanza.find_children("*", "PointLight2D", true, false).filter(
+			func(l: PointLight2D) -> bool: return l.shadow_enabled).size()
+	_verifica("avvio: qualità alta, ombre corte di muri e pilastri, niente coni neri", Dispositivo.livello == "alta"
+			and _principale.stanza.torce_con_ombra() > 0 and coni == 0,
+			"%s, torce con ombra %d, luci con le ombre del motore %d" % [Dispositivo.livello, _principale.stanza.torce_con_ombra(), coni])
 	await _scatta("inizio")
 
 	# Prima le prove tecniche (comandi, menu, armi, qualità...), in un ordine diverso a ogni giro e con i nemici
@@ -1632,11 +1635,12 @@ func _qualita() -> void:
 	await _scatta("senza_palette")
 	Impostazioni.scrivi("grafica/palette", true)
 	await _fotogrammi(10)
-	Impostazioni.scrivi("grafica/luci_ombra", 2)
+	Impostazioni.scrivi("grafica/luci_ombra", 0)
 	await _fotogrammi(10)
-	_verifica("ombre delle torce solo se scelte a mano", _principale.stanza.torce_con_ombra() > 0)
+	var spente: bool = _principale.stanza.torce_con_ombra() == 0
 	Impostazioni.scrivi("grafica/luci_ombra", -1)
 	await _fotogrammi(10)
+	_verifica("ombre dei muri: si spengono a mano e tornano in automatico", spente and _principale.stanza.torce_con_ombra() > 0)
 
 
 func _tasti_a_schermo() -> void:

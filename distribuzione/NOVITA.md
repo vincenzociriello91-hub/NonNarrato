@@ -1,5 +1,11 @@
 # Novità di NonNarrato
 
+## 0.1 — Tornano le ombre delle torce su muri e pilastri, corrette
+
+- **Le torce fanno di nuovo ombra sui muri**: accanto ai pilastri e ai muri alti, dalla parte opposta alla fiamma, il muro di fondo resta in ombra. Le ombre sono corte e sfumate, come quelle dei personaggi, e svaniscono dopo pochi passi.
+- **Corretto il difetto delle strisce nere**: nella 0.1.28 le ombre delle torce erano state spente perché partivano dalla fiamma e arrivavano fino al soffitto. Ora il difetto è corretto alla radice e le ombre sono accese in automatico con la grafica media e alta.
+- **In Impostazioni > Grafica** la voce "Ombre di muri e pilastri" le accende o le spegne. "Ombre morbide" sfuma di più il bordo e "Dettaglio delle ombre" le rende più precise.
+
 ## 0.1 — Ombre corte e sfumate
 
 - **Ombre vere sotto personaggio, nemici e oggetti**: il Non Narrato, i nemici, le casse, i barili, i forzieri e i bracieri hanno ora un'ombra morbida sul pavimento. Quando si salta l'ombra resta a terra, si stringe e sbiadisce.

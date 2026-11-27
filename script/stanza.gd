@@ -103,6 +103,7 @@ var ondate_attive := true          # il bot le ferma mentre prova enigmi e mecca
 
 var _mondo: StaticBody2D
 var _torce: Array = []
+const MURO_FONDO := "muro_fondo"   # gruppo: ciò che riceve le ombre corte di muri e pilastri
 var _nebbie: Array = []
 var _pulviscolo: CPUParticles2D
 var _tempo := 0.0
@@ -861,6 +862,8 @@ func _fondo_scuro(rett: Rect2, z: int, luce: float) -> Sprite2D:
 	s.region_rect = Rect2(Vector2.ZERO, rett.size)
 	s.position = rett.position
 	s.light_mask = Effetti.L_SFONDO if z < 0 else Effetti.L_DAVANTI
+	if z < 0:
+		s.add_to_group(MURO_FONDO)
 	s.z_index = z
 	s.modulate = Color(luce, luce, luce * 1.08)
 	add_child(s)
@@ -1003,6 +1006,8 @@ func _sprite(nome: String, dove: Vector2, maschera: int, z: int, genitore: Node 
 	s.light_mask = maschera
 	s.z_index = z
 	s.set_process(false)
+	if maschera == Effetti.L_SFONDO:
+		s.add_to_group(MURO_FONDO)   # ombre corte di muri e pilastri (materiale in _applica_profilo)
 	genitore.add_child(s)
 	return s
 
@@ -1012,15 +1017,18 @@ func _sprite(nome: String, dove: Vector2, maschera: int, z: int, genitore: Node 
 func _applica_profilo() -> void:
 	var profilo: Dictionary = Dispositivo.profilo
 	var doppie: bool = profilo.get("luci_doppie", true)
-	var morbide: bool = profilo.get("ombre_morbide", false)
 	for t: Dictionary in _torce:
 		var muro: PointLight2D = t["muro"]
 		var davanti: PointLight2D = t["davanti"]
-		muro.shadow_filter = Light2D.SHADOW_FILTER_PCF13 if morbide else Light2D.SHADOW_FILTER_PCF5
-		muro.shadow_filter_smooth = 2.5
-		muro.shadow_color = Color(0.0, 0.0, 0.02, 0.6)   # ombre morbide e non nere del tutto
 		muro.range_item_cull_mask = Effetti.L_SFONDO if doppie else (Effetti.L_SFONDO | Effetti.L_DAVANTI)
 		davanti.visible = doppie
+	# Ombre corte di muri e pilastri (le ombre del motore facevano coni neri). Senza, niente materiale:
+	# così il motore non calcola nemmeno il campo di distanze (SDF), che costa anche quando non si usa.
+	Effetti.applica_ombre_muri(profilo)
+	var materiale: ShaderMaterial = Effetti.materiale_muro() if int(profilo.get("luci_con_ombra", 0)) > 0 else null
+	for n: Node in get_tree().get_nodes_in_group(MURO_FONDO):
+		if is_ancestor_of(n):   # la stanza vecchia può essere ancora nell'albero
+			(n as CanvasItem).material = materiale
 	for velo: ColorRect in _nebbie:
 		velo.visible = profilo.get("nebbia", true)
 	var primo := get_node_or_null("PrimoPiano") as CanvasItem
@@ -1032,41 +1040,34 @@ func _applica_profilo() -> void:
 
 
 func _aggiorna_luci() -> void:
-	# Accende solo le torce vicine alla vista; le ombre vanno alle più vicine, quante ne permette la qualità.
+	# Accende solo le torce vicine alla vista (le ombre dei muri le fa il materiale del muro, vedi Effetti.materiale_muro).
 	var telecamera := get_viewport().get_camera_2d()
 	if telecamera == null:
 		return
 	var centro := telecamera.get_screen_center_position()
 	var mezza := get_viewport_rect().size * 0.5 + Vector2(200.0, 200.0)
-	var con_ombra: int = Dispositivo.profilo.get("luci_con_ombra", 0)
-	var in_vista: Array = []
 	for t: Dictionary in _torce:
 		var d := ((t["nodo"] as Node2D).position - centro).abs()
-		var distanza := d.length()
 		var accesa := d.x < mezza.x and d.y < mezza.y
 		(t["muro"] as PointLight2D).enabled = accesa
 		(t["davanti"] as PointLight2D).enabled = accesa
-		if accesa:
-			in_vista.append([distanza, t])
-	in_vista.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-	for i in in_vista.size():
-		((in_vista[i][1] as Dictionary)["muro"] as PointLight2D).shadow_enabled = i < con_ombra
 
 
 func riscalda_luci(durata: float) -> void:
-	# All'avvio, dietro il velo nero: tutte le luci accese e con ombra, così il dispositivo
+	# All'avvio, dietro il velo nero: tutte le luci accese (anche con le ombre dei muri), così il dispositivo
 	# prepara subito ciò che servirà, invece di farlo quando una torcia entra in vista.
 	_t_luci = durata
 	for t: Dictionary in _torce:
 		for chiave in ["muro", "davanti"]:
 			(t[chiave] as PointLight2D).enabled = true
-		(t["muro"] as PointLight2D).shadow_enabled = true
 
 
 func torce_con_ombra() -> int:
+	# Torce accese che fanno ombre (corte) su muri e pilastri: 0 se le ombre dei muri sono spente.
+	if float(Effetti.materiale_muro().get_shader_parameter("lunghezza")) <= 0.0:
+		return 0
 	var n := 0
 	for t: Dictionary in _torce:
-		var muro: PointLight2D = t["muro"]
-		if muro.enabled and muro.shadow_enabled:
+		if (t["muro"] as PointLight2D).enabled:
 			n += 1
 	return n

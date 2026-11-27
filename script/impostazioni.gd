@@ -35,7 +35,7 @@ const PREDEFINITE := {
 	"schermo/sempre_acceso": true,
 	# --- Grafica
 	"grafica/qualita": "auto",           # auto, bassa, media, alta
-	"grafica/luci_ombra": -1,            # torce con ombra (0-4)
+	"grafica/luci_ombra": -1,            # ombre corte di muri e pilastri: 0 no, 1 sì (fino alla 0.1.31: quante torce, 0-4)
 	"grafica/ombre_corpi": -1,           # ombre corte dei corpi: 0 solo a terra, 1-2 sagome dalle luci vicine
 	"grafica/ombre_morbide": -1,         # -1 auto, 0 no, 1 sì
 	"grafica/luci_doppie": -1,           # luce di riempimento davanti
@@ -102,6 +102,7 @@ func _ready() -> void:
 				_valori[chiave] = v
 			elif typeof(PREDEFINITE[chiave]) == TYPE_FLOAT and typeof(v) == TYPE_INT:
 				_valori[chiave] = float(v)
+	_valori["grafica/luci_ombra"] = mini(int(_valori["grafica/luci_ombra"]), 1)   # dalla 0.1.32 è sì/no
 
 
 func leggi(chiave: String) -> Variant:

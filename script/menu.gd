@@ -240,7 +240,7 @@ func _costruisci_grafica(p: VBoxContainer) -> void:
 	_sezione(p, "Dettagli")
 	_scelta(p, "Ombre di personaggi e oggetti", "grafica/ombre_corpi", [[-1, "Automatico"], [0, "Solo a terra"], [1, "Dalla luce più vicina"], [2, "Dalle due luci più vicine"]],
 			"Ombre corte e sfumate sul pavimento, dalla parte opposta alle torce.")
-	_scelta(p, "Torce con ombra", "grafica/luci_ombra", [[-1, "Automatico"], [0, "Nessuna"], [1, "1"], [2, "2"], [3, "3"], [4, "4"]])
+	_scelta(p, "Ombre di muri e pilastri", "grafica/luci_ombra", SI_NO_AUTO, "Corte e sfumate sul muro di fondo, accanto a muri e pilastri.")
 	_scelta(p, "Ombre morbide", "grafica/ombre_morbide", SI_NO_AUTO)
 	_scelta(p, "Dettaglio delle ombre", "grafica/atlante_ombre", [[-1, "Automatico"], [512, "Basso"], [1024, "Medio"], [2048, "Alto"]])
 	_scelta(p, "Luce di riempimento", "grafica/luci_doppie", SI_NO_AUTO)
@@ -820,7 +820,7 @@ func _etichette_automatiche() -> void:
 	# Le voci "Automatico" dicono cosa sta usando il gioco in questo momento.
 	var profilo := Dispositivo.profilo
 	var nomi := {
-		"grafica/luci_ombra": "Automatico (%d)" % int(profilo.get("luci_con_ombra", 0)),
+		"grafica/luci_ombra": "Automatico (%s)" % _si_no(int(profilo.get("luci_con_ombra", 0)) > 0),
 		"grafica/ombre_corpi": "Automatico (%s)" % ["solo a terra", "una luce", "due luci"][clampi(int(profilo.get("ombre_corpi", 1)), 0, 2)],
 		"grafica/ombre_morbide": "Automatico (%s)" % _si_no(profilo.get("ombre_morbide", false)),
 		"grafica/atlante_ombre": "Automatico (%s)" % {512: "basso", 1024: "medio", 2048: "alto"}.get(int(profilo.get("atlante_ombre", 1024)), "medio"),

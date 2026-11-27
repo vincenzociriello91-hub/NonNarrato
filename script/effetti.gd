@@ -18,6 +18,7 @@ const L_SFONDO := 1
 const L_DAVANTI := 2
 
 static var _contorni := {}
+static var _muro: ShaderMaterial
 static var _luce: GradientTexture2D
 static var _luminoso: CanvasItemMaterial
 static var _piatto: CanvasItemMaterial
@@ -128,8 +129,64 @@ static func occlusore(genitore: Node, rett: Rect2, fa_ombra: bool = true) -> Lig
 	var o := LightOccluder2D.new()
 	o.occluder = forma
 	o.occluder_light_mask = L_SFONDO if fa_ombra else 0
+	o.sdf_collision = fa_ombra   # solo muri e pilastri fanno ombra sul muro di fondo (vedi materiale_muro)
 	genitore.add_child(o)
 	return o
+
+
+static func materiale_muro() -> ShaderMaterial:
+	# Muro di fondo con ombre corte e sfumate (0.1.32). Le ombre del motore arrivavano fino al bordo
+	# della luce: coni neri dalla torcia al soffitto (spente nella 0.1.28). Qui la luce cerca l'ostacolo
+	# verso la fiamma nel campo di distanze degli occlusori (SDF): l'ombra c'è solo vicino a muri e
+	# pilastri e sparisce entro "lunghezza" pixel, con il bordo che si sfuma allontanandosi.
+	if _muro == null:
+		var s := Shader.new()
+		s.code = """
+shader_type canvas_item;
+uniform float lunghezza = 56.0;   // 0 = niente ombre
+uniform float morbidezza = 4.0;   // più basso = bordo più sfumato
+uniform float forza = 0.85;
+uniform int passi = 10;
+void light() {
+	float cNdotL = max(0.0, dot(NORMAL, LIGHT_DIRECTION));
+	vec4 luce = vec4(LIGHT_COLOR.rgb * COLOR.rgb * LIGHT_ENERGY * cNdotL, LIGHT_COLOR.a);   // la luce di serie
+	if (lunghezza > 0.0 && !LIGHT_IS_DIRECTIONAL) {
+		vec2 uv_px = SCREEN_UV / FRAGCOORD.xy;
+		vec2 p = screen_uv_to_sdf(SCREEN_UV);
+		vec2 v = screen_uv_to_sdf(LIGHT_POSITION.xy * uv_px) - p;
+		float d = length(v);
+		vec2 dir = v / max(d, 0.001);
+		float fine = min(d - 4.0, lunghezza);
+		float ombra = 0.0;
+		float t = 1.0;
+		for (int i = 0; i < passi; i++) {
+			if (t >= fine) {
+				break;
+			}
+			float h = texture_sdf(p + dir * t);
+			float vicino = 1.0 - smoothstep(lunghezza * 0.35, lunghezza, t);   // piena vicino all'ostacolo, poi svanisce
+			ombra = max(ombra, (1.0 - clamp(morbidezza * h / t, 0.0, 1.0)) * vicino);
+			if (h < 0.5) {
+				break;
+			}
+			t += max(h, 2.0);
+		}
+		luce.rgb *= 1.0 - ombra * forza;
+	}
+	LIGHT = luce;
+}
+"""
+		_muro = ShaderMaterial.new()
+		_muro.shader = s
+	return _muro
+
+
+static func applica_ombre_muri(profilo: Dictionary) -> void:
+	# Dal profilo: accese o no, sfumatura (ombre morbide) e passi della ricerca (dettaglio delle ombre).
+	var m := materiale_muro()
+	m.set_shader_parameter("lunghezza", 56.0 if int(profilo.get("luci_con_ombra", 0)) > 0 else 0.0)
+	m.set_shader_parameter("morbidezza", 3.0 if profilo.get("ombre_morbide", false) else 6.0)
+	m.set_shader_parameter("passi", {512: 6, 1024: 10, 2048: 14}.get(int(profilo.get("atlante_ombre", 1024)), 10))
 
 
 static func numero_danno(genitore: Node, dove: Vector2, danno: int) -> void:

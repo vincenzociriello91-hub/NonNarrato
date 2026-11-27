@@ -12,12 +12,12 @@ signal audio_cambiato
 const ALTEZZA_BASE := 360
 const LIVELLI: Array[String] = ["bassa", "media", "alta"]
 const PROFILI := {
-	# Ombre delle torce spente in automatico a ogni livello (Vincenzo, 26/11/2026: strisce scure dalle torce sul Pixel).
-	# Si accendono solo a mano (Grafica > Torce con ombra) e le fanno solo muri e pilastri.
+	# Ombre delle torce: le ombre del motore facevano strisce scure fino al soffitto (Vincenzo, 26/11/2026) e furono
+	# spente; dalla 0.1.32 le fa il materiale del muro, corte e sfumate (Effetti.materiale_muro): "luci_con_ombra" 0/1.
 	# I corpi hanno ombre corte e sfumate (Ombra): "ombre_corpi" = quante luci danno la sagoma (0 = solo la macchia).
 	"bassa": {"luci_con_ombra": 0, "ombre_corpi": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false},
-	"media": {"luci_con_ombra": 0, "ombre_corpi": 1, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true},
-	"alta": {"luci_con_ombra": 0, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true},
+	"media": {"luci_con_ombra": 1, "ombre_corpi": 1, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true},
+	"alta": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true},
 }
 const GPU_FORTI: Array[String] = [
 	"adreno (tm) 7", "adreno (tm) 8", "adreno 7", "adreno 8", "immortalis",
@@ -330,7 +330,7 @@ func applica() -> void:
 		if v < 0:
 			continue
 		if chiave in ["luci_con_ombra", "ombre_corpi", "atlante_ombre"]:
-			profilo[chiave] = v
+			profilo[chiave] = mini(v, 1) if chiave == "luci_con_ombra" else v
 		else:
 			profilo[chiave] = v == 1
 	var particelle: float = Impostazioni.leggi("grafica/particelle")

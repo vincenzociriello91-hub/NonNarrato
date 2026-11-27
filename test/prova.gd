@@ -963,12 +963,10 @@ func _prova_da_giocatore() -> void:
 			if o is LightOccluder2D and (o as LightOccluder2D).occluder_light_mask != 0:
 				ombre_oggetti.append(n.name)
 	_verifica("da giocatore: oggetti senza strisce d'ombra", ombre_oggetti.is_empty(), str(ombre_oggetti))
-	var profili_con_ombra: Array = []
-	for livello: String in Dispositivo.PROFILI:
-		if int((Dispositivo.PROFILI[livello] as Dictionary)["luci_con_ombra"]) > 0:
-			profili_con_ombra.append(livello)
-	_verifica("da giocatore: torce senza ombre in automatico", profili_con_ombra.is_empty()
-			and (Impostazioni.leggi("grafica/luci_ombra") != -1 or stanza.torce_con_ombra() == 0), str(profili_con_ombra))
+	# Le torce non usano più le ombre del motore (coni neri fino al soffitto): le ombre dei muri le fa il materiale.
+	var coni: Array = stanza.find_children("*", "PointLight2D", true, false).filter(
+			func(l: PointLight2D) -> bool: return l.shadow_enabled)
+	_verifica("da giocatore: nessuna luce con le ombre del motore (coni neri)", coni.is_empty(), str(coni.map(func(l: Node) -> String: return l.get_path())))
 	# I messaggi stanno in alto e la frase del risveglio sopra il velo nero.
 	var hud: Hud = _principale.hud
 	var area: Vector2 = hud.get_viewport().get_visible_rect().size
@@ -1070,6 +1068,23 @@ func _prova_ombre() -> void:
 	Impostazioni.scrivi("grafica/ombre_corpi", 1)
 	await _fotogrammi(4)
 	_verifica("ombre: si scelgono a mano", Dispositivo.profilo.get("ombre_corpi", -1) == 1 and ombra.sagome_visibili == 1)
+	# Ombre dei muri (0.1.32): corte e sfumate, accese in automatico da "media" in su, sì/no a mano.
+	Impostazioni.scegli_qualita("alta")
+	await _fotogrammi(20)
+	var muri := get_tree().get_nodes_in_group(Stanza.MURO_FONDO).filter(func(n: Node) -> bool: return stanza.is_ancestor_of(n))
+	var lungo := float(Effetti.materiale_muro().get_shader_parameter("lunghezza"))
+	_verifica("ombre dei muri: accese con la qualità alta, corte", muri.size() > 50 and lungo > 0.0 and lungo <= 64.0
+			and muri.all(func(n: CanvasItem) -> bool: return n.material == Effetti.materiale_muro()) and stanza.torce_con_ombra() > 0,
+			"muri %d, lunghezza %.0f" % [muri.size(), lungo])
+	_verifica("ombre dei muri: solo muri e pilastri (non corpi e oggetti)", not _g().find_children("*", "LightOccluder2D", true, false).any(
+			func(o: LightOccluder2D) -> bool: return o.sdf_collision))
+	Impostazioni.scegli_qualita("bassa")
+	await _fotogrammi(4)
+	_verifica("ombre dei muri: spente con la qualità bassa, senza materiale", stanza.torce_con_ombra() == 0
+			and muri.all(func(n: CanvasItem) -> bool: return n.material == null))
+	Impostazioni.scrivi("grafica/luci_ombra", 3)   # valore delle versioni vecchie (quante torce): ora vale "sì"
+	await _fotogrammi(4)
+	_verifica("ombre dei muri: i valori vecchi valgono sì", Dispositivo.profilo.get("luci_con_ombra", -1) == 1 and stanza.torce_con_ombra() > 0)
 	Impostazioni.scegli_qualita(vecchia)
 	await _fotogrammi(4)
 

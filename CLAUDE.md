@@ -153,6 +153,14 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Le letture dirette da Android (batteria, temperatura) passano da `Dispositivo._leggi_android`, protette dal file-segnale: non aggiungerne altrove.
 - Ogni nuova funzione va coperta in `test/prova.gd`.
 
+## Si corregge il difetto, non si toglie ciò che funziona (regola di Vincenzo, 27/11/2026)
+
+- Quando una cosa ha un difetto si cerca la causa e si corregge quella. Non si spegne, non si toglie e non si nasconde la funzione per far sparire il difetto.
+- Spegnere va bene solo se lo chiede Vincenzo, oppure come scelta di prestazioni legata a `Dispositivo.profilo` e sempre riaccendibile dalle impostazioni.
+- Se la correzione vera è grossa, si propone a Vincenzo (impegno, modello, Ricerca) invece di spegnere in silenzio. Nelle note della versione si scrive cosa si è corretto, non cosa si è tolto.
+- Esempio da non ripetere: le ombre delle torce furono spente nella 0.1.28 per le strisce nere. Il difetto era la lunghezza delle ombre del motore, non le ombre: corretto nella 0.1.31 (corpi, `Ombra`) e nella 0.1.32 (muri, `Effetti.materiale_muro`).
+- Ripasso del 27/11/2026 delle versioni vecchie: l'unica cosa spenta invece di corretta erano le ombre delle torce. La pausa dei nemici durante il bot è stata tolta per ordine di Vincenzo; il frame pacing di Android è stato sostituito da `Dispositivo._richiedi_frequenza`; il barile tolto dall'alcova era messo nel posto sbagliato; le rinunce della qualità "bassa" sono scelte di prestazioni.
+
 ## Cose da non fare
 
 - Non toccare la visibilità del repository né i segreti.
@@ -255,7 +263,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 - Segnalazione di Vincenzo (26/11/2026, foto dal Pixel): nemici che "tremano come gif" contro oggetti e personaggio, strisce d'ombra dalle torce, frecce e dardi che volano orizzontali.
 - Tremolio: il contatto con muro/cassa/corpo va e viene a ogni fotogramma. `_cammina` bloccato mette `_t_pausa` = `PAUSA_OSTACOLO` (0,35 s) che cresce se la strada resta chiusa (`_blocchi_di_fila`, fino a 2 s); la ronda chiusa da due parti aspetta 1 s. Scheletro, saltatore e mimic (`SALTA_CASSE`) saltano le casse (`_t_salto_cassa`: in volo avanti senza fermarsi). Strumento: `/home/claude/strumenti/controllo/tremolio.gd -- --dove=x,y`.
-- Ombre: `Effetti.occlusore(..., fa_ombra)`; personaggio, nemici e piattaforme non fanno ombra; i blocchi solo se alti più di 60 px. `shadow_color` con alfa 0,6, PCF13/PCF5. Sul computer le ombre si vedono solo forzando `grafica/qualita` "alta" (consigliata "bassa" su 2 core): `/home/claude/strumenti/controllo/foto_punto.gd -- --dove=x,y --file=...` con Vulkan (lavapipe).
+- (Ombre delle torce: vedi 0.1.31 e 0.1.32.) Ombre: `Effetti.occlusore(..., fa_ombra)`; personaggio, nemici e piattaforme non fanno ombra; i blocchi solo se alti più di 60 px. `shadow_color` con alfa 0,6, PCF13/PCF5. Sul computer le ombre si vedono solo forzando `grafica/qualita` "alta" (consigliata "bassa" su 2 core): `/home/claude/strumenti/controllo/foto_punto.gd -- --dove=x,y --file=...` con Vulkan (lavapipe).
 - Frecce: `Proiettile.GRAVITA_TIPO` (freccia 150, dardo 90, freccia_eroe 140; balestre murate e magia dritte), rotazione verso la velocità a ogni passo, `Proiettile.lancio(da, a, v, g)` per mirare compensando la caduta (giocatore con bersaglio e arciere).
 - Prove in `_prova_da_giocatore` / `_prova_sul_posto`: tremolio contro la cassa, frecce che arrivano dove mirano, freccia nemica orientata, personaggi senza occlusori attivi.
 
@@ -267,7 +275,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 ## Bot e cambi di stanza (0.1.28)
 
 - "Il bot si teletrasporta" (Vincenzo, 26/11/2026): erano le `ricomincia_stanza` fra le fasi (sotterraneo, bottino, partita), che riportavano il personaggio all'inizio di colpo. Ora il bot usa `Principale.ricomincia_con_velo(testo)` (velo nero 0,35 s, scritta, stanza nuova, 0,7 s, velo via). Alla fine del bot (`_lascia_la_stanza_a_chi_gioca`) "Tocca a te".
-- Ombre delle torce (Vincenzo, 26/11/2026, "le torce fanno sempre lo stesso difetto"): `luci_con_ombra` 0 in tutti i `Dispositivo.PROFILI`; si accendono solo a mano (`grafica/luci_ombra`). Oggetti e meccanismi (casse, barili, forzieri, porte, bracieri, strutture) hanno occlusori con `fa_ombra = false`; fanno ombra solo pilastri e blocchi alti. Prove in `_prova_da_giocatore` e nella fase `qualita`. Se tornano strisce, prima controllare nel rapporto la versione installata.
+- SUPERATA dalla 0.1.32 (ombre corte dei muri, accese in automatico). Ombre delle torce (Vincenzo, 26/11/2026, "le torce fanno sempre lo stesso difetto"): `luci_con_ombra` 0 in tutti i `Dispositivo.PROFILI`; si accendono solo a mano (`grafica/luci_ombra`). Oggetti e meccanismi (casse, barili, forzieri, porte, bracieri, strutture) hanno occlusori con `fa_ombra = false`; fanno ombra solo pilastri e blocchi alti. Prove in `_prova_da_giocatore` e nella fase `qualita`. Se tornano strisce, prima controllare nel rapporto la versione installata.
 - La prova "una freccia caricata rompe un barile" sceglie un altro barile se il bot rompe il primo passandoci accanto (`_barile_davanti`).
 
 ## Schermata iniziale, salvataggi, musica a strati (0.1.29)
@@ -306,6 +314,14 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Terra: raggio verso il basso contro mondo e piattaforme (non contro gli oggetti); i corpi fermi lo rifanno ogni 0,25 s, i CharacterBody a terra non lo fanno.
 - Chi ha l'ombra: `Ombra.aggiungi(corpo, sprite, larghezza)` in giocatore, nemico (pipistrello solo macchia), cassa, barile, forziere, braciere (solo macchia), raccoglibile (solo macchia). Un corpo nuovo = una riga.
 - Profilo: `ombre_corpi` (bassa 0 = solo macchia, media 1, alta 2); a mano `grafica/ombre_corpi` (menu Grafica, "Ombre di personaggi e oggetti"); il caldo la riduce.
-- Le ombre "vere" delle torce (`luci_con_ombra`, occlusori) restano come prima: spente in automatico, a mano solo muri e pilastri.
+- Le ombre dei muri: vedi 0.1.32.
 - Prova: `_prova_ombre` in `test/prova.gd`. Strumento fuori dal repository per foto mirate: scratchpad `strumenti/foto.gd` (`-s`, `--dove=x,y;x,y --cartella=...`).
+
+## Ombre corte dei muri (0.1.32)
+
+- Le torce non usano più le ombre del motore (`shadow_enabled` sempre spento: facevano coni neri fino al bordo della luce). Le ombre di muri e pilastri sul muro di fondo le fa `Effetti.materiale_muro()`: nel `light()` dello shader si cerca l'ostacolo verso la luce nel campo di distanze degli occlusori (`texture_sdf`), l'ombra c'è solo entro `lunghezza` (56 px) e sfuma allontanandosi. La luce di serie è rifatta a mano nello shader (colore × energia × normale).
+- Contano solo gli occlusori con `sdf_collision` (`Effetti.occlusore(..., fa_ombra = true)`: pilastri e blocchi alti più di 60 px). Corpi e oggetti hanno `fa_ombra = false` e le loro ombre sono quelle di `Ombra`.
+- Chi riceve: gruppo `Stanza.MURO_FONDO` (sprite con maschera `L_SFONDO` e `_fondo_scuro` con z < 0). `Stanza._applica_profilo` mette il materiale o lo toglie (senza materiale il motore non calcola l'SDF).
+- Profilo: `luci_con_ombra` 0/1 (bassa 0, media e alta 1); `grafica/luci_ombra` sì/no ("Ombre di muri e pilastri"; i valori 2-4 delle versioni vecchie valgono sì). "Ombre morbide" = `morbidezza` (3 o 6), "Dettaglio delle ombre" = passi della ricerca (512/1024/2048 = 6/10/14). `Stanza.torce_con_ombra()` = torce accese quando le ombre dei muri ci sono.
+- Prove: `_prova_ombre` e `_prova_da_giocatore` (nessuna luce con `shadow_enabled`), fase `avvio` e `qualita` del bot. Per vedere l'ombra da sola: rendere `ombra` come colore nel `light()` (prova temporanea, mai nel repository).
 
