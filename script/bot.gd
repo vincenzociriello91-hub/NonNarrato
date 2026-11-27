@@ -1885,7 +1885,9 @@ func _menu_impostazioni(menu: Menu) -> void:
 	await _scatta("accessibilita_colori")
 	Impostazioni.ripristina_scheda("accessibilita")
 	await _fotogrammi_in_pausa(1)
-	_verifica("accessibilità: ripristino", vista.material == null and not Impostazioni.leggi("acc/contorni"))
+	# Dalla 0.1.36 la vista può restare col suo materiale (bagliore, colori del film): conta che la correzione sia via.
+	var dalto_dopo: int = int((vista.material as ShaderMaterial).get_shader_parameter("daltonismo")) if vista.material != null else 0
+	_verifica("accessibilità: ripristino", dalto_dopo == 0 and not Impostazioni.leggi("acc/contorni"))
 	# Con un controller RB passa alla scheda dopo.
 	menu.mostra_scheda("gioco")
 	var tasto := InputEventAction.new()

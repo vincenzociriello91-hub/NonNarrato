@@ -58,6 +58,7 @@ func _ready() -> void:
 	_bagliore_quadro.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	var materiale_bagliore := ShaderMaterial.new()
 	materiale_bagliore.shader = load("res://shader/bagliore.gdshader")
+	materiale_bagliore.set_shader_parameter("immagine", mondo.get_texture())
 	_bagliore_quadro.material = materiale_bagliore
 	bagliore.add_child(_bagliore_quadro)
 
