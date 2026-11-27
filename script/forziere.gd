@@ -32,6 +32,7 @@ func _ready() -> void:
 	z_index = -1
 	_caso.seed = hash(nome) + int(Memoria.sogni) * 7919
 	Effetti.occlusore(self, Rect2(-14, -26, 28, 24), false)   # niente ombra: strisce dalle torce
+	Ombra.aggiungi(self, sprite, 32.0)
 	add_to_group("interagibili")
 	add_to_group("forzieri")
 

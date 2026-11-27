@@ -111,6 +111,7 @@ var energia := ENERGIA_MASSIMA
 var munizioni := MUNIZIONI_INIZIALI.duplicate()
 
 var sprite: SpriteAnimato
+var ombra: Ombra                 # ombra corta sul pavimento (macchia e sagome)
 var camera: Camera2D
 
 var _t_stato := 0.0
@@ -242,6 +243,7 @@ func _ready() -> void:
 	add_child(aura)
 
 	Effetti.occlusore(self, Rect2(-5, -40, 10, 38), false)   # niente ombra: vedi Effetti.occlusore
+	ombra = Ombra.aggiungi(self, sprite, 24.0)   # ombra corta e sfumata sul pavimento
 
 
 func limiti(riquadro: Rect2i, di_colpo: bool = true) -> void:

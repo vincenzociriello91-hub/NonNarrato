@@ -120,6 +120,7 @@ var _bersaglio: Area2D
 var _colpo: Area2D
 var _forma_colpo: CollisionShape2D
 var _ombra: LightOccluder2D
+var ombra: Ombra                 # ombra corta sul pavimento (macchia e sagome)
 var _centro_locale := Vector2.ZERO
 var _forza := 0                  # livello + ondata: quanto è cresciuto
 var _t_parata := 0.0
@@ -242,6 +243,7 @@ func _ready() -> void:
 	add_child(_colpo)
 
 	_ombra = Effetti.occlusore(self, Rect2(-5, -6, 10, 10) if vola else Rect2(-5, -corpo.y + 2.0, 10, corpo.y - 4.0), false)
+	ombra = Ombra.aggiungi(self, null if vola else sprite, maxf(corpo.x + 10.0, 20.0))   # il pipistrello: solo la macchia
 	if not nemesi.is_empty():
 		_aspetto_nemesi()
 	elif livello >= 5 and Dispositivo.profilo.get("luci_doppie", true):

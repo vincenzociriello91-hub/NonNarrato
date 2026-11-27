@@ -43,6 +43,7 @@ func _ready() -> void:
 	_corpo.add_child(forma_corpo)
 	add_child(_corpo)
 	Effetti.occlusore(self, Rect2(-misura.x * 0.5 + 3.0, -misura.y + 6.0, misura.x - 6.0, misura.y - 8.0), false)   # niente ombra: strisce dalle torce
+	Ombra.aggiungi(self, sprite, misura.x + 4.0)
 
 
 func subisci(danno: int, da: Vector2, _spinta: float) -> bool:

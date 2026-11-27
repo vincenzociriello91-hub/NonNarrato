@@ -308,6 +308,7 @@ func _esegui() -> void:
 	await _prova_dispositivo()
 	await _prova_compenetrazioni()
 	await _prova_da_giocatore()
+	await _prova_ombre()
 	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
 	await _prova_bottino()
@@ -1012,6 +1013,65 @@ func _prova_da_giocatore() -> void:
 	_principale.ricomincia_stanza()
 	await _fotogrammi(20)
 	_verifica("da giocatore: fuori dall'acqua torna normale", _g().z_index == Giocatore.Z_NORMALE)
+
+
+func _prova_ombre() -> void:
+	# Ombre corte e sfumate dei corpi (0.1.31): macchia a terra e sagome stese lontano dalle luci, niente coni neri.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	var senza: Array = []
+	var corpi: Array = [_g()]
+	corpi.append_array(get_tree().get_nodes_in_group("nemici"))
+	corpi.append_array(get_tree().get_nodes_in_group("casse"))
+	corpi.append_array(get_tree().get_nodes_in_group("forzieri"))
+	for n: Node in stanza.find_children("*", "", true, false):
+		if n is Rompibile or n is EnigmaBracieri.Braciere:
+			corpi.append(n)
+	for c: Node in corpi:
+		if not c.get_children().any(func(f: Node) -> bool: return f is Ombra):
+			senza.append(c.name)
+	_verifica("ombre: personaggio, nemici, casse, barili, forzieri e bracieri hanno l'ombra", senza.is_empty(), str(senza))
+	_verifica("ombre: le torce fanno ombra ai corpi", get_tree().get_nodes_in_group(Ombra.GRUPPO_LUCI).size() >= Stanza.TORCE.size())
+	_verifica("ombre: piegate dalla parte opposta alla luce", Ombra.inclinazione(50.0, 80.0) > 0.0
+			and Ombra.inclinazione(-50.0, 80.0) < 0.0 and absf(Ombra.inclinazione(1e5, 10.0)) <= 0.51)
+	var vecchia: String = Impostazioni.leggi("grafica/qualita")
+	Impostazioni.scegli_qualita("alta")
+	await _fotogrammi(4)
+	var ombra := _g().ombra
+	var torcia: Vector2 = Stanza.TORCE[2]   # sul pavimento della cripta
+	var esiti := {}
+	for lato: float in [1.0, -1.0]:
+		_g().global_position = Vector2(torcia.x + lato * 70.0, Stanza.PAVIMENTO)
+		_g().velocity = Vector2.ZERO
+		await _fotogrammi(30)   # la stanza accende le torce in vista ogni 0,25 s
+		var punta := Vector2.ZERO
+		for s: Node in ombra.get_children():
+			if s is Sprite2D and (s as Sprite2D).material == Ombra.materiale() and (s as Sprite2D).visible:
+				punta = (s as Sprite2D).transform * Vector2(0.0, -40.0)   # dove finisce la testa dell'ombra
+				break
+		esiti[lato] = punta
+		_verifica("ombre: vicino alla torcia (%s) c'è la sagoma, corta e stesa lontano dalla fiamma" % ("destra" if lato > 0 else "sinistra"),
+				ombra.sagome_visibili >= 1 and ombra.distanza_terra == 0.0 and signf(punta.x) == lato
+				and punta.y > 4.0 and punta.y < 20.0 and absf(punta.x) < 22.0,
+				"sagome %d, terra %.1f, punta %s" % [ombra.sagome_visibili, ombra.distanza_terra, str(punta)])
+	var macchia := ombra.get_child(0) as Sprite2D
+	var piena := macchia.modulate.a
+	_g().global_position = Vector2(torcia.x + 70.0, Stanza.PAVIMENTO - 70.0)
+	_g().velocity = Vector2.ZERO
+	await _fotogrammi(2)
+	_verifica("ombre: in aria la macchia si stringe e sbiadisce", ombra.distanza_terra > 50.0 and macchia.modulate.a < piena * 0.5,
+			"terra %.1f, alfa %.2f -> %.2f" % [ombra.distanza_terra, piena, macchia.modulate.a])
+	await _fotogrammi(40)
+	Impostazioni.scegli_qualita("bassa")
+	await _fotogrammi(4)
+	_verifica("ombre: con la qualità bassa solo la macchia", Dispositivo.profilo.get("ombre_corpi", -1) == 0
+			and ombra.sagome_visibili == 0 and ombra.visible)
+	Impostazioni.scrivi("grafica/ombre_corpi", 1)
+	await _fotogrammi(4)
+	_verifica("ombre: si scelgono a mano", Dispositivo.profilo.get("ombre_corpi", -1) == 1 and ombra.sagome_visibili == 1)
+	Impostazioni.scegli_qualita(vecchia)
+	await _fotogrammi(4)
 
 
 func _secondi_sul_posto(n: Nemico, fotogrammi: int) -> float:

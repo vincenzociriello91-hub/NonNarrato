@@ -84,7 +84,8 @@ class Braciere extends Area2D:
 		_luce = Effetti.luce(colore, 160.0, 2.2, 50.0)
 		_luce.position = Vector2(0, -46)
 		_luce.enabled = false
-		add_child(_luce)
+		add_child(Ombra.luce(_luce))
+		Ombra.aggiungi(self, null, 26.0)
 
 	func subisci(_danno: int, _da: Vector2, _spinta: float) -> bool:
 		if acceso:

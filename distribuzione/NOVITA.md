@@ -1,5 +1,12 @@
 # Novità di NonNarrato
 
+## 0.1 — Ombre corte e sfumate
+
+- **Ombre vere sotto personaggio, nemici e oggetti**: il Non Narrato, i nemici, le casse, i barili, i forzieri e i bracieri hanno ora un'ombra morbida sul pavimento. Quando si salta l'ombra resta a terra, si stringe e sbiadisce.
+- **Le torce proiettano la sagoma**: vicino a una fiamma l'ombra prende la forma di chi la fa (si vede perfino la spada), stesa per terra dalla parte opposta alla torcia, corta e sfumata. Più sei vicino al fuoco, più è scura; tra due torce le ombre sono due.
+- **Niente coni neri**: le vecchie ombre delle torce, lunghe strisce scure fino al soffitto, restano spente. Le nuove ombre stanno solo sul pavimento.
+- **Si regolano in Impostazioni > Grafica > "Ombre di personaggi e oggetti"**: solo a terra, dalla luce più vicina o dalle due luci più vicine. In automatico il gioco sceglie in base al telefono (con la grafica "bassa" resta solo l'ombra a terra).
+
 ## 0.1 — Nemici sempre svegli, bot e nemici che imparano e crescono
 
 - **Durante il bot i nemici non vanno mai in pausa**: niente più nemici fermi o trasparenti. Restano svegli e attaccano in ogni prova; il bot si difende, combatte e, se un nemico gli ha rovinato una prova, la rifà.

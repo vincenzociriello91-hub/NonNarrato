@@ -480,7 +480,7 @@ func _decorazioni() -> void:
 	_sprite("candele", Vector2(72, 393), Effetti.L_DAVANTI, 0)
 	var lume := Effetti.luce(Color(1.0, 0.72, 0.4), 90.0, 1.3, 50.0)
 	lume.position = Vector2(72, 372)
-	add_child(lume)
+	add_child(Ombra.luce(lume))
 	_fiamma(Vector2(72, 371), 0.5)
 
 
@@ -496,6 +496,7 @@ func _luci() -> void:
 		muro.position = Vector2(0, -22)
 		muro.range_item_cull_mask = Effetti.L_SFONDO
 		muro.shadow_item_cull_mask = Effetti.L_SFONDO
+		Ombra.luce(muro)   # ombre corte dei corpi vicini
 		nodo.add_child(muro)
 		var davanti := Effetti.luce(COLORE_FIAMMA, RAGGIO_TORCIA, ENERGIA_TORCIA, 90.0)
 		davanti.position = Vector2(0, -22)
@@ -573,7 +574,7 @@ func _cassa(dove: Vector2) -> RigidBody2D:
 	forma.shape = misura
 	forma.position = Vector2(0, -16)
 	cassa.add_child(forma)
-	_sprite("cassa", Vector2.ZERO, Effetti.L_DAVANTI, 0, cassa)
+	Ombra.aggiungi(cassa, _sprite("cassa", Vector2.ZERO, Effetti.L_DAVANTI, 0, cassa), 38.0)
 	Effetti.occlusore(cassa, Rect2(-17, -32, 34, 32), false)   # niente ombra: strisce dalle torce
 	cassa.add_to_group("casse")
 	add_child(cassa)
@@ -823,7 +824,7 @@ func _sotterraneo() -> void:
 	_sprite("candele", Vector2(66, PAVIMENTO), Effetti.L_DAVANTI, 0)
 	var lume := Effetti.luce(Color(1.0, 0.72, 0.4), 70.0, 1.1, 40.0)
 	lume.position = Vector2(66, 462)
-	add_child(lume)
+	add_child(Ombra.luce(lume))
 	var velo_stanza := _fondo_scuro(Rect2(48, 410, 140, 70), 12, 0.62)
 	_struttura("muro_ripiano", "muro", Vector2(188, 410), Vector2(12, 70), 3, [velo_stanza])
 	# Camera ovest: assi di legno sopra la fossa (dentro, il cunicolo e lo stanzino col forziere).

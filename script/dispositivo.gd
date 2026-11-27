@@ -14,9 +14,10 @@ const LIVELLI: Array[String] = ["bassa", "media", "alta"]
 const PROFILI := {
 	# Ombre delle torce spente in automatico a ogni livello (Vincenzo, 26/11/2026: strisce scure dalle torce sul Pixel).
 	# Si accendono solo a mano (Grafica > Torce con ombra) e le fanno solo muri e pilastri.
-	"bassa": {"luci_con_ombra": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false},
-	"media": {"luci_con_ombra": 0, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true},
-	"alta": {"luci_con_ombra": 0, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true},
+	# I corpi hanno ombre corte e sfumate (Ombra): "ombre_corpi" = quante luci danno la sagoma (0 = solo la macchia).
+	"bassa": {"luci_con_ombra": 0, "ombre_corpi": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false},
+	"media": {"luci_con_ombra": 0, "ombre_corpi": 1, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true},
+	"alta": {"luci_con_ombra": 0, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true},
 }
 const GPU_FORTI: Array[String] = [
 	"adreno (tm) 7", "adreno (tm) 8", "adreno 7", "adreno 8", "immortalis",
@@ -316,6 +317,7 @@ func applica() -> void:
 	# le ombre scelte a mano si riducono comunque.
 	var scelti := {
 		"luci_con_ombra": int(Impostazioni.leggi("grafica/luci_ombra")),
+		"ombre_corpi": int(Impostazioni.leggi("grafica/ombre_corpi")),
 		"ombre_morbide": int(Impostazioni.leggi("grafica/ombre_morbide")),
 		"luci_doppie": int(Impostazioni.leggi("grafica/luci_doppie")),
 		"figura_normali": int(Impostazioni.leggi("grafica/normali_figura")),
@@ -327,7 +329,7 @@ func applica() -> void:
 		var v: int = scelti[chiave]
 		if v < 0:
 			continue
-		if chiave in ["luci_con_ombra", "atlante_ombre"]:
+		if chiave in ["luci_con_ombra", "ombre_corpi", "atlante_ombre"]:
 			profilo[chiave] = v
 		else:
 			profilo[chiave] = v == 1
@@ -336,6 +338,7 @@ func applica() -> void:
 		profilo["particelle"] = particelle
 	if riduzione_caldo > 0:
 		profilo["luci_con_ombra"] = mini(int(profilo["luci_con_ombra"]), 2 - mini(riduzione_caldo, 2))
+		profilo["ombre_corpi"] = mini(int(profilo["ombre_corpi"]), 2 - mini(riduzione_caldo, 2))
 		profilo["particelle"] = minf(float(profilo["particelle"]), 0.7 if riduzione_caldo == 1 else 0.4)
 	profilo["palette"] = Impostazioni.leggi("grafica/palette")
 	RenderingServer.canvas_set_shadow_texture_size(int(profilo["atlante_ombre"]))

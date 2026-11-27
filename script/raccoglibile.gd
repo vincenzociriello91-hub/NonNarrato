@@ -47,6 +47,7 @@ func _ready() -> void:
 		bagliore.position = Vector2(0, -10)
 		add_child(bagliore)
 	z_index = 3
+	Ombra.aggiungi(self, null, 14.0)
 	if lancio != Vector2.ZERO:
 		_t_attesa = ATTESA
 	body_entered.connect(_su_corpo)

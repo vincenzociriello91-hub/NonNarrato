@@ -36,6 +36,7 @@ const PREDEFINITE := {
 	# --- Grafica
 	"grafica/qualita": "auto",           # auto, bassa, media, alta
 	"grafica/luci_ombra": -1,            # torce con ombra (0-4)
+	"grafica/ombre_corpi": -1,           # ombre corte dei corpi: 0 solo a terra, 1-2 sagome dalle luci vicine
 	"grafica/ombre_morbide": -1,         # -1 auto, 0 no, 1 sì
 	"grafica/luci_doppie": -1,           # luce di riempimento davanti
 	"grafica/normali_figura": -1,        # rilievo del personaggio (foto delle normali)
@@ -82,7 +83,7 @@ const SCHEDE := {
 	"accessibilita": ["acc/"],
 }
 
-const DETTAGLI_GRAFICA := ["grafica/luci_ombra", "grafica/ombre_morbide", "grafica/luci_doppie", "grafica/normali_figura",
+const DETTAGLI_GRAFICA := ["grafica/luci_ombra", "grafica/ombre_corpi", "grafica/ombre_morbide", "grafica/luci_doppie", "grafica/normali_figura",
 	"grafica/nebbia", "grafica/primo_piano", "grafica/particelle", "grafica/atlante_ombre"]
 
 var _valori := {}
