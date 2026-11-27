@@ -94,6 +94,7 @@ const NOMI_PROVE := {"movimento": "movimento", "oggetti": "casse e barili", "tas
 		"ambiente": "trappole e passaggi", "sotterraneo": "sotterraneo", "bottino": "forzieri e bottino",
 		"armi_da_mischia": "armi da mischia", "armi_a_distanza": "armi a distanza"}
 const TENTATIVI_PROVA := 4
+const BOT_NOIA := 0.7          # nella partita: ogni volta che una scelta compare fra le ultime 3, vale così tanto in meno
 # Crescita del bot (come il bot di Minecraft): cinque bravure che salgono con l'esperienza di ogni giro e non
 # si azzerano mai. Livello = radice(xp / XP_LIVELLO), massimo 10.
 const ABILITA := ["combattere", "schivare", "muoversi", "enigmi", "tirare"]
@@ -2738,11 +2739,19 @@ func _decidi(ultimi: Array) -> Dictionary:
 		var riuscita := (1.0 + float(vecchia[1]) + float(nuova[1])) / (2.0 + float(vecchia[0]) + float(nuova[0]))
 		var punti := float(c["punti"]) * (0.6 + 0.8 * riuscita) * _caso.randf_range(0.8, 1.2)
 		var falliti_di_fila := 0
+		var ripetute := 0
+		for u: Array in ultimi.slice(-3):
+			if u[0] == c["nome"]:
+				ripetute += 1
 		for u: Array in ultimi:
 			if u[0] == c["nome"] and not u[1]:
 				falliti_di_fila += 1
 		if falliti_di_fila >= 2:
 			punti *= 0.3
+		# Noia (regola di Vincenzo: il bot non fa sempre le stesse cose): meno voglia di rifare subito la stessa
+		# scelta. Combattere e scappare no: rispondono a un nemico che arriva, non a un capriccio.
+		if c["nome"] not in ["combatti", "ritirata"]:
+			punti *= pow(BOT_NOIA, ripetute)
 		c["punti"] = punti
 		if punti > float(migliore["punti"]):
 			migliore = c

@@ -1136,7 +1136,7 @@ func _prova_movimenti() -> void:
 			"%.2f" % g.velocity.y)
 	await _fotogrammi(60)
 	# Leva appena inclinata = si cammina; la falcata segue la velocità; ci si piega nello slancio e nella frenata.
-	await _sposta(Vector2(1800, Stanza.PAVIMENTO), 1)
+	await _sposta(Vector2(400, Stanza.PAVIMENTO), 1)   # nella cripta: lontano dalle trappole della galleria
 	await _fotogrammi(20)
 	Input.action_press("destra", 0.4)
 	await _fotogrammi(20)
@@ -1163,7 +1163,7 @@ func _prova_movimenti() -> void:
 			"%.1f / %.1f gradi" % [rad_to_deg(piega_max), rad_to_deg(piega_min)])
 	await _fotogrammi(20)
 	# Testa contro lo spigolo di un ripiano per pochi pixel: si scivola di lato e si sale lo stesso.
-	await _sposta(Vector2(1820, Stanza.PAVIMENTO), 1)
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
 	await _fotogrammi(20)
 	var x0 := g.global_position.x
 	var blocco := StaticBody2D.new()
