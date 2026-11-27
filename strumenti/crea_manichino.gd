@@ -14,6 +14,7 @@ extends SceneTree
 
 const USCITA := "res://modelli/manichino.scn"
 const FIGURA := "res://arte/figure/protagonista.json"
+const FOGLI := "res://strumenti/render_sprite.json"
 const Q := "res://sorgenti3d/quaternius/"
 const SCHELETRO_BASE := Q + "Male_Ranger.gltf"
 const ANIMAZIONI_UAL := Q + "UAL.glb"
@@ -39,6 +40,7 @@ const VESTITI := {
 # Del corpo base si tiene solo la testa (testa e collo): il resto lo coprono i vestiti.
 const SOLO_TESTA := ["Corpo__Testa"]
 const OSSA_TESTA := ["neck_01", "Head"]
+const CORPO_INTERO := "Intero"
 
 # Pezzi rigidi KayKit (armi, scudi, elmi): file -> [prefisso, texture cupa]. Solo quelli attaccati a un osso.
 const RIGIDI_KK := {
@@ -150,6 +152,13 @@ func _avvia() -> void:
 		for cambio: Dictionary in (gruppo.get("animazioni", {}) as Dictionary).values():
 			if cambio.has("clip"):
 				clip_usate[cambio["clip"]] = true
+	# Anche le clip dei nemici fatti col manichino (voci con "scena" in render_sprite.json, 0.1.39).
+	var fogli: Variant = JSON.parse_string(FileAccess.get_file_as_string(FOGLI))
+	if typeof(fogli) == TYPE_DICTIONARY:
+		for voce: Dictionary in fogli.get("voci", []):
+			if voce.get("scena", "") == USCITA:
+				for a: Dictionary in voce.get("animazioni", []):
+					clip_usate[a["clip"]] = true
 
 	var base := _carica(SCHELETRO_BASE)
 	var scheletro_base: Skeleton3D = base.find_children("*", "Skeleton3D", true, false)[0]
@@ -187,6 +196,15 @@ func _avvia() -> void:
 			var nome := "%s__%s" % [info[0], info[1][chiave]]
 			var mesh := _ricolora(mi.mesh, cache_tex)
 			if SOLO_TESTA.has(nome):
+				# Il corpo intero serve ai nemici senza vestiti sopra (il ghoul, 0.1.39).
+				var intero := MeshInstance3D.new()
+				intero.name = nome.get_slice("__", 0) + "__" + CORPO_INTERO
+				intero.mesh = mesh
+				intero.skin = mi.skin
+				intero.visible = false
+				scheletro.add_child(intero)
+				intero.skeleton = NodePath("..")
+				parti.append(String(intero.name))
 				mesh = _solo_ossa(mesh, mi.skin, scheletro, OSSA_TESTA)
 			var copia := MeshInstance3D.new()
 			copia.name = nome

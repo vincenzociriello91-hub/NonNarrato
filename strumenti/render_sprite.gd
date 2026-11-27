@@ -18,14 +18,30 @@ uniform vec4 tinta : source_color = vec4(1.0);
 uniform float saturazione = 1.0;
 uniform float luminosita = 1.0;
 uniform float forma = 0.4;
+uniform sampler2D ntex : hint_normal, filter_nearest;
+uniform float usa_n = 0.0;
+uniform sampler2D otex : filter_nearest;
+uniform float usa_o = 0.0;
 void fragment() {
 	vec3 c = tinta.rgb;
 	if (usa_tex > 0.5) {
-		c *= texture(tex, UV).rgb;
+		vec4 t = texture(tex, UV);
+		if (t.a < 0.5) {
+			discard;   // capelli e orli stracciati (pezzi Quaternius, 0.1.39)
+		}
+		c *= t.rgb;
 	}
 	float g = dot(c, vec3(0.299, 0.587, 0.114));
 	c = mix(vec3(g), c, saturazione) * luminosita;
-	float l = clamp(dot(normalize(NORMAL), normalize(vec3(0.0, 0.8, 0.6))), 0.0, 1.0);
+	vec3 n = normalize(NORMAL);
+	if (usa_n > 0.5) {
+		vec3 m = texture(ntex, UV).rgb * 2.0 - 1.0;
+		n = normalize(TANGENT * m.x + BINORMAL * m.y + NORMAL * m.z);
+	}
+	if (usa_o > 0.5) {
+		c *= mix(1.0, texture(otex, UV).r, 0.85);
+	}
+	float l = clamp(dot(n, normalize(vec3(0.0, 0.8, 0.6))), 0.0, 1.0);
 	ALBEDO = c * mix(1.0 - forma, 1.0, l);
 }
 "
@@ -33,8 +49,20 @@ void fragment() {
 const SHADER_NORMALI := "
 shader_type spatial;
 render_mode unshaded, cull_disabled;
+uniform sampler2D tex : source_color, filter_nearest;
+uniform float usa_tex = 0.0;
+uniform sampler2D ntex : hint_normal, filter_nearest;
+uniform float usa_n = 0.0;
 void fragment() {
-	vec3 e = normalize(NORMAL) * 0.5 + 0.5;
+	if (usa_tex > 0.5 && texture(tex, UV).a < 0.5) {
+		discard;
+	}
+	vec3 n = normalize(NORMAL);
+	if (usa_n > 0.5) {
+		vec3 m = texture(ntex, UV).rgb * 2.0 - 1.0;
+		n = normalize(TANGENT * m.x + BINORMAL * m.y + NORMAL * m.z);
+	}
+	vec3 e = n * 0.5 + 0.5;
 	// Annulla la conversione lineare->sRGB che il motore applica in uscita.
 	ALBEDO = mix(pow((e + 0.055) / 1.055, vec3(2.4)), e / 12.92, lessThan(e, vec3(0.04045)));
 }
@@ -119,7 +147,25 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 
 	# Un modello GLB, oppure un oggetto composto da forme semplici ("pezzi"), oppure entrambi.
 	var modello: Node3D = null
-	if voce.has("glb"):
+	if voce.has("scena"):
+		# Il manichino del protagonista (0.1.39): i nemici sono fatti con gli stessi pezzi e animazioni.
+		var scena := load(voce["scena"]) as PackedScene
+		if scena == null:
+			printerr("Non riesco a caricare ", voce["scena"])
+			return false
+		modello = scena.instantiate() as Node3D
+		var mostra: Array = voce.get("mostra", [])
+		for m in modello.find_children("*", "MeshInstance3D", true, false):
+			(m as MeshInstance3D).visible = mostra.has(String(m.name))
+			# Le armi in mano si disegnano sopra al corpo, come quelle di "attacca".
+			var su := m.get_parent()
+			if su is BoneAttachment3D and String((su as BoneAttachment3D).bone_name).begins_with("hand"):
+				m.set_meta("attaccato", true)
+		for nome_pezzo: String in mostra:
+			if modello.find_children(nome_pezzo, "MeshInstance3D", true, false).is_empty():
+				printerr(nome, ": pezzo mancante nel manichino ", nome_pezzo)
+				return false
+	elif voce.has("glb"):
 		modello = _carica(voce["glb"])
 		if modello == null:
 			printerr("Non riesco a caricare ", voce["glb"])
@@ -229,6 +275,8 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 					var t := da + (fino - da) * float(i) / float(n)
 					if not a.get("ciclo", false) and n > 1:
 						t = da + (fino - da) * float(i) / float(n - 1)
+					if a.get("al_contrario", false):
+						t = da + fino - t
 					# "gira": il corpo ruota da di profilo a di fronte (mezzo giro dei nemici, 0.1.35).
 					var ruota := float(voce.get("rotazione_y", 90.0)) * float(i) / float(maxi(1, n - 1)) if a.get("gira", false) else 0.0
 					scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0, "ruota_y": ruota})
@@ -567,6 +615,8 @@ func _altezza_piedi(modello: Node3D) -> float:
 	for s in modello.find_children("*", "Skeleton3D", true, false):
 		var sk := s as Skeleton3D
 		var idx := sk.find_bone("toes.l")
+		if idx < 0:
+			idx = sk.find_bone("ball_l")   # scheletro Quaternius
 		if idx >= 0:
 			return sk.get_bone_global_pose(idx).origin.y
 	return 0.0
@@ -594,8 +644,18 @@ func _materiali(modello: Node3D, voce: Dictionary, normali: bool) -> void:
 			var sopra: bool = attaccato and bool(voce.get("armi_sopra", true))
 			if sopra:
 				mat.render_priority = 10
+			var orig := mi.mesh.surface_get_material(s) as BaseMaterial3D
+			if orig != null and orig.normal_enabled and orig.normal_texture != null:
+				mat.set_shader_parameter("ntex", orig.normal_texture)
+				mat.set_shader_parameter("usa_n", 1.0)
+			if orig != null and orig.ao_enabled and orig.ao_texture != null:
+				mat.set_shader_parameter("otex", orig.ao_texture)
+				mat.set_shader_parameter("usa_o", 1.0)
 			if normali:
 				mat.shader = _shader_normali_sopra if sopra else _shader_normali
+				if orig != null and orig.albedo_texture != null and orig.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+					mat.set_shader_parameter("tex", orig.albedo_texture)
+					mat.set_shader_parameter("usa_tex", 1.0)
 			else:
 				mat.shader = _shader_colore_sopra if sopra else _shader_colore
 				var originale := mi.mesh.surface_get_material(s) as BaseMaterial3D
@@ -620,6 +680,11 @@ func _materiali(modello: Node3D, voce: Dictionary, normali: bool) -> void:
 							mat.set_shader_parameter("luminosita", r["luminosita"])
 						if r.get("senza_tex", false):
 							mat.set_shader_parameter("usa_tex", 0.0)
+						if r.has("texture"):
+							# Un'altra texture per quel pezzo (pelle chiara dei non morti, 0.1.39).
+							mat.set_shader_parameter("tex", ImageTexture.create_from_image(
+									Image.load_from_file(ProjectSettings.globalize_path(r["texture"]))))
+							mat.set_shader_parameter("usa_tex", 1.0)
 			mi.set_surface_override_material(s, mat)
 
 

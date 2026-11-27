@@ -3,7 +3,8 @@ https://creativecommons.org/publicdomain/zero/1.0/
 
 - Modular Character Outfits - Fantasy [Standard]: Male_Ranger, Male_Peasant
   https://quaternius.itch.io/modular-character-outfits-fantasy
-- Universal Base Characters [Standard]: Superhero_Male_FullBody (se ne usa solo la testa), capelli e sopracciglia
+- Universal Base Characters [Standard]: Superhero_Male_FullBody (testa del protagonista, corpo intero di bestione e ghoul,
+  con la pelle chiara T_Superhero_Male_Light), capelli e sopracciglia
   https://quaternius.itch.io/universal-base-characters
 - Universal Animation Library [Standard] (versione per Unreal, ossa uguali, misure in centimetri) e
   Universal Animation Library 2 [Standard]: unite in UAL.glb sullo scheletro di UAL2

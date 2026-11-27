@@ -1503,6 +1503,25 @@ func _prova_quaternius() -> void:
 		testa_ok = basso > 1.3
 	_verifica("quaternius: mantelli legati alle ossa e testa scoperta solo testa", mantello != null and mantello.skin != null
 			and mantello.skin.get_bind_count() == 4 and testa_ok, "punto più basso della testa %.2f" % basso)
+	# Nemici nello stesso stile (0.1.39): fatti col manichino, ogni pezzo e ogni clip c'è, fogli in doppia definizione.
+	var fogli: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://strumenti/render_sprite.json"))
+	var problemi: Array = []
+	var visti := 0
+	for voce: Dictionary in fogli["voci"]:
+		if not ["scheletro", "mago", "arciere", "bestione", "saltatore"].has(voce["nome"]):
+			continue
+		visti += 1
+		if voce.get("scena", "") != FiguraViva.MANICHINO:
+			problemi.append(voce["nome"] + ": non usa il manichino")
+		for p: String in voce.get("mostra", []):
+			if m.find_child(p, true, false) == null:
+				problemi.append(voce["nome"] + ": manca " + p)
+		for a: Dictionary in voce["animazioni"]:
+			if not lettore.has_animation(a["clip"]):
+				problemi.append(voce["nome"] + ": manca la clip " + a["clip"])
+		if not SpriteAnimato.ha_doppia(voce["nome"]):
+			problemi.append(voce["nome"] + ": manca il foglio doppio")
+	_verifica("quaternius: nemici fatti coi pezzi e le animazioni del protagonista", visti == 5 and problemi.is_empty(), str(problemi))
 	m.free()
 	# Nel gioco: un materiale per superficie, con rilievo (normali) e pieghe (occlusione) sulla giubba.
 	var fv := _g().sprite as FiguraViva
