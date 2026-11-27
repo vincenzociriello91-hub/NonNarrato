@@ -343,3 +343,14 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Bot, partita: "noia" in `_decidi` (`BOT_NOIA` 0,7 per ogni volta che la scelta compare fra le ultime 3; non per combatti e ritirata). Con i movimenti nuovi la partita col seme 4242 cambiava carattere e ripeteva "caccia": scelti solo 4 obiettivi diversi.
 - Prova: `_prova_movimenti` in `test/prova.gd`.
 
+## Arrampicata vera e pose di passaggio (0.1.35)
+
+- Vincenzo (27/11/2026): "l'arrampicata non deve essere da burattino", movimenti fluidi in ogni azione di personaggio, bot e nemici. Errore da non ripetere: nella 0.1.34 erano rimaste indietro arrampicata, nuoto e passaggi fra le azioni.
+- Composizioni "mirate" in `strumenti/crea_manichino.gd` (`_componi_mirata`, `_mira`, `_specchia`): ogni osso punta in una direzione nello spazio del modello (+Y su, +Z avanti verso la parete, +X sinistra; asse dell'osso = +Y locale), chiavi "specchio" = destra e sinistra scambiate. Le pose prese da altre clip non bastavano (con le proporzioni KayKit le braccia non arrivano sopra la testa).
+- "Arrampica": un ciclo = due prese (0 e 0,5 = una mano arriva in alto). `Giocatore._fase_scalata` avanza con la leva (`CICLO_SCALATA` 0,7 s), la posa si mostra con `posa()` (ciclica: `SpriteAnimato.posa` usa n fotogrammi sul giro); `profilo_scalata(fase)` (media 1, `SPINTA_SCALATA`) dà la velocità: il corpo sale mentre la mano tira. Suono "presa" a ogni mezzo ciclo, piega di 4° verso la parete tirando. Fermi = stessa posa ("appeso" resta solo per l'anteprima del menu).
+- Pose di passaggio: `FiguraViva` sfuma le ossa per `FUSIONE` (0,1 s) quando cambia clip (`_posa_prima`, `_mescola`, `_process`); contatore `fusioni`.
+- Girarsi: `FiguraViva.gira(gradi)` toglie gradi alla rotazione di base; `Giocatore._t_giro_visivo` (`GIRO_VISIVO` 0,12 s) solo in NORMALE: metà verso di prima ruotando verso chi guarda, metà verso nuovo. Nemici: animazione "giro" nei fogli (`"gira": true` in `render_sprite.json` = da profilo a di fronte), `Nemico._aggiorna_giro` (`GIRO_NEMICO` 0,14 s, bestione doppio, solo in ronda/inseguimento/fermo a terra; mimic e pipistrello senza).
+- Peso: slancio (scala 0,9 × 1,12) al salto del giocatore e al balzo dei nemici, schiacciamento all'atterraggio dei nemici (`Nemico._deforma`).
+- Nuoto: `sprite.velocita` = velocità vera / `NUOTO_VELOCITA`.
+- Prove in `_prova_movimenti`. Strumenti fuori dal repository: scratchpad `strumenti/figura.gd -- --anim=... --senza_armi` e `strumenti/sequenza2.gd` (arrampicata e giro nel gioco vero).
+

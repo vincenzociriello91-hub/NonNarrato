@@ -224,7 +224,9 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 					var t := da + (fino - da) * float(i) / float(n)
 					if not a.get("ciclo", false) and n > 1:
 						t = da + (fino - da) * float(i) / float(n - 1)
-					scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0})
+					# "gira": il corpo ruota da di profilo a di fronte (mezzo giro dei nemici, 0.1.35).
+					var ruota := float(voce.get("rotazione_y", 90.0)) * float(i) / float(maxi(1, n - 1)) if a.get("gira", false) else 0.0
+					scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0, "ruota_y": ruota})
 			animazioni[a["nome"]] = {"fps": fps_a, "ciclo": a.get("ciclo", false), "frame": indici}
 
 	var colonne := mini(COLONNE_MAX, scatti.size())
@@ -246,6 +248,7 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 			perno.position = Vector3(0.0, centro - float(s["giu"]), 0.0)
 			base.position = Vector3(sposta[0], sposta[1] - centro, sposta[2])
 			perno.rotation = Vector3(0.0, 0.0, s["giro"])
+			base.rotation_degrees.y = float(voce.get("rotazione_y", 90.0)) - float(s.get("ruota_y", 0.0))
 			await process_frame
 			await process_frame
 			await RenderingServer.frame_post_draw

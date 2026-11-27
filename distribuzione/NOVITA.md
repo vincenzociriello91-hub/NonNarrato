@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Arrampicata vera e passaggi morbidi fra le azioni
+
+- **L'arrampicata non è più "da burattino"**: prima erano due pose che si alternavano mentre il corpo scorreva su a velocità fissa. Ora è un ciclo vero, pensato posa per posa. Una mano va su col ginocchio opposto alto sulla parete, poi quella mano tira e il corpo sale, mentre l'altra mano si stacca e va a prendere la presa successiva. Il corpo sale a strattoni, a ogni presa, e la mano appoggiata resta ferma sulla roccia. Fermandosi si resta nella posa in cui si è, e a ogni presa si sente la mano sulla pietra.
+- **Niente scatti fra un'azione e l'altra**: fermarsi, partire, attaccare, atterrare, aggrapparsi, issarsi, lasciarsi andare. Il corpo del Non Narrato passa da una posa all'altra in un decimo di secondo invece di saltare di colpo.
+- **Girarsi**: il Non Narrato e i nemici non si ribaltano più di colpo, ma si girano passando di fronte a chi guarda. Il bestione, pesante, ci mette il doppio.
+- **Peso nei salti**: staccandosi da terra il corpo si allunga un attimo e atterrando si schiaccia, anche per i nemici che saltano e cadono.
+- **Nuoto al passo**: le bracciate seguono la velocità vera, piano quando ci si muove poco e forte quando si nuota veloci.
+
 ## 0.1 — Movimenti fluidi e naturali
 
 - **Animazioni molto più fluide**: il Non Narrato e tutti i nemici si muovono ad almeno 24 fotogrammi al secondo (prima 6-15). Corsa, salti, attacchi, rotolate, voli dei pipistrelli e balzi dei mimic sono più morbidi. Le mosse durano esattamente quanto prima.

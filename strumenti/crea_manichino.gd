@@ -39,11 +39,27 @@ const ARMI_SFUSE := {
 # Braccio alto e ginocchio opposto alzato insieme, come chi si arrampica. Il nuoto è l'arrampicata
 # inclinata in avanti (vedi "inclina" in arte/figure/protagonista.json).
 const COMPOSTE := {
-	"Arrampica": {"durata": 0.8, "chiavi": [
-		{"t": 0.0, "corpo": ["Cheer", 0.62], "anche": ["Idle", 0.0], "braccio_l": ["Cheer", 0.62], "braccio_r": ["Jump_Idle", 0.0],
-			"gamba_l": ["Running_A", 0.3], "gamba_r": ["Running_A", 0.3]},
-		{"t": 0.4, "corpo": ["Cheer", 1.04], "anche": ["Idle", 0.0], "braccio_l": ["Jump_Idle", 0.0], "braccio_r": ["Cheer", 1.04],
-			"gamba_l": ["Running_A", 0.7], "gamba_r": ["Running_A", 0.7]},
+	# Arrampicata (0.1.35, prima erano due pose prese da altre clip che si alternavano: "da burattino").
+	# Pose costruite osso per osso ("mirata": ogni osso punta nella direzione data, nello spazio del modello:
+	# +Y in alto, +Z avanti verso la parete, +X a sinistra). Un ciclo = due prese, a specchio.
+	# Presa: una mano tesa in alto e il ginocchio opposto alto sulla parete; trazione: quella mano scende al
+	# petto mentre il corpo sale (il gioco lo spinge in su proprio qui, Giocatore._arrampicata), l'altra mano
+	# si stacca in basso e la gamba alta spinge fino a stendersi.
+	"Arrampica": {"durata": 1.0, "mirata": true, "chiavi": [
+		{"t": 0.0, "ossa": {
+			"spine": [0, 1, 0.12], "chest": [0, 1, 0.1], "head": [0.05, 1, 0.0],
+			"upperarm.l": [0.1, 0.92, 0.38], "lowerarm.l": [0.05, 0.95, 0.3],
+			"upperarm.r": [-0.25, -0.2, 0.95], "lowerarm.r": [-0.05, 0.6, 0.8],
+			"upperleg.r": [-0.05, -0.15, 1.0], "lowerleg.r": [0, -1, 0.15],
+			"upperleg.l": [0.05, -1, 0.12], "lowerleg.l": [0, -1, 0.05]}},
+		{"t": 0.25, "ossa": {
+			"spine": [0, 1, 0.2], "chest": [0, 1, 0.18], "head": [0, 1, 0.05],
+			"upperarm.l": [0.2, -0.1, 0.97], "lowerarm.l": [0, 0.6, 0.8],
+			"upperarm.r": [-0.2, -0.8, 0.55], "lowerarm.r": [0, -0.2, 1.0],
+			"upperleg.r": [-0.05, -0.85, 0.5], "lowerleg.r": [0, -1, 0.0],
+			"upperleg.l": [0.05, -0.6, 0.8], "lowerleg.l": [0, -1, 0.1]}},
+		{"t": 0.5, "specchio": 0.0},
+		{"t": 0.75, "specchio": 0.25},
 	]},
 	"Appeso": {"durata": 1.0, "chiavi": [
 		{"t": 0.0, "corpo": ["Jump_Idle", 0.0], "anche": ["Idle", 0.0], "braccio_l": ["Cheer", 0.83], "braccio_r": ["Cheer", 0.83],
@@ -175,7 +191,9 @@ func _avvia() -> void:
 	# Clip che i personaggi KayKit non hanno (arrampicata, appeso): composte da pose di altre clip.
 	for nome: String in COMPOSTE:
 		if clip_usate.has(nome):
-			libreria.add_animation(nome, _componi(lettore_base, scheletro_base, COMPOSTE[nome]))
+			var ricetta: Dictionary = COMPOSTE[nome]
+			libreria.add_animation(nome, _componi_mirata(scheletro_base, ricetta) if ricetta.get("mirata", false)
+					else _componi(lettore_base, scheletro_base, ricetta))
 	lettore.add_animation_library("", libreria)
 	base.free()
 
@@ -280,3 +298,71 @@ func _componi(lettore: AnimationPlayer, scheletro: Skeleton3D, ricetta: Dictiona
 						p = a.position_track_interpolate(idp, float(fonte[1]))
 					anim.position_track_insert_key(posizione, float(chiave["t"]), p)
 	return anim
+
+
+func _componi_mirata(scheletro: Skeleton3D, ricetta: Dictionary) -> Animation:
+	# Come _componi, ma le pose sono direzioni delle ossa (vedi "Arrampica"). Le chiavi "specchio" rifanno
+	# quella al tempo indicato con destra e sinistra scambiate.
+	var chiavi: Array = ricetta["chiavi"]
+	var per_tempo := {}
+	for chiave: Dictionary in chiavi:
+		if chiave.has("ossa"):
+			per_tempo[float(chiave["t"])] = chiave["ossa"]
+	var anim := Animation.new()
+	anim.length = float(ricetta["durata"])
+	anim.loop_mode = Animation.LOOP_LINEAR if ricetta.get("ciclo", true) else Animation.LOOP_NONE
+	var tracce := {}
+	for gruppo: String in GRUPPI_OSSA:
+		for osso: String in GRUPPI_OSSA[gruppo]:
+			if scheletro.find_bone(osso) < 0:
+				continue
+			var t := anim.add_track(Animation.TYPE_ROTATION_3D)
+			anim.track_set_path(t, NodePath("Rig/Skeleton3D:" + osso))
+			tracce[osso] = t
+	var anche := anim.add_track(Animation.TYPE_POSITION_3D)
+	anim.track_set_path(anche, NodePath("Rig/Skeleton3D:hips"))
+	for chiave: Dictionary in chiavi:
+		var direzioni: Dictionary = chiave["ossa"] if chiave.has("ossa") else _specchia(per_tempo[float(chiave["specchio"])])
+		var rotazioni := _mira(scheletro, direzioni)
+		for osso: String in tracce:
+			anim.rotation_track_insert_key(tracce[osso], float(chiave["t"]), rotazioni[osso])
+		anim.position_track_insert_key(anche, float(chiave["t"]), scheletro.get_bone_rest(scheletro.find_bone("hips")).origin)
+	return anim
+
+
+static func _specchia(direzioni: Dictionary) -> Dictionary:
+	var fuori := {}
+	for osso: String in direzioni:
+		var v: Array = direzioni[osso]
+		var nome := osso
+		if osso.ends_with(".l"):
+			nome = osso.trim_suffix(".l") + ".r"
+		elif osso.ends_with(".r"):
+			nome = osso.trim_suffix(".r") + ".l"
+		fuori[nome] = [-float(v[0]), v[1], v[2]]
+	return fuori
+
+
+func _mira(scheletro: Skeleton3D, direzioni: Dictionary) -> Dictionary:
+	# Rotazione locale di ogni osso perché il suo asse +Y punti nella direzione voluta (il resto segue il
+	# genitore come a riposo). Si parte dalle radici e si scende.
+	var rotazioni := {}
+	var da_fare: Array = []
+	for i in scheletro.get_bone_count():
+		if scheletro.get_bone_parent(i) < 0:
+			da_fare.append([i, Transform3D.IDENTITY])
+	while not da_fare.is_empty():
+		var voce: Array = da_fare.pop_front()
+		var i: int = voce[0]
+		var genitore: Transform3D = voce[1]
+		var g := genitore * scheletro.get_bone_rest(i)
+		var nome := scheletro.get_bone_name(i)
+		if direzioni.has(nome):
+			var v: Array = direzioni[nome]
+			var d := Vector3(float(v[0]), float(v[1]), float(v[2])).normalized()
+			g.basis = Basis(Quaternion(g.basis.y.normalized(), d)) * g.basis
+		rotazioni[nome] = (genitore.basis.inverse() * g.basis).get_rotation_quaternion()
+		for figlio in scheletro.get_bone_children(i):
+			da_fare.append([figlio, g])
+	return rotazioni
+

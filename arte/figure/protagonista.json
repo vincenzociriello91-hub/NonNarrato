@@ -222,8 +222,8 @@
 			"nome": "arrampica",
 			"clip": "Arrampica",
 			"ciclo": true,
-			"frame": 8,
-			"fps": 12
+			"frame": 24,
+			"fps": 24
 		},
 		{
 			"nome": "appeso",

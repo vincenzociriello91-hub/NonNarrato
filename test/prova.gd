@@ -1245,8 +1245,81 @@ func _prova_movimenti() -> void:
 			prima_anim = anim
 		_verifica("movimenti: al limite della distanza il nemico non fa passettini", partenze <= 1 and x_inizio - scheletro.global_position.x >= 4.0,
 				"partenze %d, avanzato %.1f px, stato %d" % [partenze, x_inizio - scheletro.global_position.x, scheletro.stato])
+		# Mezzo giro dei nemici: cambiando verso passa di fronte (fotogrammi "giro") e poi guarda dall'altra parte.
+		scheletro.stato = Nemico.Stato.PATTUGLIA
+		scheletro.sprite.riproduci("cammina")
+		await _fotogrammi(10)
+		var verso_prima := scheletro.verso
+		scheletro.verso = -verso_prima
+		await _fotogrammi(4)
+		var a_meta := scheletro.sprite.animazione == "giro"
+		await _fotogrammi(int(Nemico.GIRO_NEMICO * 60.0) + 4)
+		_verifica("movimenti: i nemici si girano passando di fronte", a_meta and scheletro.sprite.flip_h == (scheletro.verso < 0),
+				"giro visto %s, verso %d, specchiato %s" % [str(a_meta), scheletro.verso, str(scheletro.sprite.flip_h)])
 	else:
 		_verifica("movimenti: c'è uno scheletro per la prova", false)
+	# Arrampicata (0.1.35, prima "da burattino"): il corpo sale a strattoni, a ogni presa, in un ciclo vero.
+	var somma := 0.0
+	var minimo := 9.0
+	var massimo := 0.0
+	for i in 100:
+		var v := Giocatore.profilo_scalata(float(i) / 100.0)
+		somma += v
+		minimo = minf(minimo, v)
+		massimo = maxf(massimo, v)
+	_verifica("movimenti: arrampicata a strattoni con la stessa velocità media", absf(somma / 100.0 - 1.0) < 0.02 and minimo < 0.3 and massimo > 1.7,
+			"media %.2f, min %.2f, max %.2f" % [somma / 100.0, minimo, massimo])
+	g.global_position = Vector2(1246, 950)
+	g.velocity = Vector2.ZERO
+	g.stamina = Giocatore.STAMINA_MASSIMA
+	Input.action_press("sinistra")
+	await _fotogrammi(4)
+	Input.action_release("sinistra")
+	var aggrappato := g.stato == Giocatore.Stato.ARRAMPICATA
+	Input.action_press("su")
+	var vy_min := 9999.0
+	var vy_max := 0.0
+	var pose := {}
+	var y0 := g.global_position.y
+	for i in int(Giocatore.CICLO_SCALATA * 60.0):
+		await _fotogrammi(1)
+		if g.stato != Giocatore.Stato.ARRAMPICATA:
+			break
+		vy_min = minf(vy_min, absf(g.velocity.y))
+		vy_max = maxf(vy_max, absf(g.velocity.y))
+		pose[g.sprite.fotogramma] = true
+	Input.action_release("su")
+	await _fotogrammi(10)
+	var fermo_in_posa: bool = g.stato == Giocatore.Stato.ARRAMPICATA and g.sprite.animazione == "arrampica" and absf(g.velocity.y) < 1.0
+	_verifica("movimenti: arrampicata con un ciclo vero e spinte a ogni presa", aggrappato and pose.size() >= 16
+			and vy_min < Giocatore.ARRAMPICATA_VELOCITA * 0.4 and vy_max > Giocatore.ARRAMPICATA_VELOCITA * 1.5 and y0 - g.global_position.y > 30.0,
+			"pose %d, velocità %.0f-%.0f, salito %.0f px" % [pose.size(), vy_min, vy_max, y0 - g.global_position.y])
+	_verifica("movimenti: fermi sulla parete si resta nella posa del ciclo", fermo_in_posa)
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	# Pose di passaggio: da un'azione all'altra il corpo sfuma invece di scattare.
+	g = _g()
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		(n as Nemico).tregua(true)
+	await _sposta(Vector2(490, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(30)
+	var fusioni_prima: int = g.sprite.get("fusioni")
+	Input.action_press("destra")
+	await _fotogrammi(3)
+	var in_fusione: bool = float(g.sprite.get("_fusione")) < 1.0
+	await _fotogrammi(12)
+	var finita: bool = float(g.sprite.get("_fusione")) >= 1.0
+	Input.action_release("destra")
+	_verifica("movimenti: da un'azione all'altra il corpo sfuma (niente scatti)", int(g.sprite.get("fusioni")) > fusioni_prima and in_fusione and finita)
+	# Girarsi: il corpo passa di fronte a chi guarda.
+	await _fotogrammi(30)
+	Input.action_press("sinistra")
+	await _fotogrammi(int(Giocatore.GIRO_VISIVO * 30.0))
+	var di_fronte: float = g.sprite.get("_gira")
+	await _fotogrammi(int(Giocatore.GIRO_VISIVO * 60.0) + 4)
+	Input.action_release("sinistra")
+	_verifica("movimenti: girandosi il personaggio passa di fronte", di_fronte > 30.0 and float(g.sprite.get("_gira")) < 0.5 and g.sprite.flip_h,
+			"%.0f gradi a metà" % di_fronte)
 	_principale.ricomincia_stanza()
 	await _fotogrammi(20)
 

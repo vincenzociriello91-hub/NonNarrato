@@ -99,7 +99,10 @@ func posa(nome: String, frazione: float) -> void:
 		_anim = tutte[nome]
 	in_corso = false
 	var elenco: Array = _anim["frame"]
-	fotogramma = clampi(roundi(clampf(frazione, 0.0, 1.0) * float(elenco.size() - 1)), 0, elenco.size() - 1)
+	if _anim.get("ciclo", false):
+		fotogramma = int(fposmod(frazione, 1.0) * float(elenco.size())) % elenco.size()   # giro: 1 torna a 0
+	else:
+		fotogramma = clampi(roundi(clampf(frazione, 0.0, 1.0) * float(elenco.size() - 1)), 0, elenco.size() - 1)
 	_mostra(int(elenco[fotogramma]))
 
 

@@ -35,6 +35,10 @@ dalla velocità con sospensione in cima; spigoli scansati; inclinazione nello sl
 Resta: ciclo dell'arrampicata (più lungo, mano e piede opposti, spinta a ogni presa), nuoto al passo, pose di passaggio
 (girarsi, attaccare, atterrare, rialzarsi, lasciarsi andare), preparazione e ritorno di salti e colpi.
 
+Fatto nella 0.1.35: arrampicata con un ciclo vero (mano e piede opposti, spinta a ogni presa, mani ferme sulla roccia),
+pose di passaggio fra tutte le azioni del personaggio, mezzo giro di personaggio e nemici, slancio e schiacciamento nei
+salti, nuoto al passo.
+
 ## 4. Grafica di qualità più alta — da fare
 "Sembra ancora tutto fatto male": più accattivante e di qualità.
 - personaggi e nemici più dettagliati (modelli CC0 migliori, per esempio Quaternius), più pixel per figura;

@@ -79,7 +79,10 @@ static var _mat_normali_sopra: ShaderMaterial
 static var _mat_sprite: ShaderMaterial
 static var _mat_sprite_piatto: ShaderMaterial
 
+const FUSIONE := 0.1             # da un'azione all'altra il corpo sfuma per tanto (niente scatti fra le pose)
 var disegni := 0                 # quante foto ha scattato (per le prove e il rapporto)
+var fusioni := 0                 # quante sfumature fra azioni (per le prove)
+var _rotazione_base := 90.0
 var piega := 0.0:                # inclinazione in avanti (radianti) decisa dal gioco: slancio e frenata (0.1.33)
 	set(v):
 		var q := snappedf(v, deg_to_rad(1.0))   # un grado alla volta: si ridisegna solo quando cambia davvero
@@ -95,6 +98,13 @@ var usa_normali := true          # l'anteprima del menu non ne ha bisogno
 var _figura := {}
 var _scatti: Array = []
 var _ultimo := -1
+var _fusione := 1.0              # pose di passaggio (0.1.35): 0 -> 1 mentre si sfuma dalla posa di prima (1 = niente)
+var _posa_prima: Array = []      # rotazioni delle ossa da cui si sfuma
+var _anche_prima := Vector3.ZERO
+var _clip_mostrata := ""
+var _scheletro: Skeleton3D
+var _osso_anche := -1
+var _gira := 0.0                 # gradi tolti alla rotazione di base: girarsi passando di fronte (Giocatore)
 var _vp_colore: SubViewport
 var _vp_normali: SubViewport
 var _perno: Node3D
@@ -134,6 +144,7 @@ func carica(nome: String) -> void:
 	_manichino = (load(MANICHINO) as PackedScene).instantiate() as Node3D
 	_base.add_child(_manichino)
 	_base.rotation_degrees.y = _figura.get("rotazione_y", 90.0)
+	_rotazione_base = _base.rotation_degrees.y
 	var scala: Array = _figura.get("scala", [1.0, 1.0, 1.0])
 	_base.scale = Vector3(scala[0], scala[1], scala[2])
 	_lettore = _manichino.get_node("AnimationPlayer") as AnimationPlayer
@@ -234,15 +245,59 @@ func _mostra(i: int) -> void:
 		return
 	_ultimo = i
 	var s: Dictionary = _scatti[clampi(i, 0, _scatti.size() - 1)]
+	if _scheletro == null:
+		_scheletro = _manichino.get_node_or_null("Rig/Skeleton3D") as Skeleton3D
+		_osso_anche = _scheletro.find_bone("hips") if _scheletro != null else -1
+	if s["clip"] != _clip_mostrata and _clip_mostrata != "" and _scheletro != null:
+		# Cambia azione: si parte dalla posa in cui si è adesso (anche a metà di un'altra sfumatura).
+		_posa_prima.resize(_scheletro.get_bone_count())
+		for b in _scheletro.get_bone_count():
+			_posa_prima[b] = _scheletro.get_bone_pose_rotation(b)
+		if _osso_anche >= 0:
+			_anche_prima = _scheletro.get_bone_pose_position(_osso_anche)
+		_fusione = 0.0
+		fusioni += 1
+	_clip_mostrata = s["clip"]
 	if s["clip"] != "" and _lettore.has_animation(s["clip"]):
 		if _lettore.current_animation != s["clip"]:
 			_lettore.play(s["clip"])
 		_lettore.seek(s["t"], true)
+	if _fusione < 1.0:
+		_mescola()
 	var centro: float = s.get("centro", 0.0)
 	_perno.position = Vector3(0.0, centro - float(s["giu"]), 0.0)
 	_base.position = Vector3(_sposta.x, _sposta.y - centro, _sposta.z)
 	_perno.rotation = Vector3(0.0, 0.0, float(s["giro"]) - piega)
+	_base.rotation_degrees.y = _rotazione_base - _gira
 	_ridisegna()
+
+
+func _mescola() -> void:
+	var k := _fusione * _fusione * (3.0 - 2.0 * _fusione)
+	for b in _posa_prima.size():
+		_scheletro.set_bone_pose_rotation(b, (_posa_prima[b] as Quaternion).slerp(_scheletro.get_bone_pose_rotation(b), k))
+	if _osso_anche >= 0:
+		_scheletro.set_bone_pose_position(_osso_anche, _anche_prima.lerp(_scheletro.get_bone_pose_position(_osso_anche), k))
+
+
+func _process(delta: float) -> void:
+	super(delta)
+	if _fusione < 1.0 and _ultimo >= 0:
+		_fusione = minf(1.0, _fusione + delta / FUSIONE)
+		var i := _ultimo
+		_ultimo = -1
+		_mostra(i)   # rimette la posa del fotogramma e la rimescola con quella di prima
+
+
+func gira(gradi: float) -> void:
+	# Girarsi passando di fronte a chi guarda (0 = di profilo come sempre, rotazione_y = di fronte).
+	if absf(gradi - _gira) < 0.5:
+		return
+	_gira = gradi
+	if _ultimo >= 0:
+		var i := _ultimo
+		_ultimo = -1
+		_mostra(i)
 
 
 func _ridisegna() -> void:

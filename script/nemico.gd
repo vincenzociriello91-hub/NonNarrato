@@ -90,6 +90,10 @@ var _t_tattica := 0.0
 var _t_pausa := 0.0
 var _t_incastrato := 0.0          # cammina ma non si sposta (vedi _controlla_incastro)
 var _x_prima := 0.0
+var _verso_mostrato := 1          # verso in cui è disegnato (per accorgersi che si gira)
+var _t_giro_visivo := 0.0         # mezzo giro in corso (vedi _aggiorna_giro)
+var _giro_durata := 0.14
+var _giro_da := 1
 var _vx_passo := 0.0              # velocità orizzontale vera del fotogramma prima (avvio e frenata morbidi)
 var _x_inizio_incastro := 0.0
 var _segno_incastro := 0.0
@@ -266,6 +270,7 @@ func _ready() -> void:
 	else:
 		stato = Stato.PATTUGLIA
 		sprite.riproduci("vola" if vola else "cammina")
+	_verso_mostrato = verso   # niente mezzo giro alla nascita
 
 
 func _aspetto_nemesi() -> void:
@@ -316,6 +321,7 @@ func solido() -> bool:
 const SALTA_CASSE := ["scheletro", "saltatore", "mimic"]   # il bestione è troppo pesante
 const PAUSA_OSTACOLO := 0.35   # quanto resta fermo dopo aver trovato la strada chiusa (contro il tremolio)
 const ISTERESI_PASSO := 6.0        # avvicinandosi ci si ferma tanto dentro la distanza voluta (vedi _lontano)
+const GIRO_NEMICO := 0.14           # mezzo giro (il bestione ci mette il doppio)
 const SOTTO_DI_TE := 16.0          # chi gioca è sopra o sotto entro tanto in orizzontale: si aspetta fermi
 const ACCELERAZIONE_PASSO := 520.0   # camminando si parte e ci si ferma in circa un decimo di secondo...
 const ACCELERAZIONE_PESANTE := 260.0 # ...il bestione ci mette il doppio: pesa
@@ -537,14 +543,37 @@ func _physics_process(delta: float) -> void:
 
 	_ammorbidisci_passo(delta)
 	_x_prima = global_position.x
+	var vy_prima := velocity.y
+	var a_terra_prima := is_on_floor()
 	move_and_slide()
 	_vx_passo = velocity.x
+	if not a_terra_prima and is_on_floor() and vy_prima > 200.0 and tipo != "pipistrello":
+		_deforma(Vector2(1.0, -1.0) * 0.14 * clampf((vy_prima - 200.0) / 300.0, 0.3, 1.0))   # atterrando si schiaccia
 	if stato != Stato.MORTO:
 		_sfonda_barili()
 		_guarda_casse(delta)
 		_separa_dai_compagni()
 		_scosta_dagli_oggetti(delta)
 		_controlla_incastro(delta)
+	_aggiorna_giro(delta)
+
+
+func _aggiorna_giro(delta: float) -> void:
+	# Mezzo giro (0.1.35): girandosi il nemico passa di fronte a chi guarda invece di ribaltarsi di colpo.
+	# Solo camminando o fermo: colpi, balzi, attacchi e colpi subiti restano secchi.
+	var calmo := stato in [Stato.PATTUGLIA, Stato.INSEGUE, Stato.FERMO] and is_on_floor() and sprite.ha("giro")
+	if verso != _verso_mostrato and _t_giro_visivo <= 0.0 and calmo:
+		_giro_durata = GIRO_NEMICO * (2.0 if tipo == "bestione" else 1.0)
+		_t_giro_visivo = _giro_durata
+		_giro_da = _verso_mostrato
+	_verso_mostrato = verso
+	if _t_giro_visivo > 0.0:
+		_t_giro_visivo = _t_giro_visivo - delta if calmo else 0.0
+	if _t_giro_visivo > 0.0:
+		var k := 1.0 - _t_giro_visivo / _giro_durata
+		sprite.posa("giro", 1.0 - absf(1.0 - 2.0 * k))   # di profilo -> di fronte -> di profilo dall'altra parte
+		sprite.flip_h = (_giro_da if k < 0.5 else verso) < 0
+		return
 	sprite.flip_h = verso < 0
 
 
@@ -816,6 +845,12 @@ func _lontano(distanza: float, soglia: float) -> bool:
 	return distanza > soglia - (ISTERESI_PASSO if _vx_passo * float(verso) > 1.0 else 0.0)
 
 
+func _deforma(quanto: Vector2) -> void:
+	# Schiaccia o allunga lo sprite (perno ai piedi) e lo rimette subito a posto: peso nei salti (0.1.35).
+	sprite.scale = Vector2.ONE + quanto
+	sprite.create_tween().tween_property(sprite, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
 func _ammorbidisci_passo(delta: float) -> void:
 	# Movimenti naturali (0.1.33): camminando si parte e ci si ferma in un attimo, non di colpo, e la camminata
 	# segue la velocità vera (niente piedi che scivolano). Solo per il passo: colpi, spinte, balzi e affondi
@@ -1066,6 +1101,7 @@ func _inizia_balzo(g: Giocatore, dall_alto: bool) -> void:
 	_forma_colpo.position.x = 12.0 * verso
 	_cambia(Stato.ATTACCO)
 	sprite.riproduci("balzo", true)
+	_deforma(Vector2(-0.12, 0.14))   # slancio: un attimo allungato verso l'alto
 	Rapporto.conta("balzi_saltatore")
 
 

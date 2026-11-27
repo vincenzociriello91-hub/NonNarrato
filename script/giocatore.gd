@@ -42,6 +42,7 @@ const VITA_MASSIMA := 8             # nemici più duri (0.1.15): più margine pe
 const PROTEZIONE_DOPO_COLPO := 0.9
 const SPINTA_CASSE := 70.0
 const TEMPO_GIRO := 0.2             # direzione indietro + rotola/schiva entro questo tempo = mossa all'indietro
+const GIRO_VISIVO := 0.12           # girandosi il corpo passa di fronte a chi guarda invece di ribaltarsi di colpo
 const SCAVALCO_DURATA := 0.32
 const ISSATA_DURATA := 0.46         # issata dal bordo (0.1.33): aggancio, trazione, sul bordo
 const ISSATA_DA := 30.0             # bordi più alti di così sopra i piedi: ci si appende e ci si issa
@@ -85,6 +86,8 @@ const STAMINA_RECUPERO := 45.0      # al secondo, con i piedi a terra
 const STAMINA_ATTESA := 0.35        # a terra da almeno tanto prima di recuperare
 const STAMINA_RIPRESA := 25.0       # senza fiato non ci si riaggrappa finché non torna a questo livello
 const ARRAMPICATA_VELOCITA := 74.0
+const CICLO_SCALATA := 0.7          # un ciclo di arrampicata (due prese) a leva piena: ~26 px di salita per presa
+const SPINTA_SCALATA := 0.85        # il corpo sale a strattoni: veloce mentre la mano tira, lento mentre l'altra va su
 const SPAZIO := 14.0                   # mezza larghezza "visiva" (mantello compreso): più del corpo fisico, perché gli sprite non si coprano
 const SCOSTA_DAL_MURO := 5.0           # sulla parete lo sprite si stacca un po': mani e piedi toccano la roccia, non ci entrano
 const SALTO_MURO := Vector2(165.0, 330.0)
@@ -129,6 +132,7 @@ var _t_protetto := 0.0
 var _t_attraversa := 0.0
 var _t_atterra := 0.0
 var _spinta := 0.0                # quanto è inclinata la leva (0-1): poco = si cammina
+var _t_giro_visivo := 0.0         # mezzo giro in corso (vedi GIRO_VISIVO)
 var _vx_prima := 0.0              # velocità orizzontale del fotogramma prima (per l'inclinazione)
 var _colpo_numero := 0
 var _arma := {}                     # Armi.attuali() all'inizio della combinazione
@@ -153,6 +157,7 @@ var _schivata_avanti := false
 var _scavalco_da := Vector2.ZERO
 var _scavalco_a := Vector2.ZERO
 var _issata := false              # lo scavalco in corso è un'issata dal bordo
+var _fase_scalata := 0.0          # 0-1: dove si è nel ciclo dell'arrampicata (0 e 0,5 = una mano arriva in alto)
 var _maschera := 0
 var _cassa: RigidBody2D
 var _scarto_cassa := 0.0
@@ -349,6 +354,7 @@ func _scorri_tempi(delta: float) -> void:
 		_t_passo = clampf(0.3 * VELOCITA / absf(velocity.x), 0.25, 0.55)   # passi lenti quando si cammina
 		Suoni.suona("passo", global_position, -8.0)
 	_t_girato = maxf(0.0, _t_girato - delta)
+	_t_giro_visivo = maxf(0.0, _t_giro_visivo - delta)
 	_t_stacco = maxf(0.0, _t_stacco - delta)
 	_aggiorna_fiato(delta)
 	_aggiorna_effetti(delta)
@@ -370,6 +376,7 @@ func _normale(delta: float, a_terra: bool) -> void:
 		if nuovo != verso:
 			_verso_prima = verso
 			_t_girato = TEMPO_GIRO
+			_t_giro_visivo = GIRO_VISIVO
 			verso = nuovo
 	_muovi(delta, a_terra, direzione)
 	_gravita(delta)
@@ -412,6 +419,9 @@ func _normale(delta: float, a_terra: bool) -> void:
 			velocity.y = -SALTO
 			_conta("salti")
 			_polvere(5)
+			# Slancio: un attimo allungato verso l'alto (lo schiacciamento lo fa l'atterraggio).
+			sprite.scale = Vector2(0.9, 1.12)
+			sprite.create_tween().tween_property(sprite, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			Suoni.suona("salto", global_position, -4.0)
 		_t_memoria_salto = 0.0
 		_t_coyote = 0.0
@@ -1293,7 +1303,8 @@ func _inizia_arrampicata() -> void:
 	velocity = Vector2.ZERO
 	sprite.position.x = -_lato_muro * SCOSTA_DAL_MURO
 	sprite.riponi_armi(true)
-	sprite.riproduci("appeso", true)
+	_fase_scalata = 0.0
+	sprite.posa("arrampica", _fase_scalata)   # aggancio: una mano in alto, il ginocchio opposto sulla parete
 	Suoni.suona("presa", global_position, -4.0)
 	_conta("arrampicate")
 
@@ -1303,7 +1314,12 @@ func _arrampicata(delta: float) -> void:
 	var su_giu := Input.get_axis("su", "giu")
 	var direzione := Input.get_axis("sinistra", "destra")
 	velocity.x = _lato_muro * 30.0   # spinge appena contro la parete
-	velocity.y = su_giu * ARRAMPICATA_VELOCITA * moltiplicatore_velocita()
+	# Il ciclo segue la leva (giù = all'indietro). Il corpo sale soprattutto mentre la mano in alto tira:
+	# la mano resta ferma sulla roccia e il corpo le va incontro, poi l'altra mano va su (vedi "Arrampica").
+	var fase_prima := _fase_scalata
+	if absf(su_giu) > 0.1:
+		_fase_scalata = fposmod(_fase_scalata - su_giu * moltiplicatore_velocita() * delta / CICLO_SCALATA, 1.0)
+	velocity.y = su_giu * ARRAMPICATA_VELOCITA * moltiplicatore_velocita() * profilo_scalata(_fase_scalata)
 	var spesa := STAMINA_SCALA if absf(su_giu) > 0.1 else STAMINA_APPESO
 	if not Impostazioni.leggi("acc/stamina_infinita"):
 		stamina = maxf(0.0, stamina - spesa * delta)
@@ -1346,15 +1362,15 @@ func _arrampicata(delta: float) -> void:
 	if is_on_floor() and su_giu > 0.1:
 		_stacca(false)
 		return
-	if absf(su_giu) > 0.1:
-		sprite.riproduci("arrampica")
-		sprite.velocita = absf(su_giu)
-		_t_passo -= delta
-		if _t_passo <= 0.0:
-			_t_passo = 0.35
-			Suoni.suona("presa", global_position, -10.0, 1.1)
-	else:
-		sprite.riproduci("appeso")
+	# Fermi sulla parete si resta nella posa del ciclo (niente scatto verso un'altra posa).
+	sprite.posa("arrampica", _fase_scalata)
+	if absf(su_giu) > 0.1 and int(fase_prima * 2.0) != int(_fase_scalata * 2.0):
+		Suoni.suona("presa", global_position, -10.0, 1.1)   # una mano arriva su una presa nuova
+
+
+static func profilo_scalata(fase: float) -> float:
+	# Velocità relativa nel ciclo (media 1): massima a metà trazione, minima mentre l'altra mano va su.
+	return 1.0 + SPINTA_SCALATA * cos(TAU * (fposmod(fase * 2.0, 1.0) - 0.3))
 
 
 func _stacca(salto: bool) -> void:
@@ -1436,7 +1452,8 @@ func _nuoto(delta: float) -> void:
 	var muove := absf(direzione) > 0.01 or absf(su_giu) > 0.1
 	if sott_acqua or muove:
 		sprite.riproduci("nuota")
-		sprite.velocita = 1.0 if muove else 0.4
+		# Bracciate al passo con lo spostamento vero (0.1.35): ferme sott'acqua appena accennate.
+		sprite.velocita = clampf(velocity.length() / (NUOTO_VELOCITA * moltiplicatore_velocita()), 0.3, 1.3)
 	else:
 		sprite.riproduci("galleggia")
 		sprite.velocita = 1.0
@@ -1619,7 +1636,17 @@ func _atterrato() -> void:
 func _aggiorna_aspetto() -> void:
 	if stato != Stato.TIRO and sprite.has_method("mostra_in_mano"):
 		sprite.call("mostra_in_mano", [])   # interrotto (colpito, morto...): via la balestra dalla mano
-	sprite.flip_h = verso < 0
+	# Girarsi: la prima metà guardando ancora dalla parte di prima, ruotando verso chi guarda; poi l'altra metà
+	# già girati. Solo camminando, correndo e saltando (rotoli e schivate all'indietro non si girano).
+	var mostrato := verso
+	var giro := 0.0
+	if _t_giro_visivo > 0.0 and stato == Stato.NORMALE and sprite.has_method("gira"):
+		var k := 1.0 - _t_giro_visivo / GIRO_VISIVO
+		mostrato = _verso_prima if k < 0.5 else verso
+		giro = float(sprite.get("_rotazione_base")) * (1.0 - absf(1.0 - 2.0 * k))
+	if sprite.has_method("gira"):
+		sprite.call("gira", giro)
+	sprite.flip_h = mostrato < 0
 	var lampeggia := _t_protetto > 0.0 and stato != Stato.MORTO and int(_t_protetto * 14.0) % 2 == 0
 	sprite.modulate.a = 0.35 if lampeggia else 1.0
 	if stato == Stato.PRESA:
@@ -1653,7 +1680,9 @@ func _aggiorna_piega() -> void:
 		return
 	var delta := get_physics_process_delta_time()
 	var obiettivo := 0.0
-	if stato == Stato.NORMALE and delta > 0.0:
+	if stato == Stato.ARRAMPICATA and absf(velocity.y) > 5.0:
+		obiettivo = deg_to_rad(4.0) * maxf(0.0, profilo_scalata(_fase_scalata) - 1.0)   # tirando ci si porta verso la parete
+	elif stato == Stato.NORMALE and delta > 0.0:
 		var spinta := (velocity.x - _vx_prima) / delta * float(verso)   # accelerazione verso dove si guarda
 		if is_on_floor():
 			obiettivo = clampf(spinta / ACCELERAZIONE, -1.0, 1.0) * deg_to_rad(8.0) \
