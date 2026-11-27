@@ -1246,6 +1246,8 @@ func _prova_movimenti() -> void:
 		_verifica("movimenti: al limite della distanza il nemico non fa passettini", partenze <= 1 and x_inizio - scheletro.global_position.x >= 4.0,
 				"partenze %d, avanzato %.1f px, stato %d" % [partenze, x_inizio - scheletro.global_position.x, scheletro.stato])
 		# Mezzo giro dei nemici: cambiando verso passa di fronte (fotogrammi "giro") e poi guarda dall'altra parte.
+		g.global_position = Vector2(2700, Stanza.PAVIMENTO)   # lontano: altrimenti lo vede e si rigira verso di lui
+		g.velocity = Vector2.ZERO
 		scheletro.stato = Nemico.Stato.PATTUGLIA
 		scheletro.sprite.riproduci("cammina")
 		await _fotogrammi(10)
