@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Nemici nello stesso stile del protagonista (grafica, terza tappa)
+
+- **Nemici nuovi, con proporzioni vere**: sono fatti con gli stessi corpi, vestiti e mosse del Non Narrato, così tutto ciò che si muove nella cripta ha lo stesso stile.
+- **Il sepolto risorto** prende il posto dello scheletro: veste logora, sudario stracciato, capelli grigi, si trascina come un morto e si rialza da terra quando ti sente.
+- **Il mago** è un vecchio dalla barba bianca con veste viola e bastone; **il balestriere** ha il cappuccio, occhi color ambra che brillano nel buio e una balestra; **il bestione** è un boia incappucciato, più grosso, con ascia e scudo chiodato.
+- **Il ghoul** prende il posto del saltatore: pallido, quasi nudo, sta accovacciato, corre e balza addosso.
+- Pipistrelli e mimic restano come prima: il mimic nasce dal forziere e cambierà insieme agli ambienti, nella prossima tappa.
+
 ## 0.1 — Il Non Narrato con proporzioni vere (grafica, seconda tappa)
 
 - **Corpo nuovo, da adulto**: il Non Narrato non è più un pupazzo dalla testa grande. Ha proporzioni vere, come i personaggi di Blasphemous e Dead Cells, con vestiti che hanno pieghe, cuciture, cinture e borchie: le torce ci disegnano sopra luci e ombre vere.

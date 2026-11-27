@@ -56,5 +56,7 @@ disegnato al doppio in "alta" e "ultra", fogli ritagliati.
 Decisione di Vincenzo (27/11/2026, dopo le foto di confronto): stile Quaternius con proporzioni vere per tutto il
 gioco, coerente e omogeneo, con la libreria più ampia possibile (siti CC0 aperti: vedi CLAUDE.md).
 Tappa 2, seconda parte, fatta nella 0.1.38: il Non Narrato col corpo Quaternius, vestiti modulari, mantelli generati,
-animazioni UAL e KayKit adattate. Prossime: 0.1.39 nemici nello stesso stile (gli scheletri vanno ripensati:
-cultisti, ghoul), poi gli ambienti rifatti con lo stesso metodo e materiali comuni.
+animazioni UAL e KayKit adattate. Tappa 2, terza parte, fatta nella 0.1.39: i nemici con gli stessi pezzi e le stesse
+animazioni del protagonista (sepolto risorto, mago, balestriere, bestione incappucciato, ghoul). Pipistrello e mimic
+restano: il mimic nasce dal forziere e cambierà con gli ambienti. Prossima: gli ambienti rifatti con lo stesso metodo e
+materiali comuni.

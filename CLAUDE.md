@@ -71,7 +71,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 
 ## Grafica dai modelli 3D
 
-- Modelli in `sorgenti3d/` (CC0: KayKit, Quaternius in `sorgenti3d/quaternius`, materiali ambientCG in `sorgenti3d/ambientcg`, ognuno con LICENZA.txt). Mai modelli Mixamo o con licenze che vietano la ridistribuzione (né la QAL di Quaternius): il repository è pubblico.
+- Modelli in `sorgenti3d/` (CC0: KayKit, Quaternius in `sorgenti3d/quaternius` (protagonista e nemici umani dalla 0.1.39), materiali ambientCG in `sorgenti3d/ambientcg`, ognuno con LICENZA.txt). Mai modelli Mixamo o con licenze che vietano la ridistribuzione (né la QAL di Quaternius): il repository è pubblico.
 - `python3 strumenti/genera_arte.py` poi `DISPLAY=:77 godot --rendering-driver opengl3 --path . -s res://strumenti/render_sprite.gd -- strumenti/render_sprite.json [nome]`.
 - Ogni voce produce `arte/sprite/<nome>.png`, `<nome>_n.png` (normali) e `<nome>.json`. Il gioco li carica con `SpriteAnimato`.
 - Scala: 24 pixel per unità del modello. Tela del gioco: circa 640x360, ingrandita di un numero intero.
@@ -390,3 +390,20 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - `Equipaggiamento.OGGETTI`: stessi id di prima (i salvataggi restano), pezzi nuovi. Prova: `_prova_quaternius` in `test/prova.gd`.
 - Strumenti fuori dal repository (scratchpad): `strumenti/aspetti.gd` (foto nel gioco con vari aspetti), `strumenti/confronto.gd` (due stili nello stesso punto), `strumenti/figura.gd` (fogli delle animazioni). Il primo fotogramma di ogni riga in `figura.gd` mostra la fusione con l'animazione di prima: non è un difetto.
 
+
+## Nemici nello stesso stile (0.1.39, punto 4 tappa 2 terza parte)
+
+- I nemici umani sono fatti col manichino del protagonista: in `strumenti/render_sprite.json` le voci `scheletro` (sepolto
+  risorto), `mago`, `arciere` (balestriere), `bestione` (boia incappucciato, scala 1,3) e `saltatore` (ghoul) hanno
+  `"scena": "res://modelli/manichino.scn"` e `"mostra"` (i pezzi visibili, gli altri nascosti). I nomi dei tipi nel codice
+  e in `Memoria` restano quelli di prima (i salvataggi e i veterani restano validi).
+- `crea_manichino.gd` aggiunge al manichino anche le clip usate da quelle voci e `Corpo__Intero` (corpo Quaternius intero,
+  per il ghoul). Una clip nuova per un nemico = riga nella voce, poi rifare il manichino e i fogli.
+- `render_sprite.gd`: le armi nelle mani del manichino si disegnano sopra al corpo; texture con trasparenza scartate
+  (capelli, sudario); rilievo e pieghe dalle texture Quaternius (`ntex`, `otex`); regola `"texture"` nei `colori` (pelle
+  chiara `T_Superhero_Male_Light.png` per i non morti); `"al_contrario"` anche nei fogli.
+- Luminosità: le texture del manichino sono cupe. Con le tinte sotto 1 i nemici uscivano 2-4 volte più scuri dei KayKit
+  (media 15-30 contro 45-106): servono luminosità 1,1-2,3. Misurare la media dei pixel pieni prima di pubblicare.
+- Pipistrello (forme semplici) e mimic (forziere KayKit) restano: il mimic cambia con gli ambienti.
+- Prova: `_prova_quaternius` controlla pezzi, clip e foglio doppio delle cinque voci. I controlli della risoluzione
+  interna nel bot confrontano la tela (`size_2d_override`), non il disegno: con le figure dettagliate il disegno è al doppio.

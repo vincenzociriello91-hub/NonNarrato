@@ -114,6 +114,8 @@ KayKit adattate al corpo nuovo. `strumenti/crea_manichino.gd` mette tutto su un 
 e nel gioco `script/figura_viva.gd` lo fotografa in tempo reale, nello stesso stile dei fogli (colore, normali, contorno),
 solo quando cambia il fotogramma o l'aspetto. Gli oggetti indossabili e i colori sono in `script/equipaggiamento.gd`;
 si scelgono dal menu di pausa, sezione Aspetto.
+Dalla 0.1.39 anche i nemici umani (sepolto, mago, balestriere, bestione, ghoul) sono fatti con lo stesso manichino:
+`strumenti/render_sprite.gd` lo carica (voce con `"scena"`), mostra solo i pezzi elencati in `"mostra"` e ne fa i fogli.
 
 ## Cartelle
 
