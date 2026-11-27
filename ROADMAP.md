@@ -52,7 +52,9 @@ A tappe: una versione per passo, Vincenzo controlla sul Pixel prima di andare av
 Tappa 1 fatta nella 0.1.36: bagliore di fiamme e magie, raggi di luce dalle finestre con la polvere, colori del film,
 livello "ultra".
 Tappa 2, prima parte, fatta nella 0.1.37: personaggio e nemici in doppia definizione (il doppio dei pixel), mondo
-disegnato al doppio in "alta" e "ultra", fogli ritagliati. Da decidere con Vincenzo (immagine di confronto mandata):
-passare ai modelli Quaternius CC0 con proporzioni vere (Universal Base Characters, Modular Character Outfits -
-Fantasy, Universal Animation Library 1 e 2, stesso scheletro) invece dei KayKit "chibi". Con i KayKit il doppio dei
-pixel aggiunge poco perché i modelli hanno colori piatti; i Quaternius hanno texture e rilievi. Poi ambienti più ricchi.
+disegnato al doppio in "alta" e "ultra", fogli ritagliati.
+Decisione di Vincenzo (27/11/2026, dopo le foto di confronto): stile Quaternius con proporzioni vere per tutto il
+gioco, coerente e omogeneo, con la libreria più ampia possibile (siti CC0 aperti: vedi CLAUDE.md).
+Tappa 2, seconda parte, fatta nella 0.1.38: il Non Narrato col corpo Quaternius, vestiti modulari, mantelli generati,
+animazioni UAL e KayKit adattate. Prossime: 0.1.39 nemici nello stesso stile (gli scheletri vanno ripensati:
+cultisti, ghoul), poi gli ambienti rifatti con lo stesso metodo e materiali comuni.

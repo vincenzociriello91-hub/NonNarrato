@@ -107,8 +107,10 @@ Il protagonista è diverso: cambia aspetto con l'equipaggiamento e ha più **gru
 due mani, doppia arma, scudo, magia, a mani nude) scelti dall'arma o a mano. Le clip di ogni gruppo e le azioni da
 provare nel menu sono in `arte/figure/protagonista.json`; i tempi di gioco restano nel codice.
 Il resto funziona così: cambia aspetto con l'equipaggiamento, quindi non ha un foglio già pronto.
-Tutti i personaggi KayKit hanno lo stesso scheletro, così teste, busti, braccia, gambe, mantelli, copricapi e armi
-si possono scambiare. `strumenti/crea_manichino.gd` li mette tutti su un unico **manichino** (`modelli/manichino.scn`)
+Il corpo è quello dei personaggi Quaternius (CC0, proporzioni vere): cappucci, teste, capelli, busti, braccia e gambe
+stanno sullo stesso scheletro e si scambiano; armi, scudi ed elmi sono i pezzi KayKit attaccati alle mani e alla testa,
+i mantelli li genera lo strumento. Le animazioni vengono dalla Universal Animation Library di Quaternius e dalle clip
+KayKit adattate al corpo nuovo. `strumenti/crea_manichino.gd` mette tutto su un unico **manichino** (`modelli/manichino.scn`)
 e nel gioco `script/figura_viva.gd` lo fotografa in tempo reale, nello stesso stile dei fogli (colore, normali, contorno),
 solo quando cambia il fotogramma o l'aspetto. Gli oggetti indossabili e i colori sono in `script/equipaggiamento.gd`;
 si scelgono dal menu di pausa, sezione Aspetto.

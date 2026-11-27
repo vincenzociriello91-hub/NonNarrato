@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Il Non Narrato con proporzioni vere (grafica, seconda tappa)
+
+- **Corpo nuovo, da adulto**: il Non Narrato non è più un pupazzo dalla testa grande. Ha proporzioni vere, come i personaggi di Blasphemous e Dead Cells, con vestiti che hanno pieghe, cuciture, cinture e borchie: le torce ci disegnano sopra luci e ombre vere.
+- **Mosse nuove e più naturali**: camminata, corsa, salto, colpi di spada in sequenza, rotolata vera, spinta delle casse, lancio, magia, pugni e nuoto disteso vengono da una raccolta di animazioni pensata per corpi adulti. Tutte le altre mosse di prima (schivate, scavalchi, arrampicata, colpi a due mani, con lo scudo e con due armi) sono state adattate al corpo nuovo. I tempi del combattimento non cambiano.
+- **Mantelli che ondeggiano**: cinque mantelli rifatti in stoffa e cuoio, che seguono il passo; quello dei sepolti ha l'orlo stracciato.
+- **Aspetto**: cappuccio del viandante oppure testa scoperta con capelli corti, rasati, lunghi o con la barba; giubba, casacca o veste; maniche con o senza bracciale; stivali o scarpe basse. Elmi, cappelli, armi e scudi restano tutti, rimpiccioliti per il corpo nuovo. Nel menu Aspetto ci sono sei azioni nuove da provare (bere una pozione, combinazione di spada, colpo pesante, aprire un forziere, carica con lo scudo, scivolata).
+- I nemici per ora restano quelli di prima: passano allo stile nuovo nella prossima versione.
+
 ## 0.1 — Personaggio e nemici più dettagliati (grafica, seconda tappa)
 
 - **Figure in doppia definizione**: il Non Narrato e tutti i nemici hanno ora il doppio dei pixel in larghezza e in altezza (quattro volte tanti in tutto). Restano grandi uguali e i tempi delle mosse non cambiano, ma spade, elmi, ossa, cappucci e mantelli sono molto più nitidi e la luce delle torce ci scivola sopra con più sfumature.

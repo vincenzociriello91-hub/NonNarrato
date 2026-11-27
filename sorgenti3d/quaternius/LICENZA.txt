@@ -1,0 +1,14 @@
+Modelli e animazioni di Quaternius (https://quaternius.com), licenza CC0 1.0 Universal (pubblico dominio):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+- Modular Character Outfits - Fantasy [Standard]: Male_Ranger, Male_Peasant
+  https://quaternius.itch.io/modular-character-outfits-fantasy
+- Universal Base Characters [Standard]: Superhero_Male_FullBody (se ne usa solo la testa), capelli e sopracciglia
+  https://quaternius.itch.io/universal-base-characters
+- Universal Animation Library [Standard] (versione per Unreal, ossa uguali, misure in centimetri) e
+  Universal Animation Library 2 [Standard]: unite in UAL.glb sullo scheletro di UAL2
+  https://quaternius.itch.io/universal-animation-library
+  https://quaternius.itch.io/universal-animation-library-2
+
+Modifiche di NonNarrato: texture ridotte a 512 pixel, colori più cupi, verde del Ranger portato al viola
+del Non Narrato. Le versioni "Source" dei pacchetti sono a pagamento e non sono qui.

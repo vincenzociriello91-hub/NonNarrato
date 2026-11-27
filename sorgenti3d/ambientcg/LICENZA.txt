@@ -1,0 +1,3 @@
+Materiali di ambientCG (https://ambientcg.com), licenza CC0 1.0 Universal (pubblico dominio).
+- Fabric030 (stoffa) e Leather037 (cuoio): dettaglio e normali dei mantelli del Non Narrato.
+Modifiche: ridotti a 256 pixel, colorati e con l'orlo stracciato (strumenti: vedi CLAUDE.md, 0.1.38).

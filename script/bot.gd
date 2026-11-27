@@ -1757,7 +1757,7 @@ func _menu_e_aspetto() -> void:
 	await _fotogrammi_in_pausa(2)
 	var mantello: String = Equipaggiamento.pezzi(Equipaggiamento.indossati["mantello"])[0]
 	var mi: MeshInstance3D = figura.get("_pezzi")[mantello][0]
-	var tinta: Color = (mi.material_override as ShaderMaterial).get_shader_parameter("tinta")
+	var tinta: Color = (mi.get_surface_override_material(0) as ShaderMaterial).get_shader_parameter("tinta")
 	_verifica("aspetto: mantello color sangue", Equipaggiamento.colori["mantello"] == "sangue"
 			and tinta.is_equal_approx(Equipaggiamento.COLORI["sangue"][1]), str(tinta))
 

@@ -16,11 +16,13 @@ const NOMI_POSTI := {
 
 # id -> [posto, nome, pezzi del manichino]
 const OGGETTI := {
-	"cappuccio_viandante": ["testa", "Cappuccio del viandante", ["Viandante__Rogue_Head_Hooded"]],
-	"volto_ladro": ["testa", "Volto del ladro", ["Ladro__Rogue_Head"]],
-	"volto_cavaliere": ["testa", "Volto del cavaliere", ["Cavaliere__Knight_Head"]],
-	"volto_barbaro": ["testa", "Volto del barbaro", ["Barbaro__Barbarian_Head"]],
-	"volto_mago": ["testa", "Volto dell'eremita", ["Mago__Mage_Head"]],
+	# Corpo e vestiti Quaternius (0.1.38): cappuccio o testa scoperta con capelli, giubba o veste, maniche,
+	# brache con stivali o scarpe. Gli id sono quelli di prima (i salvataggi restano validi).
+	"cappuccio_viandante": ["testa", "Cappuccio del viandante", ["Viandante__Cappuccio"]],
+	"volto_ladro": ["testa", "Volto del ladro", ["Corpo__Testa", "Corpo__Occhi", "Corpo__Sopracciglia", "Capelli__Corti"]],
+	"volto_cavaliere": ["testa", "Volto del cavaliere", ["Corpo__Testa", "Corpo__Occhi", "Corpo__Sopracciglia", "Capelli__Rasati"]],
+	"volto_barbaro": ["testa", "Volto del barbaro", ["Corpo__Testa", "Corpo__Occhi", "Corpo__Sopracciglia", "Capelli__Lunghi", "Capelli__Barba"]],
+	"volto_mago": ["testa", "Volto dell'eremita", ["Corpo__Testa", "Corpo__Occhi", "Corpo__Sopracciglia", "Capelli__Rasati", "Capelli__Barba"]],
 
 	"nessun_copricapo": ["copricapo", "Nessuno", []],
 	"elmo_cavaliere": ["copricapo", "Elmo del cavaliere caduto", ["Cavaliere__Knight_Helmet"]],
@@ -30,27 +32,28 @@ const OGGETTI := {
 	"cappuccio_sepolti": ["copricapo", "Cappuccio dei sepolti", ["SepoltoLadro__Skeleton_Rogue_Hood"]],
 	"cappello_negromante": ["copricapo", "Cappello del negromante", ["SepoltoMago__Skeleton_Mage_Hat"]],
 
-	"giubba_viandante": ["busto", "Giubba del viandante", ["Viandante__Rogue_Body"]],
-	"corazza_cavaliere": ["busto", "Corazza del cavaliere", ["Cavaliere__Knight_Body"]],
-	"pelliccia_barbaro": ["busto", "Pelliccia del barbaro", ["Barbaro__Barbarian_Body"]],
-	"veste_eremita": ["busto", "Veste dell'eremita", ["Mago__Mage_Body"]],
+	"giubba_viandante": ["busto", "Giubba del viandante", ["Viandante__Giubba", "Viandante__Cinta"]],
+	"corazza_cavaliere": ["busto", "Giubba con spallaccio", ["Viandante__Giubba", "Viandante__Cinta", "Viandante__Spallaccio"]],
+	"pelliccia_barbaro": ["busto", "Casacca del pellegrino", ["Contadino__Veste", "Viandante__Cinta"]],
+	"veste_eremita": ["busto", "Veste dell'eremita", ["Contadino__Veste"]],
 
-	"maniche_viandante": ["braccia", "Maniche del viandante", ["Viandante__Rogue_ArmLeft", "Viandante__Rogue_ArmRight"]],
-	"bracciali_cavaliere": ["braccia", "Bracciali del cavaliere", ["Cavaliere__Knight_ArmLeft", "Cavaliere__Knight_ArmRight"]],
-	"braccia_barbaro": ["braccia", "Braccia del barbaro", ["Barbaro__Barbarian_ArmLeft", "Barbaro__Barbarian_ArmRight"]],
-	"maniche_eremita": ["braccia", "Maniche dell'eremita", ["Mago__Mage_ArmLeft", "Mago__Mage_ArmRight"]],
+	"maniche_viandante": ["braccia", "Maniche del viandante", ["Viandante__Maniche", "Viandante__Bracciale"]],
+	"bracciali_cavaliere": ["braccia", "Maniche col bracciale", ["Contadino__Maniche", "Viandante__Bracciale"]],
+	"braccia_barbaro": ["braccia", "Maniche del pellegrino", ["Contadino__Maniche"]],
+	"maniche_eremita": ["braccia", "Maniche nude", ["Viandante__Maniche"]],
 
-	"brache_viandante": ["gambe", "Brache del viandante", ["Viandante__Rogue_LegLeft", "Viandante__Rogue_LegRight"]],
-	"gambali_cavaliere": ["gambe", "Gambali del cavaliere", ["Cavaliere__Knight_LegLeft", "Cavaliere__Knight_LegRight"]],
-	"stivali_barbaro": ["gambe", "Stivali del barbaro", ["Barbaro__Barbarian_LegLeft", "Barbaro__Barbarian_LegRight"]],
-	"tunica_eremita": ["gambe", "Tunica dell'eremita", ["Mago__Mage_LegLeft", "Mago__Mage_LegRight"]],
+	"brache_viandante": ["gambe", "Brache e stivali del viandante", ["Viandante__Brache", "Viandante__Stivali"]],
+	"gambali_cavaliere": ["gambe", "Brache chiare e stivali", ["Contadino__Brache", "Viandante__Stivali"]],
+	"stivali_barbaro": ["gambe", "Brache e scarpe basse", ["Viandante__Brache", "Contadino__Scarpe"]],
+	"tunica_eremita": ["gambe", "Brache e scarpe dell'eremita", ["Contadino__Brache", "Contadino__Scarpe"]],
 
+	# Mantelli generati da crea_manichino.gd (stoffa e cuoio ambientCG).
 	"nessun_mantello": ["mantello", "Nessuno", []],
-	"mantello_viandante": ["mantello", "Mantello del viandante", ["Viandante__Rogue_Cape"]],
-	"mantello_cavaliere": ["mantello", "Mantello del cavaliere", ["Cavaliere__Knight_Cape"]],
-	"mantello_barbaro": ["mantello", "Pelle del barbaro", ["Barbaro__Barbarian_Cape"]],
-	"mantello_eremita": ["mantello", "Mantello dell'eremita", ["Mago__Mage_Cape"]],
-	"mantello_sepolti": ["mantello", "Sudario dei sepolti", ["SepoltoLadro__Skeleton_Rogue_Cape"]],
+	"mantello_viandante": ["mantello", "Mantello del viandante", ["Mantello__Viandante"]],
+	"mantello_cavaliere": ["mantello", "Mantello del cavaliere", ["Mantello__Cavaliere"]],
+	"mantello_barbaro": ["mantello", "Pelle del barbaro", ["Mantello__Barbaro"]],
+	"mantello_eremita": ["mantello", "Mantello dell'eremita", ["Mantello__Eremita"]],
+	"mantello_sepolti": ["mantello", "Sudario dei sepolti", ["Mantello__Sepolti"]],
 
 	"spada_viandante": ["arma", "Spada del viandante", ["Viandante__Spada"]],
 	"spada_cavaliere": ["arma", "Spada del cavaliere", ["Cavaliere__1H_Sword"]],

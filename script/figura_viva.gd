@@ -16,20 +16,37 @@ const MANICHINO := "res://modelli/manichino.scn"
 const STRATO_COLORE := 1
 const STRATO_NORMALI := 2
 
+# Pezzi Quaternius (0.1.38): oltre al colore hanno le normali (pieghe, cuciture, borchie) e l'occlusione
+# (scuro nelle pieghe). Le normali della texture servono anche alla foto delle normali, per le luci del gioco.
+# Capelli e mantelli stracciati hanno parti trasparenti: si scartano sotto metà.
 const SHADER_COLORE := "
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 uniform sampler2D tex : source_color, filter_nearest;
+uniform sampler2D ntex : hint_normal, filter_nearest;
+uniform sampler2D otex : filter_nearest;
+uniform float usa_n = 0.0;
+uniform float usa_o = 0.0;
 uniform vec4 tinta : source_color = vec4(1.0);
 uniform float saturazione = 1.0;
 uniform float luminosita = 1.0;
 uniform float forma = 0.4;
 void fragment() {
-	vec3 c = tinta.rgb * texture(tex, UV).rgb;
+	vec4 t = texture(tex, UV);
+	if (t.a < 0.5) {
+		discard;
+	}
+	vec3 c = tinta.rgb * t.rgb;
 	float g = dot(c, vec3(0.299, 0.587, 0.114));
 	c = mix(vec3(g), c, saturazione) * luminosita;
-	float l = clamp(dot(normalize(NORMAL), normalize(vec3(0.0, 0.8, 0.6))), 0.0, 1.0);
-	ALBEDO = c * mix(1.0 - forma, 1.0, l);
+	vec3 n = NORMAL;
+	if (usa_n > 0.5) {
+		vec3 m = texture(ntex, UV).rgb * 2.0 - 1.0;
+		n = TANGENT * m.x + BINORMAL * m.y + NORMAL * m.z;
+	}
+	float l = clamp(dot(normalize(n), normalize(vec3(0.0, 0.8, 0.6))), 0.0, 1.0);
+	float ao = usa_o > 0.5 ? mix(1.0, texture(otex, UV).r, 0.85) : 1.0;
+	ALBEDO = c * mix(1.0 - forma, 1.0, l) * ao;
 }
 "
 
@@ -38,8 +55,20 @@ const PRIORITA_SOPRA := 10         # i pezzi "sopra" si disegnano dopo il corpo,
 const SHADER_NORMALI := "
 shader_type spatial;
 render_mode unshaded, cull_disabled;
+uniform sampler2D tex : source_color, filter_nearest;
+uniform sampler2D ntex : hint_normal, filter_nearest;
+uniform float usa_n = 0.0;
+uniform float usa_tex = 0.0;
 void fragment() {
-	vec3 e = normalize(NORMAL) * 0.5 + 0.5;
+	if (usa_tex > 0.5 && texture(tex, UV).a < 0.5) {
+		discard;
+	}
+	vec3 n = NORMAL;
+	if (usa_n > 0.5) {
+		vec3 m = texture(ntex, UV).rgb * 2.0 - 1.0;
+		n = TANGENT * m.x + BINORMAL * m.y + NORMAL * m.z;
+	}
+	vec3 e = normalize(n) * 0.5 + 0.5;
 	// Annulla la conversione lineare->sRGB che il motore applica in uscita.
 	ALBEDO = mix(pow((e + 0.055) / 1.055, vec3(2.4)), e / 12.92, lessThan(e, vec3(0.04045)));
 }
@@ -78,9 +107,8 @@ void fragment() {
 
 static var _shader_colore: Shader
 static var _shader_normali: Shader
-static var _mat_normali: ShaderMaterial
 static var _shader_colore_sopra: Shader
-static var _mat_normali_sopra: ShaderMaterial
+static var _shader_normali_sopra: Shader
 static var _mat_sprite: ShaderMaterial
 static var _mat_sprite_piatto: ShaderMaterial
 
@@ -241,8 +269,8 @@ func lampo(durata: float) -> void:
 func riscalda() -> void:
 	# Per un fotogramma mostra tutti i pezzi: il motore prepara subito i suoi shader.
 	for nome: String in _pezzi:
-		for mi: MeshInstance3D in _pezzi[nome]:
-			mi.visible = true
+		for k in 2:   # colore e normali
+			(_pezzi[nome][k] as MeshInstance3D).visible = true
 	_ridisegna()
 	# Due giri (non frame_post_draw: senza schermo, nelle prove, non arriverebbe mai).
 	await get_tree().process_frame
@@ -288,7 +316,7 @@ func _mostra(i: int) -> void:
 	var s: Dictionary = _scatti[clampi(i, 0, _scatti.size() - 1)]
 	if _scheletro == null:
 		_scheletro = _manichino.get_node_or_null("Rig/Skeleton3D") as Skeleton3D
-		_osso_anche = _scheletro.find_bone("hips") if _scheletro != null else -1
+		_osso_anche = _scheletro.find_bone("pelvis") if _scheletro != null else -1
 	if s["clip"] != _clip_mostrata and _clip_mostrata != "" and _scheletro != null:
 		# Cambia azione: si parte dalla posa in cui si è adesso (anche a metà di un'altra sfumatura).
 		_posa_prima.resize(_scheletro.get_bone_count())
@@ -460,6 +488,8 @@ func _aggiungi_scatti(a: Dictionary, durate: Dictionary, fps: float) -> Dictiona
 			var t := da + (fino - da) * float(i) / float(n)
 			if not a.get("ciclo", false) and n > 1:
 				t = da + (fino - da) * float(i) / float(n - 1)
+			if a.get("al_contrario", false):
+				t = da + fino - t   # la clip all'indietro (rotolata all'indietro = rotolata in avanti rovesciata)
 			# "inclina": tutta la figura ruotata in avanti (gradi), per esempio orizzontale per nuotare.
 			var inclina: float = a.get("inclina", 0.0)
 			if inclina != 0.0:
@@ -479,26 +509,43 @@ func _prepara_pezzi() -> void:
 		var mi := m as MeshInstance3D
 		if mi.mesh == null:
 			continue
-		var originale := mi.mesh.surface_get_material(0) as BaseMaterial3D
 		var sopra := pezzo_sopra(String(mi.name))
-		var mat := ShaderMaterial.new()
-		mat.shader = _shader_colore_sopra if sopra else _shader_colore
-		if sopra:
-			mat.render_priority = PRIORITA_SOPRA
-		if originale != null and originale.albedo_texture != null:
-			mat.set_shader_parameter("tex", originale.albedo_texture)
-		mat.set_shader_parameter("forma", forma)
-		mi.material_override = mat
 		mi.layers = STRATO_COLORE
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var n := mi.duplicate() as MeshInstance3D
 		n.name = String(mi.name) + "_n"
-		n.material_override = _mat_normali_sopra if sopra else _mat_normali
 		n.layers = STRATO_NORMALI
 		mi.get_parent().add_child(n)
 		if mi.skin != null:
 			n.skeleton = mi.skeleton
-		_pezzi[String(mi.name)] = [mi, n]
+		# Un materiale per superficie: le maniche Quaternius, per esempio, hanno stoffa e pelle delle mani.
+		var colori: Array = []
+		for sup in mi.mesh.get_surface_count():
+			var originale := mi.mesh.surface_get_material(sup) as BaseMaterial3D
+			var mat := ShaderMaterial.new()
+			mat.shader = _shader_colore_sopra if sopra else _shader_colore
+			var mat_n := ShaderMaterial.new()
+			mat_n.shader = _shader_normali_sopra if sopra else _shader_normali
+			if sopra:
+				mat.render_priority = PRIORITA_SOPRA
+				mat_n.render_priority = PRIORITA_SOPRA
+			if originale != null and originale.albedo_texture != null:
+				mat.set_shader_parameter("tex", originale.albedo_texture)
+				mat_n.set_shader_parameter("tex", originale.albedo_texture)
+				mat_n.set_shader_parameter("usa_tex", 1.0)
+			if originale != null and originale.normal_enabled and originale.normal_texture != null:
+				mat.set_shader_parameter("ntex", originale.normal_texture)
+				mat.set_shader_parameter("usa_n", 1.0)
+				mat_n.set_shader_parameter("ntex", originale.normal_texture)
+				mat_n.set_shader_parameter("usa_n", 1.0)
+			if originale != null and originale.ao_enabled and originale.ao_texture != null:
+				mat.set_shader_parameter("otex", originale.ao_texture)
+				mat.set_shader_parameter("usa_o", 1.0)
+			mat.set_shader_parameter("forma", forma)
+			mi.set_surface_override_material(sup, mat)
+			n.set_surface_override_material(sup, mat_n)
+			colori.append(mat)
+		_pezzi[String(mi.name)] = [mi, n, colori]
 
 
 func pezzo_sopra(nome: String) -> bool:
@@ -551,10 +598,10 @@ func _applica_aspetto() -> void:
 		if visibile:
 			var posto: String = _colore_di.get(nome, "")
 			var c: Array = Equipaggiamento.COLORI[Equipaggiamento.colori.get(posto, "naturale")]
-			var mat := (coppia[0] as MeshInstance3D).material_override as ShaderMaterial
-			mat.set_shader_parameter("tinta", c[1])
-			mat.set_shader_parameter("saturazione", c[2])
-			mat.set_shader_parameter("luminosita", c[3])
+			for mat: ShaderMaterial in coppia[2]:
+				mat.set_shader_parameter("tinta", c[1])
+				mat.set_shader_parameter("saturazione", c[2])
+				mat.set_shader_parameter("luminosita", c[3])
 	imposta_mosse(Equipaggiamento.mosse_attive())
 	_ridisegna()
 
@@ -598,7 +645,7 @@ func _camera(vp: SubViewport, cella: Vector2i, ppu: float, piedi_da_sotto: int, 
 
 
 func _altezza_piedi(sk: Skeleton3D) -> float:
-	var idx := sk.find_bone("toes.l")
+	var idx := sk.find_bone("ball_l")
 	return sk.get_bone_global_pose(idx).origin.y if idx >= 0 else 0.0
 
 
@@ -609,16 +656,11 @@ static func _prepara_shader() -> void:
 	_shader_colore.code = SHADER_COLORE
 	_shader_normali = Shader.new()
 	_shader_normali.code = SHADER_NORMALI
-	_mat_normali = ShaderMaterial.new()
-	_mat_normali.shader = _shader_normali
 	# Varianti "sopra" per l'arma: senza prova di profondità, facce dietro scartate (resta pulita).
 	_shader_colore_sopra = Shader.new()
 	_shader_colore_sopra.code = SHADER_COLORE.replace("render_mode unshaded, cull_disabled;", "render_mode unshaded, cull_back, depth_test_disabled;")
-	var normali_sopra := Shader.new()
-	normali_sopra.code = SHADER_NORMALI.replace("render_mode unshaded, cull_disabled;", "render_mode unshaded, cull_back, depth_test_disabled;")
-	_mat_normali_sopra = ShaderMaterial.new()
-	_mat_normali_sopra.shader = normali_sopra
-	_mat_normali_sopra.render_priority = PRIORITA_SOPRA
+	_shader_normali_sopra = Shader.new()
+	_shader_normali_sopra.code = SHADER_NORMALI.replace("render_mode unshaded, cull_disabled;", "render_mode unshaded, cull_back, depth_test_disabled;")
 	var s := Shader.new()
 	s.code = SHADER_SPRITE % ""
 	_mat_sprite = ShaderMaterial.new()

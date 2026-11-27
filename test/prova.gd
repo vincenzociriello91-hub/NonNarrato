@@ -312,6 +312,7 @@ func _esegui() -> void:
 	await _prova_movimenti()
 	await _prova_atmosfera()
 	await _prova_figure()
+	_prova_quaternius()
 	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
 	await _prova_bottino()
@@ -1461,6 +1462,53 @@ func _prova_figure() -> void:
 	await _fotogrammi(6)
 
 
+func _prova_quaternius() -> void:
+	# Grafica, tappa 2 seconda parte (0.1.38): il Non Narrato col corpo Quaternius (proporzioni vere).
+	var m := (load(FiguraViva.MANICHINO) as PackedScene).instantiate()
+	var sk := m.get_node("Rig/Skeleton3D") as Skeleton3D
+	_verifica("quaternius: scheletro con proporzioni vere (dita, clavicole, bacino)", sk.get_bone_count() >= 60
+			and sk.find_bone("pelvis") >= 0 and sk.find_bone("hand_r") >= 0 and sk.find_bone("index_01_l") >= 0, str(sk.get_bone_count()))
+	# Ogni azione di gioco, gruppo di mosse e prova del menu ha la sua clip nel manichino.
+	var figura: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://arte/figure/protagonista.json"))
+	var lettore := m.get_node("AnimationPlayer") as AnimationPlayer
+	var mancanti: Array = []
+	var clip: Array = []
+	for a: Dictionary in figura["animazioni"] + figura["prove"]:
+		clip.append(a["clip"])
+	for g: Dictionary in (figura["mosse"] as Dictionary).values():
+		for c: Dictionary in (g["animazioni"] as Dictionary).values():
+			if c.has("clip"):
+				clip.append(c["clip"])
+	for c: String in clip:
+		if not lettore.has_animation(c):
+			mancanti.append(c)
+	_verifica("quaternius: ogni clip c'è (UAL e KayKit adattate)", mancanti.is_empty() and not figura.has("ossa"), str(mancanti))
+	# Le clip KayKit adattate muovono le ossa Quaternius e chiudono le dita sull'impugnatura.
+	var adattata := lettore.get_animation("KK_Dodge_Backward")
+	var dita := adattata.find_track(NodePath("Rig/Skeleton3D:index_01_r"), Animation.TYPE_ROTATION_3D) >= 0
+	var gomito := adattata.find_track(NodePath("Rig/Skeleton3D:lowerarm_r"), Animation.TYPE_ROTATION_3D) >= 0
+	_verifica("quaternius: animazioni KayKit adattate allo scheletro nuovo", dita and gomito
+			and adattata.find_track(NodePath("Rig/Skeleton3D:lowerarm.r"), Animation.TYPE_ROTATION_3D) < 0)
+	# Mantelli generati, legati a petto, bacino e cosce; testa scoperta senza il corpo sotto i vestiti.
+	var mantello := sk.get_node_or_null("Mantello__Viandante") as MeshInstance3D
+	var testa := sk.get_node_or_null("Corpo__Testa") as MeshInstance3D
+	var testa_ok := testa != null and testa.mesh.get_aabb().position.y > 1.3
+	_verifica("quaternius: mantelli legati alle ossa e testa scoperta solo testa", mantello != null and mantello.skin != null
+			and mantello.skin.get_bind_count() == 4 and testa_ok, str(testa.mesh.get_aabb() if testa != null else "nessuna testa"))
+	m.free()
+	# Nel gioco: un materiale per superficie, con rilievo (normali) e pieghe (occlusione) sulla giubba.
+	var fv := _g().sprite as FiguraViva
+	var giubba: Array = fv.get("_pezzi").get("Viandante__Giubba", [])
+	var con_rilievo := false
+	if not giubba.is_empty():
+		var mat := (giubba[0] as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		con_rilievo = mat != null and float(mat.get_shader_parameter("usa_n")) == 1.0 and float(mat.get_shader_parameter("usa_o")) == 1.0
+	var maniche: Array = fv.get("_pezzi").get("Viandante__Maniche", [])
+	var due := not maniche.is_empty() and (maniche[2] as Array).size() == (maniche[0] as MeshInstance3D).mesh.get_surface_count() \
+			and (maniche[0] as MeshInstance3D).mesh.get_surface_count() >= 2
+	_verifica("quaternius: stoffa e pelle con i loro materiali, rilievo e pieghe", con_rilievo and due)
+
+
 func _secondi_sul_posto(n: Nemico, fotogrammi: int) -> float:
 	# Quanto tempo, al massimo di fila, il nemico ha l'animazione di camminata senza spostarsi.
 	var di_fila := 0
@@ -1634,10 +1682,10 @@ func _prova_compenetrazioni() -> void:
 	for nome: String in pezzi:
 		if figura.pezzo_sopra(nome):
 			var coppia: Array = pezzi[nome]
-			arma_ok = (coppia[0] as MeshInstance3D).material_override.render_priority == FiguraViva.PRIORITA_SOPRA \
-					and (coppia[1] as MeshInstance3D).material_override.render_priority == FiguraViva.PRIORITA_SOPRA
+			arma_ok = (coppia[0] as MeshInstance3D).get_surface_override_material(0).render_priority == FiguraViva.PRIORITA_SOPRA \
+					and (coppia[1] as MeshInstance3D).get_surface_override_material(0).render_priority == FiguraViva.PRIORITA_SOPRA
 			break
-	_verifica("compenetrazioni: l'arma si disegna sopra a testa e busto", arma_ok and not figura.pezzo_sopra("Viandante__Rogue_Body"))
+	_verifica("compenetrazioni: l'arma si disegna sopra a testa e busto", arma_ok and not figura.pezzo_sopra("Viandante__Giubba"))
 	_principale.ricomincia_stanza()
 	await _fotogrammi(30)
 
