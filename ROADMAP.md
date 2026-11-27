@@ -10,16 +10,16 @@ e cupezza dei movimenti, **Prince of Persia** (il primo) per arrampicate e aggra
 Dispositivo più debole su cui deve girare bene: **Pixel 8 Pro**. Livelli in più per i dispositivi più potenti.
 Si possono scaricare e installare risorse CC0 e librerie (solo licenze compatibili con un repository pubblico).
 
-## 1. Ombre giuste, senza coni neri — da fare
+## 1. Ombre giuste, senza coni neri — fatto (0.1.31 corpi, 0.1.32 muri e pilastri)
 Oggetti, personaggio e nemici devono avere di nuovo un'ombra (dalla 0.1.28 erano state tolte: errore).
 Corte e sfumate, dai piedi, dalla parte opposta alla torcia più vicina, più deboli lontano dalla luce.
 Niente coni neri lunghi che partono dalle torce e attraversano il muro.
 
-## 2. Regola: si corregge il difetto, non si toglie ciò che funziona — da fare
+## 2. Regola: si corregge il difetto, non si toglie ciò che funziona — fatto (0.1.32)
 Scriverla in `CLAUDE.md` (fatto il 27/11/2026) e rispettarla: prima di togliere qualcosa ci si chiede se il
 problema è la cosa o solo il difetto, e si confronta con Dead Cells e Blasphemous. Si toglie solo se lì non c'è.
 
-## 3. Movimenti fluidi e naturali per tutti — da fare
+## 3. Movimenti fluidi e naturali per tutti — in corso
 Personaggio (lo stesso del bot) e ogni tipo di nemico. Oggi l'arrampicata sembra "Pinocchio, un burattino".
 - piedi che non scivolano: camminata, corsa, nuoto e salita al passo con lo spostamento vero;
 - niente scatti tra un'azione e l'altra (fermarsi, girarsi, attaccare, atterrare, rialzarsi, aggrapparsi,
@@ -27,6 +27,13 @@ Personaggio (lo stesso del bot) e ogni tipo di nemico. Oggi l'arrampicata sembra
 - peso: preparazione prima di salti e colpi, ritorno dopo, corpo che si piega e oscilla;
 - arrampicata: ciclo più lungo, mano e piede opposti insieme, spinta a ogni presa;
 - controllo con foto fotogramma per fotogramma, confrontate con i riferimenti.
+
+Fatto nella 0.1.34 (lavoro della 0.1.33, uscito con la compilazione 34): tutte le animazioni ad almeno 24 fotogrammi
+al secondo (personaggio e nemici, stesse durate); corsa e camminata al passo con lo spostamento; salto ad arco guidato
+dalla velocità con sospensione in cima; spigoli scansati; inclinazione nello slancio e nella frenata; issata dal bordo
+(appeso, trazione, ginocchio, in piedi); nemici che partono e frenano senza scatti, senza passettini sul posto.
+Resta: ciclo dell'arrampicata (più lungo, mano e piede opposti, spinta a ogni presa), nuoto al passo, pose di passaggio
+(girarsi, attaccare, atterrare, rialzarsi, lasciarsi andare), preparazione e ritorno di salti e colpi.
 
 ## 4. Grafica di qualità più alta — da fare
 "Sembra ancora tutto fatto male": più accattivante e di qualità.
