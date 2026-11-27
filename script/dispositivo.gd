@@ -15,11 +15,12 @@ const PROFILI := {
 	# Ombre delle torce: le ombre del motore facevano strisce scure fino al soffitto (Vincenzo, 26/11/2026) e furono
 	# spente; dalla 0.1.32 le fa il materiale del muro, corte e sfumate (Effetti.materiale_muro): "luci_con_ombra" 0/1.
 	# I corpi hanno ombre corte e sfumate (Ombra): "ombre_corpi" = quante luci danno la sagoma (0 = solo la macchia).
-	"bassa": {"luci_con_ombra": 0, "ombre_corpi": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false, "bagliore": 0, "raggi": false, "toni": false},
-	"media": {"luci_con_ombra": 1, "ombre_corpi": 1, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true, "bagliore": 1, "raggi": true, "toni": true},
-	"alta": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true, "bagliore": 1, "raggi": true, "toni": true},
+	# "figure" (0.1.37): personaggi e nemici in doppia definizione, con il mondo disegnato al doppio (vedi densita_figure).
+	"bassa": {"luci_con_ombra": 0, "ombre_corpi": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false, "bagliore": 0, "raggi": false, "toni": false, "figure": false},
+	"media": {"luci_con_ombra": 1, "ombre_corpi": 1, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true, "bagliore": 1, "raggi": true, "toni": true, "figure": false},
+	"alta": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true, "bagliore": 1, "raggi": true, "toni": true, "figure": true},
 	# Ultra (0.1.36): solo per i telefoni più potenti del Pixel 8 Pro (il più debole su cui tutto deve girare bene in "alta").
-	"ultra": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.4, "nebbia": true, "figura_normali": true, "bagliore": 2, "raggi": true, "toni": true},
+	"ultra": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.4, "nebbia": true, "figura_normali": true, "bagliore": 2, "raggi": true, "toni": true, "figure": true},
 }
 # Grafica da "ultra": più potente di quella del Pixel 8 Pro (Mali-G715), con molta memoria.
 const GPU_ULTRA: Array[String] = ["adreno (tm) 75", "adreno 75", "adreno (tm) 8", "adreno 8", "immortalis-g72", "immortalis-g92", "immortalis-g93"]
@@ -334,6 +335,7 @@ func applica() -> void:
 		"bagliore": int(Impostazioni.leggi("grafica/bagliore")),
 		"raggi": int(Impostazioni.leggi("grafica/raggi")),
 		"toni": int(Impostazioni.leggi("grafica/toni")),
+		"figure": int(Impostazioni.leggi("grafica/figure")),
 	}
 	for chiave: String in scelti:
 		var v: int = scelti[chiave]
@@ -352,6 +354,7 @@ func applica() -> void:
 		profilo["particelle"] = minf(float(profilo["particelle"]), 0.7 if riduzione_caldo == 1 else 0.4)
 		profilo["bagliore"] = mini(int(profilo["bagliore"]), 2 - mini(riduzione_caldo, 2))
 		profilo["raggi"] = bool(profilo["raggi"]) and riduzione_caldo < 2
+		profilo["figure"] = false   # il mondo al doppio costa: col caldo si torna alla definizione normale
 	profilo["palette"] = Impostazioni.leggi("grafica/palette")
 	RenderingServer.canvas_set_shadow_texture_size(int(profilo["atlante_ombre"]))
 	var limite: int = Impostazioni.leggi("grafica/limite_fps")
@@ -566,8 +569,12 @@ func risoluzione_interna(finestra: Vector2i) -> Dictionary:
 			scala = float(scelta)
 	var dimensione := Vector2i(ceili(float(area.x) / scala), ceili(float(area.y) / scala))
 	var quota: float = clampf(Impostazioni.leggi("grafica/risoluzione"), 0.25, 1.0)
-	var resa := Vector2i(maxi(1, roundi(dimensione.x * quota)), maxi(1, roundi(dimensione.y * quota)))
-	return {"scala": scala, "dimensione": dimensione, "resa": resa, "area": area}
+	# Doppia definizione delle figure (0.1.37): il mondo si disegna al doppio, così una figura col doppio
+	# dei pixel si vede intera. Solo se lo schermo ha almeno 2 pixel veri per pixel di gioco e la risoluzione
+	# interna è piena (al 50% i pixel in più andrebbero persi).
+	var densita := 2 if bool(profilo.get("figure", false)) and scala >= 2.0 and quota >= 1.0 else 1
+	var resa := Vector2i(maxi(1, roundi(dimensione.x * quota * densita)), maxi(1, roundi(dimensione.y * quota * densita)))
+	return {"scala": scala, "dimensione": dimensione, "resa": resa, "area": area, "densita": densita}
 
 
 func _process(delta: float) -> void:

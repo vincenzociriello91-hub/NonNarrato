@@ -42,6 +42,9 @@ void fragment() {
 
 const CONTORNO := Color8(13, 10, 18)
 const COLONNE_MAX := 12
+const SUFFISSO_DOPPIA := "_x2"   # foglio in doppia definizione (stesso nome + suffisso)
+const MARGINE := 2               # pixel vuoti attorno a ogni fotogramma ritagliato
+const SPAZIO := 4                # pixel fra un fotogramma e l'altro nel foglio
 
 var _vp: SubViewport
 var _camera: Camera3D
@@ -100,6 +103,8 @@ func _avvia() -> void:
 		if not solo.is_empty() and not solo.has(voce["nome"]):
 			continue
 		if not await _render_voce(voce, uscita):
+			errori += 1
+		if voce.get("doppia", false) and not await _render_voce(voce_doppia(voce), uscita):
 			errori += 1
 	print("RENDER FINE, errori: ", errori)
 	quit(1 if errori > 0 else 0)
@@ -260,10 +265,17 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 			else:
 				foglio_n.blit_rect(img, Rect2i(Vector2i.ZERO, cella), dove)
 
-	_rifinisci(foglio_c, foglio_n, cella, voce.get("contorno", true))
+	_rifinisci(foglio_c, foglio_n, cella, voce.get("contorno", true), int(voce.get("spessore_contorno", 1)))
 
 	var piedi := Vector2i(cella.x / 2, cella.y - piedi_da_sotto)
-	if voce.get("ritaglia", false) and scatti.size() == 1:
+	var fotogrammi: Array = []
+	if voce.get("doppia", false) or voce.has("densita"):
+		# Personaggi e nemici: un rettangolo per fotogramma (0.1.37), il foglio pesa molto meno.
+		var pacco := impacchetta(foglio_c, foglio_n, cella, colonne, scatti.size(), piedi)
+		foglio_c = pacco["colore"]
+		foglio_n = pacco["normali"]
+		fotogrammi = pacco["fotogrammi"]
+	elif voce.get("ritaglia", false) and scatti.size() == 1:
 		# Oggetti fermi: tengo solo il rettangolo disegnato.
 		var usato := foglio_c.get_used_rect()
 		if usato.size.x > 0 and usato.size.y > 0:
@@ -301,13 +313,79 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 		"colonne": colonne,
 		"animazioni": animazioni,
 	}
+	if not fotogrammi.is_empty():
+		dati["fotogrammi"] = fotogrammi
+		dati["densita"] = int(voce.get("densita", 1))
 	var f := FileAccess.open(percorso + ".json", FileAccess.WRITE)
-	f.store_string(JSON.stringify(dati, "\t"))
+	# Con i rettangoli dei fotogrammi il file in righe sarebbe lunghissimo: senza a capo.
+	f.store_string(JSON.stringify(dati, "" if dati.has("fotogrammi") else "\t"))
 	f.close()
 	print(nome, ": ", scatti.size(), " fotogrammi, foglio ", foglio_c.get_width(), "x", foglio_c.get_height())
 	perno.queue_free()
 	await process_frame
 	return true
+
+
+static func voce_doppia(voce: Dictionary) -> Dictionary:
+	# Figure in doppia definizione (0.1.37): stessa inquadratura, il doppio dei pixel in larghezza e in altezza.
+	# Il gioco la disegna a metà grandezza in un mondo disegnato al doppio (Dispositivo.densita_figure).
+	var v := voce.duplicate(true)
+	v["nome"] = String(voce["nome"]) + SUFFISSO_DOPPIA
+	v["cella"] = [int(voce["cella"][0]) * 2, int(voce["cella"][1]) * 2]
+	v["px_per_unita"] = float(voce.get("px_per_unita", 20.0)) * 2.0
+	v["piedi_da_sotto"] = int(voce.get("piedi_da_sotto", 8)) * 2
+	v["densita"] = 2
+	v["spessore_contorno"] = int(voce.get("spessore_contorno", 1)) * 2
+	return v
+
+
+static func impacchetta(colore: Image, normali: Image, cella: Vector2i, colonne: int, quanti: int, piedi: Vector2i) -> Dictionary:
+	# Ogni fotogramma tiene solo il rettangolo disegnato (largo uguale a destra e a sinistra dei piedi, così
+	# girare lo sprite non lo sposta), più MARGINE pixel vuoti per il contorno dell'accessibilità; i rettangoli
+	# stanno a SPAZIO pixel l'uno dall'altro (l'ombra sfocata legge qualche pixel attorno).
+	var pezzi: Array = []
+	var area := 0
+	var largo_max := 0
+	for i in quanti:
+		var dove := Vector2i((i % colonne) * cella.x, (i / colonne) * cella.y)
+		var usato := colore.get_region(Rect2i(dove, cella)).get_used_rect()
+		if usato.size.x <= 0 or usato.size.y <= 0:
+			usato = Rect2i(piedi, Vector2i.ONE)
+		var mezzo := maxi(piedi.x - usato.position.x, usato.end.x - piedi.x)
+		var r := Rect2i(piedi.x - mezzo - MARGINE, usato.position.y - MARGINE, mezzo * 2 + MARGINE * 2, usato.size.y + MARGINE * 2)
+		pezzi.append({"i": i, "da": dove, "r": r})
+		area += (r.size.x + SPAZIO) * (r.size.y + SPAZIO)
+		largo_max = maxi(largo_max, r.size.x + SPAZIO)
+	var larghezza := clampi(ceili(sqrt(float(area)) * 1.12), largo_max, 4096)
+	var ordine := pezzi.duplicate()
+	ordine.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["r"].size.y > b["r"].size.y)
+	var x := 0
+	var y := 0
+	var alto_riga := 0
+	for p: Dictionary in ordine:
+		var r: Rect2i = p["r"]
+		if x + r.size.x > larghezza:
+			x = 0
+			y += alto_riga + SPAZIO
+			alto_riga = 0
+		p["a"] = Vector2i(x, y)
+		x += r.size.x + SPAZIO
+		alto_riga = maxi(alto_riga, r.size.y)
+	var altezza := y + alto_riga
+	var nuovo_c := Image.create(larghezza, altezza, false, Image.FORMAT_RGBA8)
+	var nuovo_n := Image.create(larghezza, altezza, false, Image.FORMAT_RGBA8)
+	nuovo_n.fill(Color(0.5, 0.5, 1.0, 0.0))
+	var fotogrammi: Array = []
+	fotogrammi.resize(quanti)
+	for p: Dictionary in pezzi:
+		var r: Rect2i = p["r"]
+		# Parte del rettangolo che sta dentro la cella (il margine può uscirne: lì resta vuoto).
+		var dentro := r.intersection(Rect2i(Vector2i.ZERO, cella))
+		var a: Vector2i = p["a"] + (dentro.position - r.position)
+		nuovo_c.blit_rect(colore, Rect2i(p["da"] + dentro.position, dentro.size), a)
+		nuovo_n.blit_rect(normali, Rect2i(p["da"] + dentro.position, dentro.size), a)
+		fotogrammi[p["i"]] = [p["a"].x, p["a"].y, r.size.x, r.size.y, r.position.x, r.position.y]
+	return {"colore": nuovo_c, "normali": nuovo_n, "fotogrammi": fotogrammi}
 
 
 func _componi(modello: Node3D, pezzi: Array) -> bool:
@@ -545,8 +623,8 @@ func _materiali(modello: Node3D, voce: Dictionary, normali: bool) -> void:
 			mi.set_surface_override_material(s, mat)
 
 
-func _rifinisci(colore: Image, normali: Image, cella: Vector2i, contorno: bool) -> void:
-	# Bordi netti (niente pixel semitrasparenti) e contorno scuro di 1 pixel.
+func _rifinisci(colore: Image, normali: Image, cella: Vector2i, contorno: bool, spessore: int = 1) -> void:
+	# Bordi netti (niente pixel semitrasparenti) e contorno scuro di "spessore" pixel (2 nella doppia definizione).
 	var w := colore.get_width()
 	var h := colore.get_height()
 	var pieno := PackedByteArray()
@@ -567,6 +645,17 @@ func _rifinisci(colore: Image, normali: Image, cella: Vector2i, contorno: bool) 
 	if not contorno:
 		return
 	var piatto := Color(0.5, 0.5, 1.0, 1.0)
+	for giro in maxi(1, spessore):
+		if giro > 0:
+			# Il contorno appena fatto conta come pieno per il giro dopo.
+			for y in h:
+				for x in w:
+					if colore.get_pixel(x, y).a >= 0.5:
+						pieno[y * w + x] = 1
+		_un_giro_di_contorno(colore, normali, cella, pieno, w, h, piatto)
+
+
+func _un_giro_di_contorno(colore: Image, normali: Image, cella: Vector2i, pieno: PackedByteArray, w: int, h: int, piatto: Color) -> void:
 	for y in h:
 		for x in w:
 			if pieno[y * w + x] == 1:

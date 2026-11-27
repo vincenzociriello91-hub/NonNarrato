@@ -238,6 +238,8 @@ func _costruisci_grafica(p: VBoxContainer) -> void:
 	q["livello"] = true   # vedi _scelta: usa Impostazioni.scegli_qualita
 	_interruttore(p, "Riduci da solo la qualità se il gioco va a scatti", "grafica/adattamento")
 	_sezione(p, "Dettagli")
+	_scelta(p, "Figure dettagliate", "grafica/figure", SI_NO_AUTO,
+			"Personaggio e nemici col doppio dei pixel: il mondo si disegna al doppio della risoluzione.")
 	_scelta(p, "Ombre di personaggi e oggetti", "grafica/ombre_corpi", [[-1, "Automatico"], [0, "Solo a terra"], [1, "Dalla luce più vicina"], [2, "Dalle due luci più vicine"]],
 			"Ombre corte e sfumate sul pavimento, dalla parte opposta alle torce.")
 	_scelta(p, "Ombre di muri e pilastri", "grafica/luci_ombra", SI_NO_AUTO, "Corte e sfumate sul muro di fondo, accanto a muri e pilastri.")
@@ -664,6 +666,7 @@ func _prepara_vetrina() -> void:
 		return
 	vetrina = FiguraViva.new()
 	vetrina.usa_normali = false
+	vetrina.densita_fissa = 2       # l'anteprima è grande: sempre in doppia definizione
 	vetrina.visible = false         # si vede solo nell'anteprima del menu
 	add_child(vetrina)
 	vetrina.carica("protagonista")
@@ -833,6 +836,7 @@ func _etichette_automatiche() -> void:
 		"grafica/bagliore": "Automatico (%s)" % ["no", "leggero", "forte"][clampi(int(profilo.get("bagliore", 1)), 0, 2)],
 		"grafica/raggi": "Automatico (%s)" % _si_no(profilo.get("raggi", true)),
 		"grafica/toni": "Automatico (%s)" % _si_no(profilo.get("toni", true)),
+		"grafica/figure": "Automatico (%s)" % _si_no(profilo.get("figure", false)),
 		"grafica/primo_piano": "Automatico (%s)" % _si_no(profilo.get("primo_piano", true)),
 		"audio/notte": "Automatico (%s)" % _si_no(Suoni.notte_attiva()),
 		"audio/bassi": "Automatici (%s)" % ["ridotti", "normali", "forti"][clampi(Suoni.bassi_scelti(), 0, 2)],

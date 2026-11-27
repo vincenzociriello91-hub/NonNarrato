@@ -420,8 +420,8 @@ func _normale(delta: float, a_terra: bool) -> void:
 			_conta("salti")
 			_polvere(5)
 			# Slancio: un attimo allungato verso l'alto (lo schiacciamento lo fa l'atterraggio).
-			sprite.scale = Vector2(0.9, 1.12)
-			sprite.create_tween().tween_property(sprite, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			sprite.scale = sprite.scala_base * Vector2(0.9, 1.12)
+			sprite.create_tween().tween_property(sprite, "scale", sprite.scala_base, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			Suoni.suona("salto", global_position, -4.0)
 		_t_memoria_salto = 0.0
 		_t_coyote = 0.0
@@ -1626,9 +1626,9 @@ func _atterrato() -> void:
 		Suoni.suona("atterra", global_position, -3.0)
 		# Schiacciato un attimo dall'atterraggio (il perno è ai piedi: resta appoggiato a terra).
 		var peso := clampf((_velocita_caduta - 220.0) / 400.0, 0.0, 1.0)
-		sprite.scale = Vector2(1.0 + 0.14 * peso, 1.0 - 0.14 * peso)
+		sprite.scale = sprite.scala_base * Vector2(1.0 + 0.14 * peso, 1.0 - 0.14 * peso)
 		var tw := sprite.create_tween()
-		tw.tween_property(sprite, "scale", Vector2.ONE, 0.11).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(sprite, "scale", sprite.scala_base, 0.11).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 # ------------------------------------------------------------------ aspetto

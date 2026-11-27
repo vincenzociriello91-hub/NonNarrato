@@ -219,6 +219,7 @@ func _ready() -> void:
 	sprite.light_mask = Effetti.L_DAVANTI
 	add_child(sprite)
 	_applica_contorno()
+	sprite.densita_cambiata.connect(_applica_contorno)
 	Impostazioni.cambiata.connect(_su_impostazione)
 
 	_bersaglio = Area2D.new()
@@ -847,8 +848,8 @@ func _lontano(distanza: float, soglia: float) -> bool:
 
 func _deforma(quanto: Vector2) -> void:
 	# Schiaccia o allunga lo sprite (perno ai piedi) e lo rimette subito a posto: peso nei salti (0.1.35).
-	sprite.scale = Vector2.ONE + quanto
-	sprite.create_tween().tween_property(sprite, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	sprite.scale = sprite.scala_base * (Vector2.ONE + quanto)
+	sprite.create_tween().tween_property(sprite, "scale", sprite.scala_base, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _ammorbidisci_passo(delta: float) -> void:
@@ -1559,4 +1560,4 @@ func _su_impostazione(chiave: String) -> void:
 
 func _applica_contorno() -> void:
 	# Accessibilità "contorni chiari": i nemici hanno un contorno rosso chiaro, ben distinto dal fondo.
-	sprite.material = Effetti.materiale_contorno(Color(1.0, 0.42, 0.36)) if Impostazioni.leggi("acc/contorni") else null
+	sprite.material = Effetti.materiale_contorno(Color(1.0, 0.42, 0.36), sprite.densita_px) if Impostazioni.leggi("acc/contorni") else null

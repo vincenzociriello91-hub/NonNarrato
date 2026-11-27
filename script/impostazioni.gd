@@ -44,6 +44,7 @@ const PREDEFINITE := {
 	"grafica/bagliore": -1,             # bagliore di fiamme e magie: 0 no, 1 leggero, 2 forte
 	"grafica/raggi": -1,                # raggi di luce dalle finestre, con la polvere
 	"grafica/toni": -1,                 # colori del film: ombre fredde, luci calde, bordi scuri
+	"grafica/figure": -1,               # personaggi e nemici in doppia definizione (il mondo si disegna al doppio)
 	"grafica/primo_piano": -1,           # sagome scure in primo piano
 	"grafica/particelle": -1.0,          # quantità (0,2-1)
 	"grafica/atlante_ombre": -1,         # dettaglio delle ombre: 512, 1024, 2048
@@ -88,7 +89,7 @@ const SCHEDE := {
 
 const DETTAGLI_GRAFICA := ["grafica/luci_ombra", "grafica/ombre_corpi", "grafica/ombre_morbide", "grafica/luci_doppie", "grafica/normali_figura",
 	"grafica/nebbia", "grafica/primo_piano", "grafica/particelle", "grafica/atlante_ombre",
-	"grafica/bagliore", "grafica/raggi", "grafica/toni"]
+	"grafica/bagliore", "grafica/raggi", "grafica/toni", "grafica/figure"]
 
 var _valori := {}
 

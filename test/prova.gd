@@ -311,6 +311,7 @@ func _esegui() -> void:
 	await _prova_ombre()
 	await _prova_movimenti()
 	await _prova_atmosfera()
+	await _prova_figure()
 	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
 	await _prova_bottino()
@@ -829,9 +830,10 @@ func _prova_impostazioni_suoni_aggiornamenti() -> void:
 	# Atterraggio pesante: il personaggio si schiaccia un attimo e torna com'era.
 	g.set("_velocita_caduta", 620.0)
 	g.call("_atterrato")
-	var schiacciato := g.sprite.scale.x > 1.1 and g.sprite.scale.y < 0.9
+	var forma_vista := g.sprite.scale / g.sprite.scala_base   # senza la metà della doppia definizione
+	var schiacciato := forma_vista.x > 1.1 and forma_vista.y < 0.9
 	await get_tree().create_timer(0.25).timeout
-	_verifica("atterraggio: schiacciato e poi di nuovo dritto", schiacciato and g.sprite.scale.is_equal_approx(Vector2.ONE), str(g.sprite.scale))
+	_verifica("atterraggio: schiacciato e poi di nuovo dritto", schiacciato and g.sprite.scale.is_equal_approx(g.sprite.scala_base), str(g.sprite.scale))
 	# Sotterraneo: ambiente dell'acqua ed eco più lunga; sott'acqua tutto ovattato.
 	Suoni.imposta_zona(true)
 	for i in 22:
@@ -1047,7 +1049,7 @@ func _prova_ombre() -> void:
 		await _fotogrammi(30)   # la stanza accende le torce in vista ogni 0,25 s
 		var punta := Vector2.ZERO
 		for s: Node in ombra.get_children():
-			if s is Sprite2D and (s as Sprite2D).material == Ombra.materiale() and (s as Sprite2D).visible:
+			if s is Sprite2D and (s as Sprite2D).material != null and (s as Sprite2D).material.get("shader") == Ombra.materiale().shader and (s as Sprite2D).visible:
 				punta = (s as Sprite2D).transform * Vector2(0.0, -40.0)   # dove finisce la testa dell'ombra
 				break
 		esiti[lato] = punta
@@ -1365,6 +1367,96 @@ func _prova_atmosfera() -> void:
 	Impostazioni.scegli_qualita("ultra")
 	await _fotogrammi(6)
 	_verifica("atmosfera: il livello ultra esiste e si sceglie", Dispositivo.livello == "ultra" and float(Dispositivo.profilo["particelle"]) > 1.0)
+	Impostazioni.scegli_qualita(vecchia)
+	await _fotogrammi(6)
+
+
+func _prova_figure() -> void:
+	# Grafica, tappa 2 (0.1.37): personaggio e nemici in doppia definizione, fogli ritagliati.
+	var nomi := ["scheletro", "mago", "arciere", "bestione", "saltatore", "pipistrello", "mimic"]
+	var problemi: Array = []
+	for nome: String in nomi:
+		var uno: Dictionary = SpriteAnimato.foglio(nome)["dati"]
+		if not SpriteAnimato.ha_doppia(nome):
+			problemi.append(nome + ": manca _x2")
+			continue
+		var due: Dictionary = SpriteAnimato.foglio(nome + SpriteAnimato.SUFFISSO_DOPPIA)["dati"]
+		if int(due.get("densita", 1)) != 2 or int(due["cella"][1]) != int(uno["cella"][1]) * 2:
+			problemi.append(nome + ": densità o cella")
+		# Stessi tempi di gioco: stesse animazioni, stessi fotogrammi, stessi fps.
+		for anim: String in uno["animazioni"]:
+			var a: Dictionary = uno["animazioni"][anim]
+			var b: Dictionary = (due["animazioni"] as Dictionary).get(anim, {})
+			if b.is_empty() or (a["frame"] as Array).size() != (b["frame"] as Array).size() or not is_equal_approx(float(a["fps"]), float(b["fps"])):
+				problemi.append("%s: tempi di %s" % [nome, anim])
+		# Ogni fotogramma ritagliato sta nel foglio ed è largo uguale ai due lati dei piedi (girato non si sposta).
+		for dati: Dictionary in [uno, due]:
+			var tex: Texture2D = (SpriteAnimato.foglio(nome if dati == uno else nome + SpriteAnimato.SUFFISSO_DOPPIA)["texture"] as CanvasTexture).diffuse_texture
+			var fotogrammi: Array = dati.get("fotogrammi", [])
+			var px := float(dati["piedi"][0])
+			for r: Array in fotogrammi:
+				if r[0] < 0 or r[1] < 0 or r[0] + r[2] > tex.get_width() or r[1] + r[3] > tex.get_height() \
+						or absf(2.0 * (px - float(r[4])) - float(r[2])) > 1.0:
+					problemi.append("%s: rettangolo %s" % [nome, r])
+					break
+			if fotogrammi.is_empty():
+				problemi.append(nome + ": foglio non ritagliato")
+	_verifica("figure: ogni nemico ha il foglio doppio, con gli stessi tempi e i fotogrammi ritagliati", problemi.is_empty(), str(problemi))
+	# Il foglio ritagliato pesa meno di quello a celle intere: scheletro sotto 1 milione di pixel.
+	var tex_s: Texture2D = (SpriteAnimato.foglio("scheletro")["texture"] as CanvasTexture).diffuse_texture
+	_verifica("figure: fogli ritagliati più leggeri", tex_s.get_width() * tex_s.get_height() < 1000000, "%dx%d" % [tex_s.get_width(), tex_s.get_height()])
+	# Risoluzione del mondo: al doppio solo con figure dettagliate, ×2 o più e risoluzione interna piena.
+	var finestra := Vector2i(2992, 1344)
+	var vecchia: String = Impostazioni.leggi("grafica/qualita")
+	Impostazioni.scegli_qualita("alta")
+	await _fotogrammi(4)
+	var piena := Dispositivo.risoluzione_interna(finestra)
+	Impostazioni.scrivi("grafica/risoluzione", 0.5)
+	var meta := Dispositivo.risoluzione_interna(finestra)
+	Impostazioni.scrivi("grafica/risoluzione", 1.0)
+	Impostazioni.scrivi("grafica/figure", 0)
+	await _fotogrammi(4)
+	var senza := Dispositivo.risoluzione_interna(finestra)
+	_verifica("figure: sul Pixel in alta il mondo si disegna al doppio", int(piena["densita"]) == 2 and piena["resa"] == (piena["dimensione"] as Vector2i) * 2
+			and int(meta["densita"]) == 1 and int(senza["densita"]) == 1 and senza["resa"] == senza["dimensione"], "%s %s %s" % [piena, meta, senza])
+	# Cambio dal vivo: nemici, personaggio e mondo passano all'altra definizione senza cambiare grandezza né animazione.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	var n: Nemico = null
+	for x: Node in get_tree().get_nodes_in_group("nemici"):
+		if x is Nemico and (x as Nemico).tipo == "scheletro":
+			n = x
+			break
+	var g := _g()
+	var misure := {}
+	for scelta in [0, 1]:
+		Impostazioni.scrivi("grafica/figure", scelta)
+		await _fotogrammi(4)
+		var attesa := 2 if scelta == 1 and float(_principale.get("_scala")) >= 2.0 else 1
+		var mondo_vp: SubViewport = _principale.mondo
+		misure[scelta] = {
+			"densita": SpriteAnimato.densita_figure, "nemico": n.sprite.densita_px if n != null else -1,
+			"figura": (g.sprite as FiguraViva).anteprima().get_size().y, "scala": g.sprite.scale.y,
+			"anim": n.sprite.animazione if n != null else "", "mondo": mondo_vp.size.y, "attesa": attesa,
+		}
+		_verifica("figure: %s, densità %d" % ["dettagliate" if scelta == 1 else "normali", attesa],
+				SpriteAnimato.densita_figure == attesa and (n == null or n.sprite.densita_px == attesa)
+				and int((g.sprite as FiguraViva).anteprima().get_size().y) == 96 * attesa and is_equal_approx(g.sprite.scale.y, 1.0 / attesa)
+				and ((attesa == 1 and mondo_vp.size_2d_override == Vector2i.ZERO) or (attesa == 2 and mondo_vp.size.y == mondo_vp.size_2d_override.y * 2)),
+				str(misure[scelta]))
+	if n != null:
+		# Stesso fotogramma nei due fogli: alto uguale in pixel di gioco (senza i 2 pixel di margine del foglio).
+		var idx := int((n.sprite.get("_anim")["frame"] as Array)[n.sprite.fotogramma])
+		var r1: Array = SpriteAnimato.foglio("scheletro")["dati"]["fotogrammi"][idx]
+		var r2: Array = SpriteAnimato.foglio("scheletro" + SpriteAnimato.SUFFISSO_DOPPIA)["dati"]["fotogrammi"][idx]
+		var alto1 := float(r1[3]) - 4.0
+		var alto2 := (float(r2[3]) - 4.0) / 2.0
+		_verifica("figure: il nemico resta grande uguale e con la stessa animazione",
+				absf(alto1 - alto2) <= 1.5 and misure[0]["anim"] == misure[1]["anim"], "%.1f %.1f %s" % [alto1, alto2, misure])
+	# Contorno chiaro dell'accessibilità e ombra: spessore e sfocatura in pixel di gioco.
+	_verifica("figure: contorno e ombra seguono la densità", float(Effetti.materiale_contorno(Color.WHITE, 2).get_shader_parameter("spessore")) == 2.0
+			and float(Ombra.materiale(2).get_shader_parameter("densita")) == 2.0 and Ombra.materiale(2).shader == Ombra.materiale(1).shader)
+	Impostazioni.scrivi("grafica/figure", -1)
 	Impostazioni.scegli_qualita(vecchia)
 	await _fotogrammi(6)
 

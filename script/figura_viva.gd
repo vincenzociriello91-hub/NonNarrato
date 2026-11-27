@@ -50,6 +50,7 @@ const SHADER_SPRITE := "
 shader_type canvas_item;
 %s
 uniform vec4 contorno : source_color = vec4(0.051, 0.039, 0.071, 1.0);
+uniform float cella_base = 96.0;   // nella doppia definizione la foto è alta il doppio: contorno di 2 pixel
 varying vec4 tinta_nodo;
 void vertex() {
 	tinta_nodo = COLOR;
@@ -60,8 +61,12 @@ void fragment() {
 		COLOR = vec4(c.rgb, 1.0) * tinta_nodo;
 	} else {
 		vec2 p = TEXTURE_PIXEL_SIZE;
-		float v = max(max(texture(TEXTURE, UV + vec2(p.x, 0.0)).a, texture(TEXTURE, UV - vec2(p.x, 0.0)).a),
-				max(texture(TEXTURE, UV + vec2(0.0, p.y)).a, texture(TEXTURE, UV - vec2(0.0, p.y)).a));
+		float spessore = max(1.0, round(1.0 / (p.y * cella_base)));
+		float v = 0.0;
+		for (float k = 1.0; k <= spessore; k += 1.0) {
+			v = max(v, max(max(texture(TEXTURE, UV + vec2(p.x * k, 0.0)).a, texture(TEXTURE, UV - vec2(p.x * k, 0.0)).a),
+					max(texture(TEXTURE, UV + vec2(0.0, p.y * k)).a, texture(TEXTURE, UV - vec2(0.0, p.y * k)).a)));
+		}
 		if (v < 0.5) {
 			discard;
 		}
@@ -118,6 +123,9 @@ var _con_normali := true
 var _lampo_fino := 0.0
 var _insiemi := {}               # gruppo di mosse -> animazioni
 var _proporzionato := false
+var densita_fissa := 0           # 0 = segue SpriteAnimato.densita_figure; l'anteprima del menu usa sempre 2
+var _cella_base := Vector2i(96, 96)
+var _piedi_da_sotto := 20
 
 
 func carica(nome: String) -> void:
@@ -157,8 +165,12 @@ func carica(nome: String) -> void:
 	@warning_ignore("integer_division")
 	_dati = {"cella": [cella.x, cella.y], "piedi": [cella.x / 2, cella.y - piedi_da_sotto], "colonne": 1, "animazioni": _insiemi["una_mano"]}
 	_cella = cella
+	_cella_base = cella
+	_piedi_da_sotto = piedi_da_sotto
 	_colonne = 1
 	_prepara_pezzi()
+	if not is_in_group(GRUPPO_DENSE):
+		add_to_group(GRUPPO_DENSE)
 
 	var tex := CanvasTexture.new()
 	tex.diffuse_texture = _vp_colore.get_texture()
@@ -167,6 +179,7 @@ func carica(nome: String) -> void:
 	region_enabled = false
 	offset = -Vector2(float(_dati["piedi"][0]), float(_dati["piedi"][1]))
 	material = _mat_sprite
+	_imposta_densita(_densita_voluta())
 	_applica_profilo()
 	_applica_aspetto()
 	if not Dispositivo.profilo_cambiato.is_connected(_applica_profilo):
@@ -186,6 +199,34 @@ func _notification(cosa: int) -> void:
 			tex.diffuse_texture = null
 			tex.normal_texture = null
 		texture = null
+
+
+func _densita_voluta() -> int:
+	if densita_fissa > 0:
+		return densita_fissa
+	return 2 if densita_figure >= 2 else 1
+
+
+func aggiorna_densita() -> void:
+	if _vp_colore != null and densita_px != _densita_voluta():
+		_imposta_densita(_densita_voluta())
+
+
+func _imposta_densita(k: int) -> void:
+	# Doppia definizione (0.1.37): stessa inquadratura, foto col doppio dei pixel, disegnata a metà grandezza.
+	var cella := _cella_base * k
+	_vp_colore.size = cella
+	_vp_normali.size = cella
+	_dati["cella"] = [cella.x, cella.y]
+	@warning_ignore("integer_division")
+	_dati["piedi"] = [cella.x / 2, cella.y - _piedi_da_sotto * k]
+	_cella = cella
+	offset = -Vector2(float(_dati["piedi"][0]), float(_dati["piedi"][1]))
+	var prima := scala_base
+	densita_px = k
+	scala_base = Vector2.ONE / float(k)
+	scale = scale / prima * scala_base
+	_ridisegna()
 
 
 func lampo(durata: float) -> void:

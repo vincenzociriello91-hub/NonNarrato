@@ -1642,6 +1642,21 @@ func _qualita() -> void:
 	Impostazioni.scrivi("grafica/luci_ombra", -1)
 	await _fotogrammi(10)
 	_verifica("ombre dei muri: si spengono a mano e tornano in automatico", spente and _principale.stanza.torce_con_ombra() > 0)
+	# Figure dettagliate (0.1.37): in alta, su uno schermo con almeno 2 pixel per pixel di gioco, il mondo
+	# si disegna al doppio e personaggio e nemici usano il doppio dei pixel; in bassa no.
+	var doppia := float(_principale.get("_scala")) >= 2.0 and float(Impostazioni.leggi("grafica/risoluzione")) >= 1.0
+	var attesa := 2 if doppia else 1
+	var mondo_vp: SubViewport = _principale.mondo
+	_verifica("figure dettagliate in alta (densità %d)" % attesa, SpriteAnimato.densita_figure == attesa
+			and _g().sprite.densita_px == attesa and (attesa == 1 or mondo_vp.size.y == mondo_vp.size_2d_override.y * 2),
+			"densità %d, mondo %s" % [SpriteAnimato.densita_figure, mondo_vp.size])
+	await _scatta("figure_dettagliate")
+	Impostazioni.scrivi("grafica/qualita", "bassa")
+	await _fotogrammi(10)
+	var normali := SpriteAnimato.densita_figure == 1 and _g().sprite.densita_px == 1
+	Impostazioni.scrivi("grafica/qualita", "alta")
+	await _fotogrammi(10)
+	_verifica("figure: in bassa definizione normale, poi di nuovo dettagliate", normali and SpriteAnimato.densita_figure == attesa)
 
 
 func _tasti_a_schermo() -> void:
@@ -1856,7 +1871,10 @@ func _menu_impostazioni(menu: Menu) -> void:
 	_verifica("grafica: il dettaglio scelto a mano vince sul livello", bool(Dispositivo.profilo.get("nebbia")) and Impostazioni.personalizzata())
 	Impostazioni.ripristina_scheda("grafica")
 	await _fotogrammi_in_pausa(2)
-	_verifica("grafica: ripristino dei valori consigliati", mondo.size == prima and vista.material == null and not Impostazioni.personalizzata())
+	# Dalla 0.1.36 la vista può avere sempre il materiale (bagliore, toni del livello): conta che il filtro torni "nitido".
+	var filtro_dopo: int = int((vista.material as ShaderMaterial).get_shader_parameter("filtro")) if vista.material != null else 0
+	_verifica("grafica: ripristino dei valori consigliati", mondo.size == prima and filtro_dopo == 0 and not Impostazioni.personalizzata(),
+			"%s -> %s, filtro %d" % [prima, mondo.size, filtro_dopo])
 	Impostazioni.scrivi("grafica/qualita", "alta")   # come all'inizio del bot (misure confrontabili)
 	# Audio: volumi sui canali, mono, ripristino.
 	menu.mostra_scheda("audio")

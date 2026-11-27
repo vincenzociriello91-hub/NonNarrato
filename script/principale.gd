@@ -371,6 +371,11 @@ func _ridimensiona() -> void:
 	var dimensione: Vector2i = interna["dimensione"]
 	var resa: Vector2i = interna["resa"]
 	var area: Vector2i = interna["area"]
+	# Figure in doppia definizione (0.1.37): i fogli "_x2" e la figura viva a 192 pixel, nel mondo disegnato al doppio.
+	var densita: int = interna["densita"]
+	if densita != SpriteAnimato.densita_figure:
+		SpriteAnimato.densita_figure = densita
+		get_tree().call_group(SpriteAnimato.GRUPPO_DENSE, "aggiorna_densita")
 	# Il mondo si disegna a "resa" ma mostra sempre "dimensione" pixel di gioco
 	# (risoluzione interna più bassa = meno pixel da calcolare, poi il filtro lo ingrandisce).
 	mondo.size = resa
@@ -391,6 +396,7 @@ func _ridimensiona() -> void:
 	Rapporto.grafica("risoluzione_interna", [dimensione.x, dimensione.y])
 	Rapporto.grafica("resa", [resa.x, resa.y])
 	Rapporto.grafica("scala", snappedf(_scala, 0.01))
+	Rapporto.grafica("densita_figure", densita)
 	hud.misure(dimensione, _scala)
 	_applica_vista()
 
@@ -427,7 +433,7 @@ func _applica_vista() -> void:
 
 func _applica_profilo() -> void:
 	_filtro.visible = Dispositivo.profilo.get("palette", true)
-	_applica_vista()   # bagliore e colori del film dipendono dal profilo
+	_ridimensiona()   # la doppia definizione delle figure cambia la resa; poi bagliore e colori del film (_applica_vista)
 
 
 func _nuova_stanza(ondata_iniziale: int = 1) -> void:

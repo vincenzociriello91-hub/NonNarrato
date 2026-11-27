@@ -18,15 +18,16 @@ const OGNI_FERMO := 0.25          # corpi fermi (forzieri, barili): la terra si 
 const SHADER := "
 shader_type canvas_item;
 render_mode unshaded;
+uniform float densita = 1.0;   // pixel del foglio per pixel di gioco (doppia definizione: 2)
 varying float alto;
 varying float alfa;
 void vertex() {
-	alto = -VERTEX.y;   // pixel sopra i piedi dello sprite (lo sprite ha i piedi in 0)
+	alto = -VERTEX.y / densita;   // pixel di gioco sopra i piedi dello sprite (lo sprite ha i piedi in 0)
 	alfa = COLOR.a;     // in fragment() COLOR contiene già la texture
 }
 void fragment() {
 	// Sagoma sfocata: la figura è schiacciata in altezza, quindi si sfuma più in verticale.
-	vec2 p = TEXTURE_PIXEL_SIZE;
+	vec2 p = TEXTURE_PIXEL_SIZE * densita;   // sfocatura uguale in pixel di gioco
 	float a = texture(TEXTURE, UV).a * 0.28;
 	a += (texture(TEXTURE, UV + vec2(p.x * 1.5, 0.0)).a + texture(TEXTURE, UV - vec2(p.x * 1.5, 0.0)).a) * 0.13;
 	a += (texture(TEXTURE, UV + vec2(0.0, p.y * 3.0)).a + texture(TEXTURE, UV - vec2(0.0, p.y * 3.0)).a) * 0.13;
@@ -37,7 +38,7 @@ void fragment() {
 }
 "
 
-static var _materiale: ShaderMaterial
+static var _materiali := {}       # densità -> materiale
 static var _texture_macchia: GradientTexture2D
 static var _luci: Array = []
 static var _fotogramma_luci := -1
@@ -67,13 +68,16 @@ static func luce(l: PointLight2D) -> PointLight2D:
 	return l
 
 
-static func materiale() -> ShaderMaterial:
-	if _materiale == null:
-		var s := Shader.new()
-		s.code = SHADER
-		_materiale = ShaderMaterial.new()
-		_materiale.shader = s
-	return _materiale
+static func materiale(densita: int = 1) -> ShaderMaterial:
+	if not _materiali.has(densita):
+		var s: Shader = (_materiali.values()[0] as ShaderMaterial).shader if not _materiali.is_empty() else Shader.new()
+		if s.code == "":
+			s.code = SHADER
+		var m := ShaderMaterial.new()
+		m.shader = s
+		m.set_shader_parameter("densita", float(densita))
+		_materiali[densita] = m
+	return _materiali[densita]
 
 
 static func texture_macchia() -> GradientTexture2D:
@@ -188,7 +192,6 @@ func _aggiorna_sagome(alfa: float) -> void:
 	sagome_visibili = mini(quante, scelte.size())
 	while _sagome.size() < sagome_visibili:
 		var s := Sprite2D.new()
-		s.material = materiale()
 		s.light_mask = 0
 		add_child(s)
 		_sagome.append(s)
@@ -202,6 +205,9 @@ func _aggiorna_sagome(alfa: float) -> void:
 		var alto := global_position.y - l.global_position.y
 		var k := inclinazione(dx, alto)
 		var lungo := 0.24 + 0.12 * absf(k) / 0.5   # più lunga quando la luce è di lato
+		var mat := materiale(int(sorgente.get("densita_px")) if sorgente is SpriteAnimato else 1)
+		if s.material != mat:
+			s.material = mat
 		s.texture = sorgente.texture
 		s.region_enabled = sorgente.region_enabled
 		s.region_rect = sorgente.region_rect

@@ -210,14 +210,16 @@ static func numero_danno(genitore: Node, dove: Vector2, danno: int) -> void:
 	tw.chain().tween_callback(e.queue_free)
 
 
-static func materiale_contorno(colore: Color) -> ShaderMaterial:
-	# Accessibilità "contorni chiari": linea di 1 pixel del colore scelto attorno allo sprite.
-	var chiave := colore.to_html()
+static func materiale_contorno(colore: Color, spessore: int = 1) -> ShaderMaterial:
+	# Accessibilità "contorni chiari": linea di 1 pixel di gioco del colore scelto attorno allo sprite
+	# ("spessore" pixel del foglio: 2 nella doppia definizione).
+	var chiave := "%s/%d" % [colore.to_html(), spessore]
 	if not _contorni.has(chiave):
 		var s := Shader.new()
 		s.code = """
 shader_type canvas_item;
 uniform vec4 contorno : source_color;
+uniform float spessore = 1.0;
 varying vec4 tinta;
 void vertex() {
 	tinta = COLOR;   // in fragment() COLOR contiene già la texture: la tinta del nodo si prende qui
@@ -226,8 +228,11 @@ void fragment() {
 	vec4 c = texture(TEXTURE, UV);
 	if (c.a < 0.5) {
 		vec2 p = TEXTURE_PIXEL_SIZE;
-		float v = max(max(texture(TEXTURE, UV + vec2(p.x, 0.0)).a, texture(TEXTURE, UV - vec2(p.x, 0.0)).a),
-				max(texture(TEXTURE, UV + vec2(0.0, p.y)).a, texture(TEXTURE, UV - vec2(0.0, p.y)).a));
+		float v = 0.0;
+		for (float k = 1.0; k <= spessore; k += 1.0) {
+			v = max(v, max(max(texture(TEXTURE, UV + vec2(p.x * k, 0.0)).a, texture(TEXTURE, UV - vec2(p.x * k, 0.0)).a),
+					max(texture(TEXTURE, UV + vec2(0.0, p.y * k)).a, texture(TEXTURE, UV - vec2(0.0, p.y * k)).a)));
+		}
 		if (v < 0.5) {
 			discard;
 		}
@@ -241,6 +246,7 @@ void fragment() {
 		var m := ShaderMaterial.new()
 		m.shader = s
 		m.set_shader_parameter("contorno", colore)
+		m.set_shader_parameter("spessore", float(spessore))
 		_contorni[chiave] = m
 	return _contorni[chiave]
 
