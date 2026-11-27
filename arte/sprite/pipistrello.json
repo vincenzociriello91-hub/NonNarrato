@@ -4,40 +4,46 @@
 			"ciclo": false,
 			"fps": 12.0,
 			"frame": [
-				8
+				14
 			]
 		},
 		"dorme": {
 			"ciclo": false,
 			"fps": 12.0,
 			"frame": [
-				7
+				13
 			]
 		},
 		"morte": {
 			"ciclo": false,
 			"fps": 12.0,
 			"frame": [
-				9
+				15
 			]
 		},
 		"picchiata": {
 			"ciclo": false,
 			"fps": 12.0,
 			"frame": [
-				6
+				12
 			]
 		},
 		"vola": {
 			"ciclo": true,
-			"fps": 14.0,
+			"fps": 28.0,
 			"frame": [
 				0,
 				1,
 				2,
 				3,
 				4,
-				5
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11
 			]
 		}
 	},
@@ -45,7 +51,7 @@
 		54,
 		45
 	],
-	"colonne": 10,
+	"colonne": 12,
 	"piedi": [
 		27,
 		24

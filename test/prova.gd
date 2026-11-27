@@ -309,6 +309,7 @@ func _esegui() -> void:
 	await _prova_compenetrazioni()
 	await _prova_da_giocatore()
 	await _prova_ombre()
+	await _prova_movimenti()
 	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
 	await _prova_bottino()
@@ -1087,6 +1088,144 @@ func _prova_ombre() -> void:
 	_verifica("ombre dei muri: i valori vecchi valgono sì", Dispositivo.profilo.get("luci_con_ombra", -1) == 1 and stanza.torce_con_ombra() > 0)
 	Impostazioni.scegli_qualita(vecchia)
 	await _fotogrammi(4)
+
+
+func _prova_movimenti() -> void:
+	# Movimenti fluidi e naturali (0.1.33): base Dead Cells, peso Blasphemous, issate alla Prince of Persia.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(30)
+	var stanza: Stanza = _principale.stanza
+	var g := _g()
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		(n as Nemico).tregua(true)   # controlli del movimento sul computer: nessun nemico in mezzo
+	_verifica("movimenti: densità dei fotogrammi", SpriteAnimato.densita(10, 15.0, 24.0) == 2 and SpriteAnimato.densita(9, 8.0, 24.0) == 3
+			and SpriteAnimato.densita(1, 8.0, 24.0) == 1 and SpriteAnimato.densita(9, 24.0, 24.0) == 1)
+	# Tutte le animazioni ad almeno 24 fotogrammi al secondo, personaggio e nemici, senza cambiare le durate.
+	var lente: Array = []
+	var sprite_da_guardare: Array = [g.sprite]
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		sprite_da_guardare.append((n as Nemico).sprite)
+	for sp: SpriteAnimato in sprite_da_guardare:
+		var tutte: Dictionary = sp.get("_dati").get("animazioni", {})
+		for nome: String in tutte:
+			if (tutte[nome]["frame"] as Array).size() > 1 and float(tutte[nome]["fps"]) < 23.9:
+				lente.append("%s:%s %.0f" % [sp.get("_dati").get("cella", ""), nome, float(tutte[nome]["fps"])])
+	_verifica("movimenti: animazioni ad almeno 24 fotogrammi al secondo", lente.is_empty(), str(lente.slice(0, 6)))
+	var durate_ok := is_equal_approx(g.sprite.durata("attacco1"), 9.0 / 24.0) and is_equal_approx(g.sprite.durata("rotolata"), 8.0 / 20.0) \
+			and is_equal_approx(g.sprite.durata("corsa"), 10.0 / 15.0) and is_equal_approx(g.sprite.durata("issata"), 12.0 / 26.0)
+	_verifica("movimenti: le durate delle mosse non cambiano", durate_ok and absf(g.sprite.durata("issata") - Giocatore.ISSATA_DURATA) < 0.01,
+			"attacco1 %.3f, issata %.3f" % [g.sprite.durata("attacco1"), g.sprite.durata("issata")])
+	# In aria la posa segue la velocità: slancio, raccolta in cima, gambe tese prima di atterrare.
+	g.global_position = Vector2(1700, Stanza.PAVIMENTO - 150.0)
+	g.velocity = Vector2.ZERO
+	await _fotogrammi(1)
+	var indici: Array = []
+	for vy: float in [-Giocatore.SALTO, 0.0, 300.0]:
+		g.velocity.y = vy
+		g.call("_aggiorna_aspetto")
+		indici.append(g.sprite.fotogramma)
+	var ultimo: int = (g.sprite.get("_anim")["frame"] as Array).size() - 1
+	_verifica("movimenti: salto ad arco guidato dalla velocità", g.sprite.animazione == "arco" and indici[0] == 0
+			and indici[1] > 0 and indici[1] < ultimo and indici[2] == ultimo, str(indici))
+	# In cima al salto, tenendo premuto, la gravità pesa meno.
+	g.velocity.y = -10.0
+	Input.action_press("salta")
+	g.call("_gravita", 1.0 / 60.0)
+	Input.action_release("salta")
+	_verifica("movimenti: sospensione in cima al salto", absf(g.velocity.y - (-10.0 + Giocatore.GRAVITA_SU * Giocatore.APICE_GRAVITA / 60.0)) < 0.01,
+			"%.2f" % g.velocity.y)
+	await _fotogrammi(60)
+	# Leva appena inclinata = si cammina; la falcata segue la velocità; ci si piega nello slancio e nella frenata.
+	await _sposta(Vector2(1800, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(20)
+	Input.action_press("destra", 0.4)
+	await _fotogrammi(20)
+	var cammina := g.sprite.animazione == "passo" and absf(g.velocity.x) < Giocatore.VELOCITA * 0.5
+	var come_cammina := "%s %.0f px/s, leva %.2f" % [g.sprite.animazione, g.velocity.x, Input.get_axis("sinistra", "destra")]
+	Input.action_release("destra")
+	await _fotogrammi(20)
+	var piega_max := 0.0
+	var piega_min := 0.0
+	var falcata_lenta := false
+	Input.action_press("destra")
+	for i in 8:
+		await _fotogrammi(1)
+		piega_max = maxf(piega_max, float(g.sprite.get("piega")))
+		falcata_lenta = falcata_lenta or (g.sprite.animazione == "corsa" and g.sprite.velocita < 0.95)
+	await _fotogrammi(20)
+	Input.action_release("destra")
+	for i in 10:
+		await _fotogrammi(1)
+		piega_min = minf(piega_min, float(g.sprite.get("piega")))
+	_verifica("movimenti: si cammina con la leva appena inclinata", cammina, come_cammina)
+	_verifica("movimenti: la falcata segue la velocità", falcata_lenta)
+	_verifica("movimenti: ci si piega in avanti nello slancio e indietro nella frenata", piega_max > deg_to_rad(1.5) and piega_min < -deg_to_rad(1.5),
+			"%.1f / %.1f gradi" % [rad_to_deg(piega_max), rad_to_deg(piega_min)])
+	await _fotogrammi(20)
+	# Testa contro lo spigolo di un ripiano per pochi pixel: si scivola di lato e si sale lo stesso.
+	await _sposta(Vector2(1820, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(20)
+	var x0 := g.global_position.x
+	var blocco := StaticBody2D.new()
+	blocco.collision_layer = Effetti.S_MONDO
+	var forma := CollisionShape2D.new()
+	var rett := RectangleShape2D.new()
+	rett.size = Vector2(40.0, 10.0)
+	forma.shape = rett
+	blocco.add_child(forma)
+	blocco.global_position = Vector2(x0 - Giocatore.ALTO.x * 0.5 + 3.0 - 20.0, Stanza.PAVIMENTO - 60.0 - 5.0)   # copre 3 px della testa
+	stanza.add_child(blocco)
+	await _fotogrammi(2)
+	var spigoli_prima := Rapporto.contatore("spigoli_scansati")
+	Input.action_press("salta")
+	var piu_alto := g.global_position.y
+	for i in 40:
+		await _fotogrammi(1)
+		piu_alto = minf(piu_alto, g.global_position.y)
+	Input.action_release("salta")
+	blocco.queue_free()
+	_verifica("movimenti: spigolo sopra la testa scansato", piu_alto < Stanza.PAVIMENTO - 64.0 and Rapporto.contatore("spigoli_scansati") > spigoli_prima,
+			"piedi saliti fino a %.0f px" % (Stanza.PAVIMENTO - piu_alto))
+	await _fotogrammi(40)
+	# Bordo alto preso in aria: ci si appende e ci si issa (animazione "issata"), poi si è sopra.
+	var terrazza := Rect2(1104, 384, 384, 36)
+	g.global_position = Vector2(terrazza.position.x - Giocatore.ALTO.x * 0.5 - 2.0, terrazza.position.y + 46.0)
+	g.velocity = Vector2.ZERO
+	Input.action_press("destra")
+	await _fotogrammi(3)
+	var issata: bool = g.stato == Giocatore.Stato.SCAVALCO and bool(g.get("_issata")) and g.sprite.animazione == "issata"
+	var y_min := g.global_position.y
+	var y_max := g.global_position.y
+	for i in int(Giocatore.ISSATA_DURATA * 60.0) + 10:
+		await _fotogrammi(1)
+		y_min = minf(y_min, g.global_position.y)
+		y_max = maxf(y_max, g.global_position.y)
+	Input.action_release("destra")
+	_verifica("movimenti: bordo alto preso in aria = issata, poi sopra", issata and g.stato == Giocatore.Stato.NORMALE
+			and absf(g.global_position.y - terrazza.position.y) < 3.0 and g.global_position.x > terrazza.position.x
+			and y_max - terrazza.position.y <= Giocatore.APPESO_SOTTO + 1.0,
+			"issata %s, arrivo %s, più in basso %.0f" % [str(issata), str(g.global_position.round()), y_max - terrazza.position.y])
+	# Ostacolo basso da terra: si scavalca come prima (niente issata).
+	_verifica("movimenti: da terra si scavalca senza issata", Giocatore.SCAVALCO_DA_TERRA <= 40.0 and Giocatore.ISSATA_DA >= 30.0)
+	# Nemici: camminando partono e si fermano in un attimo, la camminata segue la velocità.
+	var scheletro: Nemico = null
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if (n as Nemico).tipo == "scheletro" and (n as Nemico).is_on_floor() and (n as Nemico).stato != Nemico.Stato.MORTO:
+			scheletro = n
+			break
+	if scheletro != null:
+		scheletro.tregua(false)
+		scheletro.stato = Nemico.Stato.PATTUGLIA
+		scheletro.sprite.riproduci("cammina", true, 1.0)
+		scheletro.set("_vx_passo", 0.0)
+		scheletro.velocity.x = 30.0
+		scheletro.call("_ammorbidisci_passo", 1.0 / 60.0)
+		_verifica("movimenti: i nemici partono senza scatti e con passi lenti", absf(scheletro.velocity.x - Nemico.ACCELERAZIONE_PASSO / 60.0) < 0.01
+				and scheletro.sprite.velocita < 0.5, "%.2f px/s, passo %.2f" % [scheletro.velocity.x, scheletro.sprite.velocita])
+	else:
+		_verifica("movimenti: c'è uno scheletro per la prova", false)
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
 
 
 func _secondi_sul_posto(n: Nemico, fotogrammi: int) -> float:

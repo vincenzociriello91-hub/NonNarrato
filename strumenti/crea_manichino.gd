@@ -51,6 +51,18 @@ const COMPOSTE := {
 		{"t": 0.5, "corpo": ["Jump_Idle", 0.53], "anche": ["Idle", 0.0], "braccio_l": ["Cheer", 0.83], "braccio_r": ["Cheer", 0.83],
 			"gamba_l": ["Jump_Idle", 0.53], "gamba_r": ["Jump_Idle", 0.53]},
 	]},
+	# Issata dal bordo alla Prince of Persia (0.1.33): appeso con le braccia tese, trazione con un ginocchio su,
+	# busto sopra il bordo con le mani che spingono, in piedi. Il corpo lo sposta il gioco (Giocatore._scavalco).
+	"Issata": {"durata": 1.0, "ciclo": false, "chiavi": [
+		{"t": 0.0, "corpo": ["Jump_Idle", 0.0], "anche": ["Idle", 0.0], "braccio_l": ["Cheer", 0.83], "braccio_r": ["Cheer", 0.83],
+			"gamba_l": ["Jump_Idle", 0.0], "gamba_r": ["Jump_Idle", 0.0]},
+		{"t": 0.3, "corpo": ["PickUp", 0.25], "anche": ["Idle", 0.0], "braccio_l": ["Block", 0.46], "braccio_r": ["Block", 0.46],
+			"gamba_l": ["Running_A", 0.3], "gamba_r": ["Jump_Idle", 0.53]},
+		{"t": 0.62, "corpo": ["PickUp", 0.56], "anche": ["Idle", 0.0], "braccio_l": ["PickUp", 0.56], "braccio_r": ["PickUp", 0.56],
+			"gamba_l": ["Lie_StandUp", 1.5], "gamba_r": ["Lie_StandUp", 1.5]},
+		{"t": 1.0, "corpo": ["Idle", 0.0], "anche": ["Idle", 0.0], "braccio_l": ["Idle", 0.0], "braccio_r": ["Idle", 0.0],
+			"gamba_l": ["Idle", 0.0], "gamba_r": ["Idle", 0.0]},
+	]},
 }
 const GRUPPI_OSSA := {
 	"anche": ["hips"],
@@ -240,7 +252,7 @@ func _proprietario(nodo: Node, radice: Node) -> void:
 func _componi(lettore: AnimationPlayer, scheletro: Skeleton3D, ricetta: Dictionary) -> Animation:
 	var anim := Animation.new()
 	anim.length = float(ricetta["durata"])
-	anim.loop_mode = Animation.LOOP_LINEAR
+	anim.loop_mode = Animation.LOOP_LINEAR if ricetta.get("ciclo", true) else Animation.LOOP_NONE
 	for gruppo: String in GRUPPI_OSSA:
 		for osso: String in GRUPPI_OSSA[gruppo]:
 			var indice := scheletro.find_bone(osso)

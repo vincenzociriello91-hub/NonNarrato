@@ -173,6 +173,10 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 		# Oggetti senza scheletro: ogni fotogramma sposta o ruota dei nodi (coperchio, leva, punte).
 		for p: Dictionary in pose:
 			var n: int = int(p.get("frame", 1))
+			var fps_p: float = p.get("fps", fps)
+			var densa := SpriteAnimato.densita(n, fps_p, voce.get("fps_minimo", 0.0))
+			n *= densa
+			fps_p *= densa
 			var indici: Array = []
 			for i in n:
 				indici.append(scatti.size())
@@ -182,7 +186,7 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 				if p.get("andata_ritorno", false) and n > 1:
 					k = 1.0 - absf(1.0 - 2.0 * float(i) / float(n))   # 0 -> 1 -> 0 (ali che battono)
 				scatti.append({"clip": "", "t": 0.0, "giro": 0.0, "giu": 0.0, "nodi": p.get("nodi", []), "k": k})
-			animazioni[p["nome"]] = {"fps": p.get("fps", fps), "ciclo": p.get("ciclo", false), "frame": indici}
+			animazioni[p["nome"]] = {"fps": fps_p, "ciclo": p.get("ciclo", false), "frame": indici}
 	elif lista.is_empty() or lettore == null:
 		scatti.append({"clip": "", "t": 0.0, "giro": 0.0, "giu": 0.0})
 		animazioni["base"] = {"fps": 1.0, "ciclo": false, "frame": [0]}
@@ -197,8 +201,12 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 			var fino: float = a.get("a", durata)
 			var fps_a: float = a.get("fps", fps)
 			var indici: Array = []
+			var minimo: float = voce.get("fps_minimo", 0.0)
 			if a.get("capriola", false):
 				var n: int = int(a.get("frame", 8))
+				var k := SpriteAnimato.densita(n, fps_a, minimo)
+				n *= k
+				fps_a *= k
 				for i in n:
 					indici.append(scatti.size())
 					scatti.append({
@@ -208,6 +216,9 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 					})
 			else:
 				var n: int = int(a.get("frame", maxi(1, roundi((fino - da) * fps_a))))
+				var k := SpriteAnimato.densita(n, fps_a, minimo)
+				n *= k
+				fps_a *= k
 				for i in n:
 					indici.append(scatti.size())
 					var t := da + (fino - da) * float(i) / float(n)

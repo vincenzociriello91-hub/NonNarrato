@@ -38,6 +38,7 @@
 		}
 	],
 	"fps": 12,
+	"fps_minimo": 24,
 	"animazioni": [
 		{
 			"nome": "fermo",
@@ -66,6 +67,26 @@
 			"ciclo": true,
 			"frame": 4,
 			"fps": 6
+		},
+		{
+			"nome": "arco",
+			"clip": "Jump_Full_Short",
+			"da": 0.41,
+			"a": 0.68,
+			"frame": 12
+		},
+		{
+			"nome": "issata",
+			"clip": "Issata",
+			"frame": 12,
+			"fps": 26
+		},
+		{
+			"nome": "passo",
+			"clip": "Walking_A",
+			"ciclo": true,
+			"frame": 16,
+			"fps": 15
 		},
 		{
 			"nome": "atterra",

@@ -27,6 +27,9 @@ const CADUTA_MASSIMA := 540.0
 const TAGLIO_SALTO := 0.45          # salto più basso se si lascia subito il tasto
 const TEMPO_COYOTE := 0.10          # si può ancora saltare un attimo dopo il bordo
 const TEMPO_MEMORIA := 0.12         # il salto premuto un attimo prima di toccare terra vale
+const APICE_VELOCITA := 50.0        # sotto questa velocità verticale si è "in cima" al salto...
+const APICE_GRAVITA := 0.55         # ...e la gravità pesa meno (tenendo premuto il salto)
+const SPIGOLO := 6.0                # testa contro uno spigolo: ci si sposta fino a tanto e si continua a salire
 const ROTOLATA_DURATA := 0.40
 const ROTOLATA_VELOCITA := 250.0
 const ROTOLATA_PAUSA := 0.25
@@ -40,6 +43,9 @@ const PROTEZIONE_DOPO_COLPO := 0.9
 const SPINTA_CASSE := 70.0
 const TEMPO_GIRO := 0.2             # direzione indietro + rotola/schiva entro questo tempo = mossa all'indietro
 const SCAVALCO_DURATA := 0.32
+const ISSATA_DURATA := 0.46         # issata dal bordo (0.1.33): aggancio, trazione, sul bordo
+const ISSATA_DA := 30.0             # bordi più alti di così sopra i piedi: ci si appende e ci si issa
+const APPESO_SOTTO := 48.0          # appesi al bordo i piedi stanno tanto più in basso (mani sul bordo)
 const SCAVALCO_DA_TERRA := 40.0     # ostacoli fino a questa altezza si scavalcano da terra (su + direzione)
 const APPIGLIO_IN_ARIA := 62.0      # in aria ci si aggrappa a bordi fino a questa altezza sopra i piedi
 const PRESA_VELOCITA := 70.0
@@ -122,6 +128,8 @@ var _t_pausa_schivata := 0.0
 var _t_protetto := 0.0
 var _t_attraversa := 0.0
 var _t_atterra := 0.0
+var _spinta := 0.0                # quanto è inclinata la leva (0-1): poco = si cammina
+var _vx_prima := 0.0              # velocità orizzontale del fotogramma prima (per l'inclinazione)
 var _colpo_numero := 0
 var _arma := {}                     # Armi.attuali() all'inizio della combinazione
 var _colpo_ora := {}                # il colpo in corso
@@ -144,6 +152,7 @@ var _dir_schivata := 1
 var _schivata_avanti := false
 var _scavalco_da := Vector2.ZERO
 var _scavalco_a := Vector2.ZERO
+var _issata := false              # lo scavalco in corso è un'issata dal bordo
 var _maschera := 0
 var _cassa: RigidBody2D
 var _scarto_cassa := 0.0
@@ -312,6 +321,8 @@ func _physics_process(delta: float) -> void:
 
 	_velocita_caduta = velocity.y
 	move_and_slide()
+	if stato == Stato.NORMALE and is_on_ceiling() and _velocita_caduta < -60.0:
+		_scansa_spigolo(_velocita_caduta)
 	_spingi_oggetti(delta)
 	_separa_dai_nemici()
 	if is_on_floor() and not a_terra:
@@ -335,7 +346,7 @@ func _scorri_tempi(delta: float) -> void:
 	_t_atterra = maxf(0.0, _t_atterra - delta)
 	_t_passo -= delta
 	if _t_passo <= 0.0 and stato == Stato.NORMALE and is_on_floor() and absf(velocity.x) > 40.0:
-		_t_passo = 0.3
+		_t_passo = clampf(0.3 * VELOCITA / absf(velocity.x), 0.25, 0.55)   # passi lenti quando si cammina
 		Suoni.suona("passo", global_position, -8.0)
 	_t_girato = maxf(0.0, _t_girato - delta)
 	_t_stacco = maxf(0.0, _t_stacco - delta)
@@ -353,6 +364,7 @@ func _scorri_tempi(delta: float) -> void:
 
 func _normale(delta: float, a_terra: bool) -> void:
 	var direzione := Input.get_axis("sinistra", "destra")
+	_spinta = absf(direzione)
 	if absf(direzione) > 0.01:
 		var nuovo := 1 if direzione > 0.0 else -1
 		if nuovo != verso:
@@ -374,7 +386,8 @@ func _normale(delta: float, a_terra: bool) -> void:
 		elif not a_terra and velocity.y > -60.0:
 			arrivo = _appiglio(APPIGLIO_IN_ARIA, 8.0)
 		if arrivo != null:
-			_inizia_scavalco(arrivo)
+			# Da terra si scavalca sempre; in aria un bordo alto si prende con le mani e ci si issa.
+			_inizia_scavalco(arrivo, not a_terra and global_position.y - (arrivo as Vector2).y > ISSATA_DA)
 			return
 	# Leve e forzieri: basta premere "afferra" accanto.
 	if a_terra and Input.is_action_just_pressed("afferra"):
@@ -661,7 +674,7 @@ func _schivata(delta: float) -> void:
 		_t_pausa_schivata = SCHIVATA_PAUSA
 
 
-func _inizia_scavalco(arrivo: Vector2) -> void:
+func _inizia_scavalco(arrivo: Vector2, appeso: bool = false) -> void:
 	stato = Stato.SCAVALCO
 	_t_stato = 0.0
 	_scavalco_da = global_position
@@ -669,8 +682,11 @@ func _inizia_scavalco(arrivo: Vector2) -> void:
 	velocity = Vector2.ZERO
 	_maschera = collision_mask
 	collision_mask = 0  # il percorso è già controllato: niente urti durante la salita
-	sprite.riproduci("scavalco", true)
-	Rapporto.conta("scavalchi")
+	# Un bordo alto preso in aria (o la cima di una parete) non si scavalca: ci si appende e ci si issa,
+	# alla Prince of Persia.
+	_issata = appeso
+	sprite.riproduci("issata" if _issata else "scavalco", true)
+	Rapporto.conta("issate" if _issata else "scavalchi")
 	Controlli.vibra(0.15, 0.04)
 
 
@@ -678,6 +694,9 @@ func _scavalco(delta: float) -> void:
 	# Prima su (con un filo di avanzamento), poi avanti fin sopra l'ostacolo.
 	_t_stato += delta
 	velocity = Vector2.ZERO
+	if _issata:
+		_issata_passo()
+		return
 	var k := clampf(_t_stato / SCAVALCO_DURATA, 0.0, 1.0)
 	var meta_x := lerpf(_scavalco_da.x, _scavalco_a.x, 0.2)
 	if k < 0.6:
@@ -686,6 +705,28 @@ func _scavalco(delta: float) -> void:
 	else:
 		var u := (k - 0.6) / 0.4
 		global_position = Vector2(lerpf(meta_x, _scavalco_a.x, u), _scavalco_a.y - 3.0 * (1.0 - u))
+	if k >= 1.0:
+		global_position = _scavalco_a
+		collision_mask = _maschera
+		stato = Stato.NORMALE
+		_polvere(3)
+
+
+func _issata_passo() -> void:
+	# Aggancio (le mani arrivano sul bordo e il corpo si assesta appeso), trazione in su con un ginocchio
+	# che sale, poi avanti fin sopra il bordo. I tempi seguono l'animazione "issata".
+	var k := clampf(_t_stato / ISSATA_DURATA, 0.0, 1.0)
+	# Appesi: mani sul bordo; al massimo 6 px più in basso di dove lo si è preso (mai dentro il pavimento).
+	var appeso := Vector2(_scavalco_da.x, clampf(_scavalco_a.y + APPESO_SOTTO, _scavalco_a.y + ISSATA_DA, _scavalco_da.y + 6.0))
+	var alto := Vector2(lerpf(_scavalco_da.x, _scavalco_a.x, 0.3), _scavalco_a.y - 2.0)
+	if k < 0.2:
+		var u := k / 0.2
+		global_position = _scavalco_da.lerp(appeso, 1.0 - (1.0 - u) * (1.0 - u))
+	elif k < 0.72:
+		var u := (k - 0.2) / 0.52
+		global_position = appeso.lerp(alto, u * u * (3.0 - 2.0 * u))
+	else:
+		global_position = alto.lerp(_scavalco_a, (k - 0.72) / 0.28)
 	if k >= 1.0:
 		global_position = _scavalco_a
 		collision_mask = _maschera
@@ -1295,7 +1336,7 @@ func _arrampicata(delta: float) -> void:
 			var arrivo: Variant = _appiglio(APPIGLIO_IN_ARIA + 10.0, 2.0)
 			if arrivo != null:
 				sprite.riponi_armi(false)
-				_inizia_scavalco(arrivo)
+				_inizia_scavalco(arrivo, true)   # in cima alla parete: ci si issa sul bordo
 				return
 			velocity.y = 0.0
 			global_position.y += 1.0
@@ -1450,8 +1491,23 @@ func ferita_ambiente(danno: int, causa: String) -> void:
 	_t_protetto = 0.3
 
 
+func _scansa_spigolo(vy: float) -> void:
+	# Saltando si sbatte la testa contro lo spigolo di un ripiano per pochi pixel: si scivola di lato e si sale
+	# lo stesso, invece di ricadere (correzione degli spigoli dei platform).
+	for d in range(1, int(SPIGOLO) + 1):
+		for lato: float in [-1.0, 1.0]:
+			var spostato := global_transform.translated(Vector2(lato * d, 0.0))
+			if not test_move(global_transform, Vector2(lato * d, 0.0)) and not test_move(spostato, Vector2(0.0, -4.0)):
+				global_position.x += lato * d
+				velocity.y = vy
+				Rapporto.conta("spigoli_scansati")
+				return
+
+
 func _gravita(delta: float) -> void:
 	var g := GRAVITA_SU if velocity.y < 0.0 else GRAVITA_GIU
+	if stato == Stato.NORMALE and absf(velocity.y) < APICE_VELOCITA and Input.is_action_pressed("salta"):
+		g *= APICE_GRAVITA   # in cima al salto si resta sospesi un attimo: c'è tempo per mirare l'atterraggio
 	velocity.y = minf(velocity.y + g * delta, CADUTA_MASSIMA)
 
 
@@ -1572,19 +1628,41 @@ func _aggiorna_aspetto() -> void:
 		else:
 			sprite.riproduci("spinge" if signf(velocity.x) == float(verso) else "tira")
 		return
+	_aggiorna_piega()
 	if stato != Stato.NORMALE:
 		return
 	if is_on_floor():
 		if _t_atterra > 0.0:
 			sprite.riproduci("atterra")
 		elif absf(velocity.x) > 12.0:
-			sprite.riproduci("corsa")
+			var passo := _spinta < 0.6   # leva appena inclinata: si cammina
+			sprite.riproduci("passo" if passo else "corsa")
+			# La falcata segue la velocità: i piedi non scivolano mentre si accelera o si frena.
+			var piena := VELOCITA * moltiplicatore_velocita() * (0.5 if passo else 1.0)
+			sprite.velocita = clampf(absf(velocity.x) / piena, 0.45, 1.4)
 		else:
 			sprite.riproduci("fermo")
-	elif velocity.y < -40.0:
-		sprite.riproduci("salto")
 	else:
-		sprite.riproduci("aria")
+		# In aria la posa segue la velocità verticale: slancio, gambe raccolte in cima, gambe tese prima di atterrare.
+		sprite.posa("arco", (velocity.y + SALTO) / (SALTO + 300.0))
+
+
+func _aggiorna_piega() -> void:
+	# Peso del corpo (0.1.33): ci si piega in avanti nello slancio e indietro nella frenata, appena un po'.
+	if not ("piega" in sprite):
+		return
+	var delta := get_physics_process_delta_time()
+	var obiettivo := 0.0
+	if stato == Stato.NORMALE and delta > 0.0:
+		var spinta := (velocity.x - _vx_prima) / delta * float(verso)   # accelerazione verso dove si guarda
+		if is_on_floor():
+			obiettivo = clampf(spinta / ACCELERAZIONE, -1.0, 1.0) * deg_to_rad(8.0) \
+					+ clampf(absf(velocity.x) / VELOCITA, 0.0, 1.0) * deg_to_rad(2.0)   # di corsa un filo in avanti
+		else:
+			obiettivo = clampf(velocity.x * float(verso) / VELOCITA, -1.0, 1.0) * deg_to_rad(3.0)
+	_vx_prima = velocity.x
+	var p: float = sprite.get("piega")
+	sprite.set("piega", lerpf(p, obiettivo, 1.0 - exp(-14.0 * delta)) if absf(obiettivo - p) > 0.002 else obiettivo)
 
 
 func _polvere(quanta: int) -> void:

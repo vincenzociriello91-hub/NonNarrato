@@ -90,6 +90,7 @@ var _t_tattica := 0.0
 var _t_pausa := 0.0
 var _t_incastrato := 0.0          # cammina ma non si sposta (vedi _controlla_incastro)
 var _x_prima := 0.0
+var _vx_passo := 0.0              # velocità orizzontale vera del fotogramma prima (avvio e frenata morbidi)
 var _x_inizio_incastro := 0.0
 var _segno_incastro := 0.0
 var _t_cassa_davanti := 0.0       # ha appena urtato una cassa nella direzione in cui va
@@ -314,6 +315,8 @@ func solido() -> bool:
 
 const SALTA_CASSE := ["scheletro", "saltatore", "mimic"]   # il bestione è troppo pesante
 const PAUSA_OSTACOLO := 0.35   # quanto resta fermo dopo aver trovato la strada chiusa (contro il tremolio)
+const ACCELERAZIONE_PASSO := 520.0   # camminando si parte e ci si ferma in circa un decimo di secondo...
+const ACCELERAZIONE_PESANTE := 260.0 # ...il bestione ci mette il doppio: pesa
 const FORZIERE_MEZZO := 15.0   # metà della larghezza visibile di un forziere (Forziere: occlusore 28 px)
 const CASSA_MEZZO := 17.0      # metà della cassa (Stanza._cassa: 34 px)
 const SPAZIO := {"scheletro": 14.0, "mago": 13.0, "arciere": 13.0, "bestione": 20.0, "saltatore": 12.0, "mimic": 19.0}
@@ -530,8 +533,10 @@ func _physics_process(delta: float) -> void:
 					if sprite.modulate.a <= 0.0:
 						queue_free()
 
+	_ammorbidisci_passo(delta)
 	_x_prima = global_position.x
 	move_and_slide()
+	_vx_passo = velocity.x
 	if stato != Stato.MORTO:
 		_sfonda_barili()
 		_guarda_casse(delta)
@@ -794,6 +799,22 @@ func _cammina(velocita_voluta: float) -> void:
 		return
 	velocity.x = verso * velocita_voluta
 	sprite.riproduci("cammina", false, 1.6 if velocita_voluta > float(_dati["passo"]) * 1.2 else 1.0)
+
+
+func _ammorbidisci_passo(delta: float) -> void:
+	# Movimenti naturali (0.1.33): camminando si parte e ci si ferma in un attimo, non di colpo, e la camminata
+	# segue la velocità vera (niente piedi che scivolano). Solo per il passo: colpi, spinte, balzi e affondi
+	# restano secchi, come devono.
+	if tipo == "pipistrello" or not is_on_floor() or _t_salto_cassa > 0.0 \
+			or stato not in [Stato.PATTUGLIA, Stato.INSEGUE, Stato.FERMO] or sprite.animazione not in ["cammina", "fermo"]:
+		return
+	var voluta := velocity.x
+	velocity.x = move_toward(_vx_passo, voluta, (ACCELERAZIONE_PESANTE if tipo == "bestione" else ACCELERAZIONE_PASSO) * delta)
+	if sprite.animazione == "cammina" and absf(voluta) > 1.0:
+		sprite.velocita *= clampf(absf(velocity.x) / absf(voluta), 0.35, 1.0)
+	elif sprite.animazione == "fermo" and absf(velocity.x) > 8.0:
+		# Sta ancora frenando: gli ultimi passi, sempre più lenti, invece di scivolare in posa da fermo.
+		sprite.riproduci("cammina", false, clampf(absf(velocity.x) / float(_dati["passo"]), 0.35, 1.0))
 
 
 func _controlla_incastro(delta: float) -> void:

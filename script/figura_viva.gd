@@ -80,6 +80,15 @@ static var _mat_sprite: ShaderMaterial
 static var _mat_sprite_piatto: ShaderMaterial
 
 var disegni := 0                 # quante foto ha scattato (per le prove e il rapporto)
+var piega := 0.0:                # inclinazione in avanti (radianti) decisa dal gioco: slancio e frenata (0.1.33)
+	set(v):
+		var q := snappedf(v, deg_to_rad(1.0))   # un grado alla volta: si ridisegna solo quando cambia davvero
+		if q != piega:
+			piega = q
+			if _ultimo >= 0:
+				var i := _ultimo
+				_ultimo = -1
+				_mostra(i)
 var _in_mano: Array = []         # pezzi tenuti in mano per un attimo (vedi mostra_in_mano)
 var mosse := "una_mano"          # gruppo di mosse in uso (cambia le clip, non i tempi di gioco)
 var usa_normali := true          # l'anteprima del menu non ne ha bisogno
@@ -232,7 +241,7 @@ func _mostra(i: int) -> void:
 	var centro: float = s.get("centro", 0.0)
 	_perno.position = Vector3(0.0, centro - float(s["giu"]), 0.0)
 	_base.position = Vector3(_sposta.x, _sposta.y - centro, _sposta.z)
-	_perno.rotation = Vector3(0.0, 0.0, s["giro"])
+	_perno.rotation = Vector3(0.0, 0.0, float(s["giro"]) - piega)
 	_ridisegna()
 
 
@@ -332,8 +341,12 @@ func _aggiungi_scatti(a: Dictionary, durate: Dictionary, fps: float) -> Dictiona
 	var fino: float = a.get("a", durata)
 	var fps_a: float = a.get("fps", fps)
 	var indici: Array = []
+	var minimo: float = _figura.get("fps_minimo", 0.0)
 	if a.get("capriola", false):
 		var n: int = int(a.get("frame", 8))
+		var k := SpriteAnimato.densita(n, fps_a, minimo)
+		n *= k
+		fps_a *= k
 		for i in n:
 			indici.append(_scatti.size())
 			_scatti.append({
@@ -343,6 +356,9 @@ func _aggiungi_scatti(a: Dictionary, durate: Dictionary, fps: float) -> Dictiona
 			})
 	else:
 		var n: int = int(a.get("frame", maxi(1, roundi((fino - da) * fps_a))))
+		var k := SpriteAnimato.densita(n, fps_a, minimo)
+		n *= k
+		fps_a *= k
 		for i in n:
 			indici.append(_scatti.size())
 			var t := da + (fino - da) * float(i) / float(n)

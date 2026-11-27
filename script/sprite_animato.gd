@@ -19,6 +19,14 @@ var _colonne := 1
 var _tempo := 0.0
 
 
+static func densita(fotogrammi: int, fps: float, fps_minimo: float) -> int:
+	# Movimenti fluidi (0.1.33): un'animazione sotto fps_minimo prende k volte i fotogrammi e k volte gli fps.
+	# La durata (fotogrammi / fps) resta identica: i tempi di gioco non cambiano.
+	if fotogrammi <= 1 or fps <= 0.0 or fps >= fps_minimo:
+		return 1
+	return ceili(fps_minimo / fps)
+
+
 static func foglio(nome: String) -> Dictionary:
 	if _fogli.has(nome):
 		return _fogli[nome]
@@ -79,6 +87,20 @@ func riproduci(nome: String, ricomincia: bool = false, nuova_velocita: float = 1
 	_tempo = 0.0
 	in_corso = true
 	_mostra(int(_anim["frame"][0]))
+
+
+func posa(nome: String, frazione: float) -> void:
+	# Fotogramma scelto dal gioco, non dal tempo (0.1.33): per esempio l'arco del salto secondo la velocità.
+	var tutte: Dictionary = _dati.get("animazioni", {})
+	if not tutte.has(nome):
+		return
+	if animazione != nome:
+		animazione = nome
+		_anim = tutte[nome]
+	in_corso = false
+	var elenco: Array = _anim["frame"]
+	fotogramma = clampi(roundi(clampf(frazione, 0.0, 1.0) * float(elenco.size() - 1)), 0, elenco.size() - 1)
+	_mostra(int(elenco[fotogramma]))
 
 
 func _process(delta: float) -> void:

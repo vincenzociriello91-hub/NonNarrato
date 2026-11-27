@@ -1,5 +1,14 @@
 # Novità di NonNarrato
 
+## 0.1 — Movimenti fluidi e naturali
+
+- **Animazioni molto più fluide**: il Non Narrato e tutti i nemici si muovono ad almeno 24 fotogrammi al secondo (prima 6-15). Corsa, salti, attacchi, rotolate, voli dei pipistrelli e balzi dei mimic sono più morbidi. Le mosse durano esattamente quanto prima.
+- **Salto ad arco**: in aria la posa segue lo slancio, come in Dead Cells. Ci si spinge con le gambe tese, si raccolgono le ginocchia in cima e si allungano le gambe prima di atterrare. Tenendo premuto il salto si resta sospesi un attimo in cima, così è più facile mirare l'atterraggio.
+- **Il corpo ha peso**: partendo ci si piega in avanti, frenando ci si tira indietro. I passi seguono la velocità vera, quindi i piedi non scivolano più. Con la leva appena inclinata si cammina invece di correre, e i passi si sentono più lenti.
+- **Niente più testate sugli spigoli**: se saltando si sfiora con la testa lo spigolo di un ripiano, si scivola di lato e si sale lo stesso.
+- **Issate alla Prince of Persia**: un bordo alto preso al volo e la cima di una parete non si scavalcano più di colpo. Ci si appende con le mani sul bordo, ci si tira su con un ginocchio e si sale in piedi.
+- **Nemici più naturali**: partono e si fermano in un attimo invece che di colpo (il bestione, più pesante, ci mette di più), e la camminata segue la loro velocità.
+
 ## 0.1 — Tornano le ombre delle torce su muri e pilastri, corrette
 
 - **Le torce fanno di nuovo ombra sui muri**: accanto ai pilastri e ai muri alti, dalla parte opposta alla fiamma, il muro di fondo resta in ombra. Le ombre sono corte e sfumate, come quelle dei personaggi, e svaniscono dopo pochi passi.
