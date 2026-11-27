@@ -1136,7 +1136,7 @@ func _prova_movimenti() -> void:
 			"%.2f" % g.velocity.y)
 	await _fotogrammi(60)
 	# Leva appena inclinata = si cammina; la falcata segue la velocità; ci si piega nello slancio e nella frenata.
-	await _sposta(Vector2(400, Stanza.PAVIMENTO), 1)   # nella cripta: lontano dalle trappole della galleria
+	await _sposta(Vector2(490, Stanza.PAVIMENTO), 1)   # nella cripta, fra i barili e la cassa: lontano dalle trappole
 	await _fotogrammi(20)
 	Input.action_press("destra", 0.4)
 	await _fotogrammi(20)
@@ -1222,6 +1222,29 @@ func _prova_movimenti() -> void:
 		scheletro.call("_ammorbidisci_passo", 1.0 / 60.0)
 		_verifica("movimenti: i nemici partono senza scatti e con passi lenti", absf(scheletro.velocity.x - Nemico.ACCELERAZIONE_PASSO / 60.0) < 0.01
 				and scheletro.sprite.velocita < 0.5, "%.2f px/s, passo %.2f" % [scheletro.velocity.x, scheletro.sprite.velocita])
+		# Al limite della distanza di attesa: si avvicina una volta sola e poi resta fermo (prima: passettini sul posto).
+		await _sposta(Vector2(560, Stanza.PAVIMENTO), 1)
+		g.verso = 1
+		scheletro.tattica = "attesa"
+		scheletro.stato = Nemico.Stato.INSEGUE
+		scheletro.global_position = Vector2(560.0 + float(Nemico.TIPI["scheletro"]["portata"]) + 16.0 + 8.0 + 1.5, Stanza.PAVIMENTO)
+		scheletro.velocity = Vector2.ZERO
+		scheletro.set("_vx_passo", 0.0)
+		var partenze := 0
+		var prima_anim := "fermo"
+		var x_inizio := scheletro.global_position.x
+		for i in 100:
+			await _fotogrammi(1)
+			g.global_position = Vector2(560, Stanza.PAVIMENTO)
+			g.velocity = Vector2.ZERO
+			if scheletro.stato != Nemico.Stato.INSEGUE:
+				break
+			var anim := scheletro.sprite.animazione
+			if anim == "cammina" and prima_anim != "cammina":
+				partenze += 1
+			prima_anim = anim
+		_verifica("movimenti: al limite della distanza il nemico non fa passettini", partenze <= 1 and x_inizio - scheletro.global_position.x >= 4.0,
+				"partenze %d, avanzato %.1f px, stato %d" % [partenze, x_inizio - scheletro.global_position.x, scheletro.stato])
 	else:
 		_verifica("movimenti: c'è uno scheletro per la prova", false)
 	_principale.ricomincia_stanza()

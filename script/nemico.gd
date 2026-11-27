@@ -315,6 +315,8 @@ func solido() -> bool:
 
 const SALTA_CASSE := ["scheletro", "saltatore", "mimic"]   # il bestione è troppo pesante
 const PAUSA_OSTACOLO := 0.35   # quanto resta fermo dopo aver trovato la strada chiusa (contro il tremolio)
+const ISTERESI_PASSO := 6.0        # avvicinandosi ci si ferma tanto dentro la distanza voluta (vedi _lontano)
+const SOTTO_DI_TE := 16.0          # chi gioca è sopra o sotto entro tanto in orizzontale: si aspetta fermi
 const ACCELERAZIONE_PASSO := 520.0   # camminando si parte e ci si ferma in circa un decimo di secondo...
 const ACCELERAZIONE_PESANTE := 260.0 # ...il bestione ci mette il doppio: pesa
 const FORZIERE_MEZZO := 15.0   # metà della larghezza visibile di un forziere (Forziere: occlusore 28 px)
@@ -712,13 +714,19 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 		velocity.x = 0.0
 		sprite.riproduci("fermo")
 		return
+	if not stessa_quota and distanza < SOTTO_DI_TE:
+		# Chi gioca è proprio sopra (o sotto): andare avanti e indietro sotto di lui non serve a niente
+		# (con l'avvio morbido del passo diventava un dondolio sul posto). Si ferma e lo aspetta.
+		velocity.x = 0.0
+		sprite.riproduci("fermo")
+		return
 
 	var pronto := _t_ricarica <= 0.0 and is_on_floor() and stessa_quota and _posto_per_attaccare()
 	match tattica:
 		"attesa":
 			# Resta appena fuori portata e colpisce quando sei scoperto (o dopo un po').
 			var voluta := portata + 16.0
-			if distanza > voluta + 8.0:
+			if _lontano(distanza, voluta + 8.0):
 				_cammina(float(_dati["corsa"]))
 			elif distanza < portata - 6.0:
 				verso = -verso
@@ -731,7 +739,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 			if pronto and distanza <= portata + 20.0 and (scoperto or _t_tattica > 2.2):
 				_inizia_attacco(distanza > portata - 2.0, false)
 		"affondo":
-			if distanza > portata + 34.0:
+			if _lontano(distanza, portata + 34.0):
 				_cammina(float(_dati["corsa"]))
 			elif pronto:
 				_inizia_attacco(true, false)
@@ -739,7 +747,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 				velocity.x = 0.0
 				sprite.riproduci("fermo")
 		"finta":
-			if distanza > portata:
+			if _lontano(distanza, portata):
 				_cammina(float(_dati["corsa"]))
 			elif pronto:
 				_inizia_attacco(false, true)
@@ -754,7 +762,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 				_forma_colpo.position.x = 20.0 * verso
 				_t_tattica = 0.0
 				Rapporto.conta("cariche_bestione")
-			elif distanza > portata:
+			elif _lontano(distanza, portata):
 				_cammina(float(_dati["corsa"]))
 			elif pronto:
 				_inizia_attacco(false, false)
@@ -762,7 +770,7 @@ func _insegui(g: Giocatore, delta: float, dx: float, dy: float, visto: bool) -> 
 				velocity.x = 0.0
 				sprite.riproduci("fermo")
 		_:
-			if distanza > portata or not stessa_quota:
+			if _lontano(distanza, portata) or not stessa_quota:
 				_cammina(float(_dati["corsa"]))
 			elif pronto:
 				_inizia_attacco(false, false)
@@ -799,6 +807,13 @@ func _cammina(velocita_voluta: float) -> void:
 		return
 	velocity.x = verso * velocita_voluta
 	sprite.riproduci("cammina", false, 1.6 if velocita_voluta > float(_dati["passo"]) * 1.2 else 1.0)
+
+
+func _lontano(distanza: float, soglia: float) -> bool:
+	# Isteresi: chi sta già avanzando verso chi gioca si ferma qualche pixel dentro la soglia, chi è fermo
+	# parte solo oltre la soglia. Senza, al limite della soglia il nemico faceva passettini da un pixel
+	# (parti, fermati, parti): con l'avvio morbido del passo sembrava camminare sul posto.
+	return distanza > soglia - (ISTERESI_PASSO if _vx_passo * float(verso) > 1.0 else 0.0)
 
 
 func _ammorbidisci_passo(delta: float) -> void:
