@@ -1,5 +1,13 @@
 # Novità di NonNarrato
 
+## 0.1 — Luce e atmosfera (grafica, prima tappa)
+
+- **Bagliore di fiamme e magie**: torce, bracieri, magie e scintille ora brillano davvero, con un alone morbido che si posa sulla pixel art. Costa pochissimo: si calcola su un'immagine piccola a parte.
+- **Raggi di luce dalle finestre**: dalle finestre a grata della cripta e della galleria entrano fasci di luce fredda, obliqui, che si fermano sul pavimento. Respirano piano come se passassero nuvole davanti alla luna, e dentro ci danza la polvere.
+- **Colori del film**: ombre più fredde, luci delle torce più calde, colori più uniformi e bordi dello schermo appena più scuri. La stanza è più cupa e più "da console".
+- **Nuovo livello di grafica "Ultra"**: per i telefoni più potenti del Pixel 8 Pro, con bagliore più ampio e più particelle. Sul Pixel resta "Alta", che ha già tutto il resto.
+- **Tutto regolabile in Impostazioni > Grafica**: "Bagliore di fiamme e magie" (no, leggero, forte), "Raggi di luce" e "Colori del film". Con la grafica "bassa" bagliore e raggi restano spenti, per risparmiare.
+
 ## 0.1 — Arrampicata vera e passaggi morbidi fra le azioni
 
 - **L'arrampicata non è più "da burattino"**: prima erano due pose che si alternavano mentre il corpo scorreva su a velocità fissa. Ora è un ciclo vero, pensato posa per posa. Una mano va su col ginocchio opposto alto sulla parete, poi quella mano tira e il corpo sale, mentre l'altra mano si stacca e va a prendere la presa successiva. Il corpo sale a strattoni, a ogni presa, e la mano appoggiata resta ferma sulla roccia. Fermandosi si resta nella posa in cui si è, e a ogni presa si sente la mano sulla pietra.

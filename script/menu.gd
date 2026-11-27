@@ -11,7 +11,7 @@ signal bot_richiesto
 signal titolo_richiesto
 
 const SCHEDE := [["gioco", "Gioco"], ["schermo", "Schermo"], ["grafica", "Grafica"], ["audio", "Audio"], ["accessibilita", "Accessibilità"]]
-const QUALITA := ["auto", "bassa", "media", "alta"]
+const QUALITA := ["auto", "bassa", "media", "alta", "ultra"]
 const SI_NO_AUTO := [[-1, "Automatico"], [0, "No"], [1, "Sì"]]
 
 var aperto := false
@@ -233,7 +233,7 @@ func _costruisci_schermo(p: VBoxContainer) -> void:
 func _costruisci_grafica(p: VBoxContainer) -> void:
 	_sezione(p, "Qualità")
 	_info["grafica"] = _nota(p, "")
-	var q := _scelta(p, "Livello", "grafica/qualita", [["auto", "Automatica"], ["bassa", "Bassa"], ["media", "Media"], ["alta", "Alta"]],
+	var q := _scelta(p, "Livello", "grafica/qualita", [["auto", "Automatica"], ["bassa", "Bassa"], ["media", "Media"], ["alta", "Alta"], ["ultra", "Ultra"]],
 			"Scegliere un livello rimette in automatico tutti i dettagli qui sotto.")
 	q["livello"] = true   # vedi _scelta: usa Impostazioni.scegli_qualita
 	_interruttore(p, "Riduci da solo la qualità se il gioco va a scatti", "grafica/adattamento")
@@ -246,6 +246,9 @@ func _costruisci_grafica(p: VBoxContainer) -> void:
 	_scelta(p, "Luce di riempimento", "grafica/luci_doppie", SI_NO_AUTO)
 	_scelta(p, "Rilievo del personaggio", "grafica/normali_figura", SI_NO_AUTO)
 	_scelta(p, "Nebbia", "grafica/nebbia", SI_NO_AUTO)
+	_scelta(p, "Bagliore di fiamme e magie", "grafica/bagliore", [[-1, "Automatico"], [0, "No"], [1, "Leggero"], [2, "Forte"]])
+	_scelta(p, "Raggi di luce", "grafica/raggi", SI_NO_AUTO, "Dalle finestre, con la polvere che ci danza dentro.")
+	_scelta(p, "Colori del film", "grafica/toni", SI_NO_AUTO, "Ombre fredde, luci calde e bordi dello schermo più scuri.")
 	_scelta(p, "Sagome in primo piano", "grafica/primo_piano", SI_NO_AUTO)
 	_cursore(p, "Particelle", "grafica/particelle", 0.2, 1.0, 0.1, "%d%%", true, 100.0)
 	_interruttore(p, "Filtro pixel art (palette fissa)", "grafica/palette")
@@ -827,6 +830,9 @@ func _etichette_automatiche() -> void:
 		"grafica/luci_doppie": "Automatico (%s)" % _si_no(profilo.get("luci_doppie", true)),
 		"grafica/normali_figura": "Automatico (%s)" % _si_no(profilo.get("figura_normali", true)),
 		"grafica/nebbia": "Automatico (%s)" % _si_no(profilo.get("nebbia", true)),
+		"grafica/bagliore": "Automatico (%s)" % ["no", "leggero", "forte"][clampi(int(profilo.get("bagliore", 1)), 0, 2)],
+		"grafica/raggi": "Automatico (%s)" % _si_no(profilo.get("raggi", true)),
+		"grafica/toni": "Automatico (%s)" % _si_no(profilo.get("toni", true)),
 		"grafica/primo_piano": "Automatico (%s)" % _si_no(profilo.get("primo_piano", true)),
 		"audio/notte": "Automatico (%s)" % _si_no(Suoni.notte_attiva()),
 		"audio/bassi": "Automatici (%s)" % ["ridotti", "normali", "forti"][clampi(Suoni.bassi_scelti(), 0, 2)],

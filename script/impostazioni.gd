@@ -34,13 +34,16 @@ const PREDEFINITE := {
 	"schermo/orientamento": "sensore",   # sensore (si gira da solo), normale, capovolto
 	"schermo/sempre_acceso": true,
 	# --- Grafica
-	"grafica/qualita": "auto",           # auto, bassa, media, alta
+	"grafica/qualita": "auto",           # auto, bassa, media, alta, ultra
 	"grafica/luci_ombra": -1,            # ombre corte di muri e pilastri: 0 no, 1 sì (fino alla 0.1.31: quante torce, 0-4)
 	"grafica/ombre_corpi": -1,           # ombre corte dei corpi: 0 solo a terra, 1-2 sagome dalle luci vicine
 	"grafica/ombre_morbide": -1,         # -1 auto, 0 no, 1 sì
 	"grafica/luci_doppie": -1,           # luce di riempimento davanti
 	"grafica/normali_figura": -1,        # rilievo del personaggio (foto delle normali)
 	"grafica/nebbia": -1,
+	"grafica/bagliore": -1,             # bagliore di fiamme e magie: 0 no, 1 leggero, 2 forte
+	"grafica/raggi": -1,                # raggi di luce dalle finestre, con la polvere
+	"grafica/toni": -1,                 # colori del film: ombre fredde, luci calde, bordi scuri
 	"grafica/primo_piano": -1,           # sagome scure in primo piano
 	"grafica/particelle": -1.0,          # quantità (0,2-1)
 	"grafica/atlante_ombre": -1,         # dettaglio delle ombre: 512, 1024, 2048
@@ -84,7 +87,8 @@ const SCHEDE := {
 }
 
 const DETTAGLI_GRAFICA := ["grafica/luci_ombra", "grafica/ombre_corpi", "grafica/ombre_morbide", "grafica/luci_doppie", "grafica/normali_figura",
-	"grafica/nebbia", "grafica/primo_piano", "grafica/particelle", "grafica/atlante_ombre"]
+	"grafica/nebbia", "grafica/primo_piano", "grafica/particelle", "grafica/atlante_ombre",
+	"grafica/bagliore", "grafica/raggi", "grafica/toni"]
 
 var _valori := {}
 

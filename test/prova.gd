@@ -310,6 +310,7 @@ func _esegui() -> void:
 	await _prova_da_giocatore()
 	await _prova_ombre()
 	await _prova_movimenti()
+	await _prova_atmosfera()
 	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
 	await _prova_bottino()
@@ -1324,6 +1325,48 @@ func _prova_movimenti() -> void:
 			"%.0f gradi a metà" % di_fronte)
 	_principale.ricomincia_stanza()
 	await _fotogrammi(20)
+
+
+func _prova_atmosfera() -> void:
+	# Grafica, tappa 1 (0.1.36): bagliore, colori del film, raggi di luce, livello ultra.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	var stanza: Stanza = _principale.stanza
+	var mancanti: Array = []
+	for livello: String in Dispositivo.LIVELLI:
+		for chiave in ["bagliore", "raggi", "toni", "particelle", "ombre_corpi"]:
+			if not (Dispositivo.PROFILI[livello] as Dictionary).has(chiave):
+				mancanti.append("%s:%s" % [livello, chiave])
+	_verifica("atmosfera: ogni livello ha bagliore, raggi e colori", mancanti.is_empty() and Dispositivo.LIVELLI.has("ultra"), str(mancanti))
+	var d := Dispositivo
+	_verifica("atmosfera: ultra solo sopra il Pixel 8 Pro", d.consiglia_da({"gpu": "Adreno (TM) 750", "ram_mb": 12000, "core": 8})[0] == "ultra"
+			and d.consiglia_da({"gpu": "Mali-G715", "ram_mb": 11570, "core": 9, "classe_prestazioni": 34})[0] == "alta"
+			and d.consiglia_da({"gpu": "Adreno (TM) 740", "ram_mb": 12000, "core": 8})[0] == "alta"
+			and d.consiglia_da({"gpu": "Adreno (TM) 750", "ram_mb": 8000, "core": 8})[0] == "alta")
+	var vecchia: String = Impostazioni.leggi("grafica/qualita")
+	Impostazioni.scegli_qualita("alta")
+	await _fotogrammi(6)
+	var vista := _principale.get("_vista") as TextureRect
+	var accesi: bool = _principale.bagliore.render_target_update_mode == SubViewport.UPDATE_ALWAYS and vista.material != null \
+			and bool((vista.material as ShaderMaterial).get_shader_parameter("toni")) and stanza.raggi.size() >= 6 \
+			and stanza.raggi.all(func(r: Node2D) -> bool: return r.visible)
+	_verifica("atmosfera: con la qualità alta bagliore, colori del film e raggi", accesi,
+			"raggi %d" % stanza.raggi.size())
+	Impostazioni.scegli_qualita("bassa")
+	await _fotogrammi(6)
+	var spenti: bool = _principale.bagliore.render_target_update_mode == SubViewport.UPDATE_DISABLED \
+			and stanza.raggi.all(func(r: Node2D) -> bool: return not r.visible)
+	_verifica("atmosfera: con la qualità bassa niente bagliore né raggi (costano)", spenti)
+	Impostazioni.scrivi("grafica/bagliore", 2)
+	Impostazioni.scrivi("grafica/raggi", 1)
+	await _fotogrammi(6)
+	_verifica("atmosfera: si scelgono a mano", _principale.bagliore.render_target_update_mode == SubViewport.UPDATE_ALWAYS
+			and stanza.raggi[0].visible and int(Dispositivo.profilo.get("bagliore", 0)) == 2)
+	Impostazioni.scegli_qualita("ultra")
+	await _fotogrammi(6)
+	_verifica("atmosfera: il livello ultra esiste e si sceglie", Dispositivo.livello == "ultra" and float(Dispositivo.profilo["particelle"]) > 1.0)
+	Impostazioni.scegli_qualita(vecchia)
+	await _fotogrammi(6)
 
 
 func _secondi_sul_posto(n: Nemico, fotogrammi: int) -> float:

@@ -10,15 +10,19 @@ signal profilo_cambiato
 signal audio_cambiato
 
 const ALTEZZA_BASE := 360
-const LIVELLI: Array[String] = ["bassa", "media", "alta"]
+const LIVELLI: Array[String] = ["bassa", "media", "alta", "ultra"]
 const PROFILI := {
 	# Ombre delle torce: le ombre del motore facevano strisce scure fino al soffitto (Vincenzo, 26/11/2026) e furono
 	# spente; dalla 0.1.32 le fa il materiale del muro, corte e sfumate (Effetti.materiale_muro): "luci_con_ombra" 0/1.
 	# I corpi hanno ombre corte e sfumate (Ombra): "ombre_corpi" = quante luci danno la sagoma (0 = solo la macchia).
-	"bassa": {"luci_con_ombra": 0, "ombre_corpi": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false},
-	"media": {"luci_con_ombra": 1, "ombre_corpi": 1, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true},
-	"alta": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true},
+	"bassa": {"luci_con_ombra": 0, "ombre_corpi": 0, "ombre_morbide": false, "luci_doppie": false, "particelle": 0.4, "nebbia": false, "figura_normali": false, "bagliore": 0, "raggi": false, "toni": false},
+	"media": {"luci_con_ombra": 1, "ombre_corpi": 1, "ombre_morbide": false, "luci_doppie": true, "particelle": 0.7, "nebbia": true, "figura_normali": true, "bagliore": 1, "raggi": true, "toni": true},
+	"alta": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.0, "nebbia": true, "figura_normali": true, "bagliore": 1, "raggi": true, "toni": true},
+	# Ultra (0.1.36): solo per i telefoni più potenti del Pixel 8 Pro (il più debole su cui tutto deve girare bene in "alta").
+	"ultra": {"luci_con_ombra": 1, "ombre_corpi": 2, "ombre_morbide": true, "luci_doppie": true, "particelle": 1.4, "nebbia": true, "figura_normali": true, "bagliore": 2, "raggi": true, "toni": true},
 }
+# Grafica da "ultra": più potente di quella del Pixel 8 Pro (Mali-G715), con molta memoria.
+const GPU_ULTRA: Array[String] = ["adreno (tm) 75", "adreno 75", "adreno (tm) 8", "adreno 8", "immortalis-g72", "immortalis-g92", "immortalis-g93"]
 const GPU_FORTI: Array[String] = [
 	"adreno (tm) 7", "adreno (tm) 8", "adreno 7", "adreno 8", "immortalis",
 	"mali-g71", "mali-g72", "mali-g78", "mali-g9", "xclipse 9", "apple", "nvidia", "geforce", "radeon rx",
@@ -272,6 +276,9 @@ static func consiglia_da(dati: Dictionary) -> Array:
 	if core <= 4:
 		return ["bassa", "%d core" % core]
 	var memoria_ok := ram < 0 or ram >= 5500
+	for chiave in GPU_ULTRA:
+		if gpu.contains(chiave) and ram >= 11000:
+			return ["ultra", "grafica molto potente (%s), %.0f GB" % [dati.get("gpu", "?"), ram / 1024.0]]
 	for chiave in GPU_FORTI:
 		if gpu.contains(chiave) and memoria_ok:
 			return ["alta", "grafica potente (%s)%s" % [dati.get("gpu", "?"), (", %.0f GB" % (ram / 1024.0)) if ram > 0 else ""]]
@@ -312,7 +319,7 @@ func applica() -> void:
 	livello = LIVELLI[maxi(0, indice)]
 	profilo = (PROFILI[livello] as Dictionary).duplicate()
 	profilo["primo_piano"] = livello != "bassa"
-	profilo["atlante_ombre"] = 2048 if livello == "alta" else 1024
+	profilo["atlante_ombre"] = 2048 if livello in ["alta", "ultra"] else 1024
 	# Dettagli scelti a mano (-1 = come il livello). Il caldo vince sempre: con il dispositivo caldo
 	# le ombre scelte a mano si riducono comunque.
 	var scelti := {
@@ -324,12 +331,15 @@ func applica() -> void:
 		"nebbia": int(Impostazioni.leggi("grafica/nebbia")),
 		"primo_piano": int(Impostazioni.leggi("grafica/primo_piano")),
 		"atlante_ombre": int(Impostazioni.leggi("grafica/atlante_ombre")),
+		"bagliore": int(Impostazioni.leggi("grafica/bagliore")),
+		"raggi": int(Impostazioni.leggi("grafica/raggi")),
+		"toni": int(Impostazioni.leggi("grafica/toni")),
 	}
 	for chiave: String in scelti:
 		var v: int = scelti[chiave]
 		if v < 0:
 			continue
-		if chiave in ["luci_con_ombra", "ombre_corpi", "atlante_ombre"]:
+		if chiave in ["luci_con_ombra", "ombre_corpi", "atlante_ombre", "bagliore"]:
 			profilo[chiave] = mini(v, 1) if chiave == "luci_con_ombra" else v
 		else:
 			profilo[chiave] = v == 1
@@ -340,6 +350,8 @@ func applica() -> void:
 		profilo["luci_con_ombra"] = mini(int(profilo["luci_con_ombra"]), 2 - mini(riduzione_caldo, 2))
 		profilo["ombre_corpi"] = mini(int(profilo["ombre_corpi"]), 2 - mini(riduzione_caldo, 2))
 		profilo["particelle"] = minf(float(profilo["particelle"]), 0.7 if riduzione_caldo == 1 else 0.4)
+		profilo["bagliore"] = mini(int(profilo["bagliore"]), 2 - mini(riduzione_caldo, 2))
+		profilo["raggi"] = bool(profilo["raggi"]) and riduzione_caldo < 2
 	profilo["palette"] = Impostazioni.leggi("grafica/palette")
 	RenderingServer.canvas_set_shadow_texture_size(int(profilo["atlante_ombre"]))
 	var limite: int = Impostazioni.leggi("grafica/limite_fps")

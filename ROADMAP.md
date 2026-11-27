@@ -19,7 +19,7 @@ Niente coni neri lunghi che partono dalle torce e attraversano il muro.
 Scriverla in `CLAUDE.md` (fatto il 27/11/2026) e rispettarla: prima di togliere qualcosa ci si chiede se il
 problema è la cosa o solo il difetto, e si confronta con Dead Cells e Blasphemous. Si toglie solo se lì non c'è.
 
-## 3. Movimenti fluidi e naturali per tutti — in corso
+## 3. Movimenti fluidi e naturali per tutti — fatto (0.1.34 e 0.1.35)
 Personaggio (lo stesso del bot) e ogni tipo di nemico. Oggi l'arrampicata sembra "Pinocchio, un burattino".
 - piedi che non scivolano: camminata, corsa, nuoto e salita al passo con lo spostamento vero;
 - niente scatti tra un'azione e l'altra (fermarsi, girarsi, attaccare, atterrare, rialzarsi, aggrapparsi,
@@ -39,7 +39,7 @@ Fatto nella 0.1.35: arrampicata con un ciclo vero (mano e piede opposti, spinta 
 pose di passaggio fra tutte le azioni del personaggio, mezzo giro di personaggio e nemici, slancio e schiacciamento nei
 salti, nuoto al passo.
 
-## 4. Grafica di qualità più alta — da fare
+## 4. Grafica di qualità più alta — in corso
 "Sembra ancora tutto fatto male": più accattivante e di qualità.
 - personaggi e nemici più dettagliati (modelli CC0 migliori, per esempio Quaternius), più pixel per figura;
 - animazioni da archivi gratuiti di motion capture (aiutano anche il punto 3);
@@ -48,3 +48,6 @@ salti, nuoto al passo.
   uniformi, le ombre del punto 1;
 - livello "ultra" per i dispositivi sopra il Pixel.
 A tappe: una versione per passo, Vincenzo controlla sul Pixel prima di andare avanti.
+
+Tappa 1 fatta nella 0.1.36: bagliore di fiamme e magie, raggi di luce dalle finestre con la polvere, colori del film,
+livello "ultra". Prossime tappe: personaggi e nemici più dettagliati, poi ambienti più ricchi.

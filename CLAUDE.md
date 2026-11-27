@@ -354,3 +354,11 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Nuoto: `sprite.velocita` = velocità vera / `NUOTO_VELOCITA`.
 - Prove in `_prova_movimenti`. Strumenti fuori dal repository: scratchpad `strumenti/figura.gd -- --anim=... --senza_armi` e `strumenti/sequenza2.gd` (arrampicata e giro nel gioco vero).
 
+## Luce e atmosfera, livello ultra (0.1.36, punto 4 tappa 1)
+
+- Bagliore senza l'HDR del motore (sui telefoni costoso e incerto con i SubViewport): `Principale.bagliore` = SubViewport di un quarto della tela che disegna la texture del mondo con `shader/bagliore.gdshader` (parti sopra `soglia` sfocate, 17 campioni, `raggio` 1 o 1,6); `shader/vista.gdshader` la somma (`bagliore` 0,9 / 1,25) dopo il filtro di ingrandimento. Legge il mondo del fotogramma prima, ma il mondo non contiene il bagliore: niente ritorno su sé stesso.
+- Colori del film (`toni` in vista.gdshader): ombre fredde, luci calde, saturazione 0,88, bordi scuri. Con bagliore o toni la vista ha sempre il materiale (prima solo per filtri e accessibilità).
+- Raggi: `Stanza._raggi()` dalle finestre "g" di `MURO` e `MURO_GALLERIA` (non dal sotterraneo), tre poligoni additivi sempre più larghi e tenui (la penombra li smorza: alfa 0,26), lunghi fino al primo blocco di pietra sotto (`_rett_solidi`, riempito da `_blocco`), polvere dentro, respiro in `_process`. Finestre coperte da un blocco: niente raggio.
+- Profilo: `bagliore` (0/1/1/2), `raggi`, `toni` (bassa no; media, alta, ultra sì); a mano `grafica/bagliore` (0-2), `grafica/raggi`, `grafica/toni`; il caldo li riduce. Livello `ultra` in `Dispositivo.LIVELLI` (particelle 1,4, bagliore forte), consigliato solo con `GPU_ULTRA` (Adreno 75x/8xx, Immortalis recenti) e almeno 11 GB: il Pixel 8 Pro (Mali-G715) resta "alta". Il bot misura anche `prestazioni_ultra`.
+- Prova: `_prova_atmosfera` in `test/prova.gd`.
+

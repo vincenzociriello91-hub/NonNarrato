@@ -3510,7 +3510,7 @@ func _meta_sicura(sup: Dictionary) -> Vector2:
 
 func _prestazioni() -> void:
 	# La stessa corsa con colpi per ogni qualità: dice quanto regge il telefono.
-	for q in ["bassa", "media", "alta"]:
+	for q in ["bassa", "media", "alta", "ultra"]:   # ultra (0.1.36): per i telefoni più potenti del Pixel
 		Impostazioni.scrivi("grafica/qualita", q)
 		await _vai_a(Vector2(560, Stanza.PAVIMENTO), 10.0)
 		await _fotogrammi(20)

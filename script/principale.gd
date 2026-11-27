@@ -18,6 +18,8 @@ var _scritta_velo: Label
 var _scala := 3.0
 var _in_transizione := false
 var _materiale_vista: ShaderMaterial
+var bagliore: SubViewport               # tela piccola delle parti luminose (vedi shader/bagliore.gdshader)
+var _bagliore_quadro: TextureRect
 var _ultima_ondata := -1
 var _al_titolo := false
 
@@ -41,6 +43,23 @@ func _ready() -> void:
 	mondo.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	mondo.gui_disable_input = true
 	add_child(mondo)
+
+	# Bagliore: un quarto della tela, legge l'immagine del mondo (del fotogramma prima: niente ritorno su sé stesso,
+	# perché il bagliore si somma solo nella vista, dopo).
+	bagliore = SubViewport.new()
+	bagliore.disable_3d = true
+	bagliore.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	bagliore.gui_disable_input = true
+	add_child(bagliore)
+	_bagliore_quadro = TextureRect.new()
+	_bagliore_quadro.texture = mondo.get_texture()
+	_bagliore_quadro.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_bagliore_quadro.stretch_mode = TextureRect.STRETCH_SCALE
+	_bagliore_quadro.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	var materiale_bagliore := ShaderMaterial.new()
+	materiale_bagliore.shader = load("res://shader/bagliore.gdshader")
+	_bagliore_quadro.material = materiale_bagliore
+	bagliore.add_child(_bagliore_quadro)
 
 	_vista = TextureRect.new()
 	_vista.texture = mondo.get_texture()
@@ -365,6 +384,8 @@ func _ridimensiona() -> void:
 	_vista.size = mostrata / fattore
 	_filtro.position = Vector2.ZERO
 	_filtro.size = Vector2(dimensione)
+	bagliore.size = Vector2i(maxi(8, dimensione.x / 4), maxi(8, dimensione.y / 4))
+	_bagliore_quadro.size = Vector2(bagliore.size)
 	Rapporto.grafica("finestra", [finestra.x, finestra.y])
 	Rapporto.grafica("risoluzione_interna", [dimensione.x, dimensione.y])
 	Rapporto.grafica("resa", [resa.x, resa.y])
@@ -384,8 +405,16 @@ func _applica_vista() -> void:
 	var daltonismo := ["no", "protanopia", "deuteranopia", "tritanopia"].find(Impostazioni.leggi("acc/daltonismo"))
 	var luce: float = Impostazioni.leggi("schermo/luminosita")
 	var contrasto: float = Impostazioni.leggi("schermo/contrasto")
-	var serve := filtro > 0 or daltonismo > 0 or not is_equal_approx(luce, 1.0) or not is_equal_approx(contrasto, 1.0)
+	var forza_bagliore: int = int(Dispositivo.profilo.get("bagliore", 0))
+	var toni: bool = Dispositivo.profilo.get("toni", false)
+	var serve := filtro > 0 or daltonismo > 0 or not is_equal_approx(luce, 1.0) or not is_equal_approx(contrasto, 1.0) \
+			or forza_bagliore > 0 or toni
 	_vista.material = _materiale_vista if serve else null
+	bagliore.render_target_update_mode = SubViewport.UPDATE_ALWAYS if forza_bagliore > 0 else SubViewport.UPDATE_DISABLED
+	(_bagliore_quadro.material as ShaderMaterial).set_shader_parameter("raggio", 1.6 if forza_bagliore >= 2 else 1.0)
+	_materiale_vista.set_shader_parameter("bagliore_tex", bagliore.get_texture())
+	_materiale_vista.set_shader_parameter("bagliore", [0.0, 0.9, 1.25][clampi(forza_bagliore, 0, 2)])
+	_materiale_vista.set_shader_parameter("toni", toni)
 	_materiale_vista.set_shader_parameter("sorgente", mondo.get_texture())
 	_materiale_vista.set_shader_parameter("filtro", maxi(0, filtro))
 	_materiale_vista.set_shader_parameter("nitidezza", lerpf(1.0, 3.0, Impostazioni.leggi("grafica/nitidezza")))
@@ -397,6 +426,7 @@ func _applica_vista() -> void:
 
 func _applica_profilo() -> void:
 	_filtro.visible = Dispositivo.profilo.get("palette", true)
+	_applica_vista()   # bagliore e colori del film dipendono dal profilo
 
 
 func _nuova_stanza(ondata_iniziale: int = 1) -> void:

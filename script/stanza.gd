@@ -106,6 +106,8 @@ var _torce: Array = []
 const MURO_FONDO := "muro_fondo"   # gruppo: ciò che riceve le ombre corte di muri e pilastri
 var _nebbie: Array = []
 var _pulviscolo: CPUParticles2D
+var _rett_solidi: Array[Rect2] = []   # blocchi di pietra (i raggi non escono da una finestra coperta)
+var raggi: Array[Node2D] = []         # raggi di luce dalle finestre (0.1.36)
 var _tempo := 0.0
 var _t_luci := 0.0
 var _t_tensione := 0.0
@@ -134,6 +136,7 @@ func _ready() -> void:
 	_nemici()
 	_crea_giocatore()
 	_atmosfera()
+	_raggi()
 	_primo_piano()
 	Dispositivo.profilo_cambiato.connect(_applica_profilo)
 	_applica_profilo()
@@ -141,6 +144,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_tempo += delta
+	for fascio: Node2D in raggi:
+		if fascio.visible:   # nuvole che passano davanti alla luna: il raggio respira piano
+			fascio.modulate.a = 0.7 + 0.3 * sin(_tempo * 0.5 + float(fascio.get_meta("fase")))
 	_t_tensione -= delta
 	if _t_tensione <= 0.0 and tensione_automatica:
 		_t_tensione = 0.25
@@ -404,6 +410,7 @@ func condizione(nome: String) -> bool:
 
 
 func _blocco(rett: Rect2, con_lastra: bool, fa_ombra: bool) -> void:
+	_rett_solidi.append(rett)
 	var misura := RectangleShape2D.new()
 	misura.size = rett.size
 	var forma := CollisionShape2D.new()
@@ -937,6 +944,69 @@ func _atmosfera() -> void:
 	add_child(_pulviscolo)
 
 
+func _raggi() -> void:
+	# Raggi di luce fredda dalle finestre a grata della cripta e della galleria (0.1.36): fasci obliqui che
+	# sfumano verso il pavimento, con la polvere che ci danza dentro. Additivi: schiariscono soltanto.
+	var finestre: Array = []
+	for r in MURO.size():
+		for c in MURO[r].length():
+			if MURO[r][c] == "g":
+				finestre.append(Vector2(c * RIQUADRO + RIQUADRO * 0.5, (r + 1) * RIQUADRO - RIQUADRO * 0.62))
+	for r in MURO_GALLERIA.size():
+		for c in MURO_GALLERIA[r].length():
+			if MURO_GALLERIA[r][c] == "g":
+				finestre.append(Vector2(CRIPTA + c * RIQUADRO + RIQUADRO * 0.5, CIELO + (r + 1) * RIQUADRO - RIQUADRO * 0.62))
+	var respiro := Gradient.new()
+	respiro.offsets = PackedFloat32Array([0.0, 0.3, 0.7, 1.0])
+	respiro.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 1), Color(1, 1, 1, 0)])
+	for dove: Vector2 in finestre:
+		if _rett_solidi.any(func(b: Rect2) -> bool: return b.grow(6.0).has_point(dove)):
+			continue   # finestra coperta da un blocco di pietra
+		var fascio := Node2D.new()
+		fascio.position = dove
+		fascio.z_index = 22
+		fascio.set_meta("fase", randf() * TAU)
+		# Il fascio scende fino al primo blocco di pietra sotto (pavimento, ripiano), non lo attraversa.
+		var pendenza := tan(deg_to_rad(16.0))   # verso il basso a destra
+		var lungo := 240.0
+		for b: Rect2 in _rett_solidi:
+			var x_arrivo := dove.x + (b.position.y - dove.y) * pendenza
+			if b.position.y > dove.y + 20.0 and x_arrivo >= b.position.x and x_arrivo <= b.end.x:
+				lungo = minf(lungo, b.position.y - dove.y + 4.0)
+		var storto := lungo * pendenza
+		# Tre strati sempre più larghi e tenui: il bordo del fascio sfuma invece di essere netto.
+		for k in 3:
+			var largo := 10.0 + 9.0 * k
+			var poligono := Polygon2D.new()
+			poligono.polygon = PackedVector2Array([Vector2(-largo * 0.5, 0), Vector2(largo * 0.5, 0),
+					Vector2(storto + largo * 1.4, lungo), Vector2(storto - largo * 1.4, lungo)])
+			var a := 0.26 - 0.08 * k   # la penombra della stanza (CanvasModulate) li smorza molto
+			var luce := Color(0.55, 0.66, 0.95)
+			poligono.vertex_colors = PackedColorArray([Color(luce, a), Color(luce, a), Color(luce, 0.0), Color(luce, 0.0)])
+			poligono.material = Effetti.materiale_luminoso()
+			poligono.light_mask = 0
+			fascio.add_child(poligono)
+		var polvere := CPUParticles2D.new()
+		polvere.position = Vector2(storto * 0.45, lungo * 0.45)
+		polvere.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		polvere.emission_rect_extents = Vector2(12.0, lungo * 0.4)
+		polvere.amount = Effetti.quantita(10)
+		polvere.lifetime = 5.0
+		polvere.preprocess = 5.0
+		polvere.direction = Vector2(0.3, 1.0)
+		polvere.spread = 40.0
+		polvere.initial_velocity_min = 2.0
+		polvere.initial_velocity_max = 6.0
+		polvere.gravity = Vector2(0.0, 1.0)
+		polvere.color = Color(0.8, 0.86, 1.0, 0.55)
+		polvere.color_ramp = respiro
+		polvere.material = Effetti.materiale_luminoso()
+		polvere.light_mask = 0
+		fascio.add_child(polvere)
+		add_child(fascio)
+		raggi.append(fascio)
+
+
 func _primo_piano() -> void:
 	# Sagome scure vicinissime, che scorrono più in fretta del resto: danno profondità.
 	var strato := Parallax2D.new()
@@ -1031,6 +1101,8 @@ func _applica_profilo() -> void:
 			(n as CanvasItem).material = materiale
 	for velo: ColorRect in _nebbie:
 		velo.visible = profilo.get("nebbia", true)
+	for fascio: Node2D in raggi:
+		fascio.visible = profilo.get("raggi", true)
 	var primo := get_node_or_null("PrimoPiano") as CanvasItem
 	if primo != null:
 		primo.visible = profilo.get("primo_piano", true)

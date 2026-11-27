@@ -3,7 +3,9 @@ shader_type canvas_item;
 //  - filtro di ingrandimento: 0 nitido (pixel pieni), 1 liscio (bordi dei pixel ammorbiditi),
 //    2 SGSR (Snapdragon Game Super Resolution 1 di Qualcomm, ingrandimento con recupero dei bordi);
 //  - luminosità (gamma) e contrasto;
-//  - correzione per il daltonismo (1 protanopia, 2 deuteranopia, 3 tritanopia).
+//  - correzione per il daltonismo (1 protanopia, 2 deuteranopia, 3 tritanopia);
+//  - bagliore (0.1.36): le parti luminose sfocate dalla tela piccola di bagliore.gdshader, sommate;
+//  - colori del film (0.1.36): ombre fredde, luci calde, un po' meno saturazione, bordi più scuri.
 // L'immagine arriva in "sorgente" (la imposta principale.gd): le funzioni non possono ricevere TEXTURE.
 //
 // La parte SGSR è un adattamento di sgsr1_shader_mobile.frag:
@@ -16,6 +18,9 @@ uniform float nitidezza = 2.0;
 uniform float gamma_scelta = 1.0;
 uniform float contrasto = 1.0;
 uniform int daltonismo = 0;
+uniform sampler2D bagliore_tex : filter_linear, repeat_disable;
+uniform float bagliore = 0.0;
+uniform bool toni = false;
 
 float luma(ivec2 p, ivec2 massimo, sampler2D tex) {
 	// Come il modo "RGBA" di SGSR: il verde fa da luminosità.
@@ -124,6 +129,15 @@ vec3 nitido(sampler2D tex, vec2 uv) {
 	return texelFetch(tex, clamp(ivec2(floor(uv * vec2(dim))), ivec2(0), dim - ivec2(1)), 0).rgb;
 }
 
+vec3 colori_del_film(vec3 c, vec2 uv) {
+	float l = dot(c, vec3(0.299, 0.587, 0.114));
+	c *= mix(vec3(0.86, 0.93, 1.1), vec3(1.07, 1.0, 0.9), smoothstep(0.12, 0.65, l));   // ombre fredde, luci calde
+	c = mix(vec3(l), c, 0.88);                                                          // colori più uniformi
+	vec2 d = uv - 0.5;
+	c *= 1.0 - dot(d, d) * 0.6;                                                         // bordi più scuri
+	return c;
+}
+
 void fragment() {
 	vec3 c;
 	if (filtro == 2) {
@@ -133,8 +147,14 @@ void fragment() {
 	} else {
 		c = nitido(sorgente, UV);
 	}
+	if (bagliore > 0.0) {
+		c += texture(bagliore_tex, UV).rgb * bagliore;
+	}
+	if (toni) {
+		c = colori_del_film(c, UV);
+	}
 	if (daltonismo > 0) {
-		c = daltonizza(c, daltonismo);
+		c = daltonizza(clamp(c, 0.0, 1.0), daltonismo);
 	}
 	c = pow(max(c, vec3(0.0)), vec3(1.0 / gamma_scelta));
 	c = clamp((c - 0.5) * contrasto + 0.5, 0.0, 1.0);
