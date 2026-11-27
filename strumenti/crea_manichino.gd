@@ -25,7 +25,7 @@ const LATO_TEXTURE := 512
 const VESTITI := {
 	Q + "Male_Ranger.gltf": ["Viandante", {
 		"Male_Ranger_Head_Hood": "Cappuccio", "Male_Ranger_Body": "Giubba", "Male_Ranger_Body_Belt_1": "Cinta",
-		"Male_Ranger_Body_Belt_1.001": "Cinta2", "Male_Ranger_Arms": "Maniche", "Male_Ranger_Arms_Bracer": "Bracciale",
+		"Male_Ranger_Body_Belt_2": "Cinta2", "Male_Ranger_Arms": "Maniche", "Male_Ranger_Arms_Bracer": "Bracciale",
 		"Male_Ranger_Legs": "Brache", "Male_Ranger_Feet_Boots": "Stivali", "Male_Ranger_Acc_Pauldron": "Spallaccio"}],
 	Q + "Male_Peasant.gltf": ["Contadino", {
 		"Male_Peasant_Body": "Veste", "Male_Peasant_Arms": "Maniche", "Male_Peasant_Legs": "Brache",
@@ -187,7 +187,7 @@ func _avvia() -> void:
 			var nome := "%s__%s" % [info[0], info[1][chiave]]
 			var mesh := _ricolora(mi.mesh, cache_tex)
 			if SOLO_TESTA.has(nome):
-				mesh = _solo_ossa(mesh, mi.skin, OSSA_TESTA)
+				mesh = _solo_ossa(mesh, mi.skin, scheletro, OSSA_TESTA)
 			var copia := MeshInstance3D.new()
 			copia.name = nome
 			copia.mesh = mesh
@@ -343,14 +343,19 @@ func _ricolora(mesh: Mesh, cache: Dictionary, tex: Texture2D = null) -> Mesh:
 			if originale.ao_enabled and originale.ao_texture != null:
 				mat.ao_enabled = true
 				mat.ao_texture = _piccola(originale.ao_texture, cache)
+			elif originale.roughness_texture != null and String(originale.roughness_texture.resource_name).contains("ORM"):
+				# Quaternius mette l'occlusione nel rosso della texture ORM (il glTF la dà solo come rugosità).
+				mat.ao_enabled = true
+				mat.ao_texture = _piccola(originale.roughness_texture, cache)
 			mat.transparency = originale.transparency
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		# Niente "unshaded": il materiale è solo un contenitore di texture (gli shader li mette figura_viva),
+		# e con "unshaded" normali e occlusione non verrebbero salvati.
 		copia.surface_set_material(s, mat)
 	return copia
 
 
-func _solo_ossa(mesh: Mesh, skin: Skin, ossa: Array) -> Mesh:
+func _solo_ossa(mesh: Mesh, skin: Skin, scheletro: Skeleton3D, ossa: Array) -> Mesh:
 	# Tiene solo i triangoli i cui vertici sono legati soprattutto a queste ossa (la testa del corpo base).
 	var nuova := ArrayMesh.new()
 	for s in mesh.get_surface_count():
@@ -366,7 +371,12 @@ func _solo_ossa(mesh: Mesh, skin: Skin, ossa: Array) -> Mesh:
 			var somma := 0.0
 			for k in per_vertice:
 				var b := ossa_v[v * per_vertice + k]
-				var nome := String(skin.get_bind_name(b)) if skin != null and b < skin.get_bind_count() else ""
+				# I legami Quaternius sono per numero d'osso (stesso ordine in tutti i file), non per nome.
+				var nome := ""
+				if skin != null and b < skin.get_bind_count():
+					nome = String(skin.get_bind_name(b))
+					if nome == "":
+						nome = scheletro.get_bone_name(skin.get_bind_bone(b))
 				if ossa.has(nome):
 					somma += pesi_v[v * per_vertice + k]
 			buoni[v] = 1 if somma >= 0.5 else 0
@@ -460,7 +470,6 @@ func _mantello(scheletro: Skeleton3D, texture: String, lunghezza: float, largo_g
 			ProjectSettings.globalize_path("res://sorgenti3d/ambientcg/mantello_normali.png")))
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mesh.surface_set_material(0, mat)
 	var skin := Skin.new()
 	for n: String in nomi_ossa:

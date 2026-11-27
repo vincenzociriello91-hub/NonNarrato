@@ -1492,9 +1492,17 @@ func _prova_quaternius() -> void:
 	# Mantelli generati, legati a petto, bacino e cosce; testa scoperta senza il corpo sotto i vestiti.
 	var mantello := sk.get_node_or_null("Mantello__Viandante") as MeshInstance3D
 	var testa := sk.get_node_or_null("Corpo__Testa") as MeshInstance3D
-	var testa_ok := testa != null and testa.mesh.get_aabb().position.y > 1.3
+	# Solo i triangoli della testa: il punto più basso usato sta sopra le spalle.
+	var testa_ok := testa != null and testa.mesh.get_surface_count() > 0
+	var basso := 9.0
+	if testa_ok:
+		var arr := testa.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		for i: int in (arr[Mesh.ARRAY_INDEX] as PackedInt32Array):
+			basso = minf(basso, v[i].y)
+		testa_ok = basso > 1.3
 	_verifica("quaternius: mantelli legati alle ossa e testa scoperta solo testa", mantello != null and mantello.skin != null
-			and mantello.skin.get_bind_count() == 4 and testa_ok, str(testa.mesh.get_aabb() if testa != null else "nessuna testa"))
+			and mantello.skin.get_bind_count() == 4 and testa_ok, "punto più basso della testa %.2f" % basso)
 	m.free()
 	# Nel gioco: un materiale per superficie, con rilievo (normali) e pieghe (occlusione) sulla giubba.
 	var fv := _g().sprite as FiguraViva
@@ -1502,7 +1510,7 @@ func _prova_quaternius() -> void:
 	var con_rilievo := false
 	if not giubba.is_empty():
 		var mat := (giubba[0] as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
-		con_rilievo = mat != null and float(mat.get_shader_parameter("usa_n")) == 1.0 and float(mat.get_shader_parameter("usa_o")) == 1.0
+		con_rilievo = mat != null and mat.get_shader_parameter("usa_n") == 1.0 and mat.get_shader_parameter("usa_o") == 1.0
 	var maniche: Array = fv.get("_pezzi").get("Viandante__Maniche", [])
 	var due := not maniche.is_empty() and (maniche[2] as Array).size() == (maniche[0] as MeshInstance3D).mesh.get_surface_count() \
 			and (maniche[0] as MeshInstance3D).mesh.get_surface_count() >= 2
