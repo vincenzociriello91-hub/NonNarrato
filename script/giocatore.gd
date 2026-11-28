@@ -14,7 +14,7 @@ signal armi_cambiate
 signal morto
 signal effetti_cambiati
 
-enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO, PARATA, ARRAMPICATA, NUOTO }
+enum Stato { NORMALE, ATTACCO, ROTOLATA, SCHIVATA, COLPITO, MORTO, SCAVALCO, PRESA, USA, TIRO, PARATA, ARRAMPICATA, NUOTO, CARICA }
 
 const VELOCITA := 150.0
 const ACCELERAZIONE := 1500.0
@@ -131,6 +131,8 @@ var _t_memoria_salto := 0.0
 var _t_pausa_rotolata := 0.0
 var _t_pausa_schivata := 0.0
 var _t_protetto := 0.0
+var _t_giustizia := 0.0           # protetto dopo un'esecuzione, senza lampeggiare (col rallentatore spariva)
+const PROTEZIONE_ESECUZIONE := 0.5
 var _t_attraversa := 0.0
 var _t_atterra := 0.0
 var _spinta := 0.0                # quanto è inclinata la leva (0-1): poco = si cammina
@@ -141,6 +143,16 @@ var _arma := {}                     # Armi.attuali() all'inizio della combinazio
 var _colpo_ora := {}                # il colpo in corso
 var _colpo_prenotato := false
 var _gia_colpiti: Array = []
+# Colpo caricato (0.1.43; _carica e _carica_piena sono del tiro): la carica conta da quando si preme Attacca.
+var _t_carica_colpo := 0.0
+var _carica_tenuta := false        # lo stesso Attacca è ancora premuto da quando è partito il colpo
+var _colpo_carico_pieno := false
+var _t_tenuta_piena := 0.0
+var _luce_carica: PointLight2D
+var _scintille_carica: CPUParticles2D
+const COLORE_CARICA := Color(1.0, 0.82, 0.55)
+const POSA_CARICA := 0.0           # frazione di "attacco2" tenuta ferma mentre si carica
+const LUCE_CARICA := Vector2(-2.0, -40.0)   # dove brilla l'arma alzata (verso destra; si specchia)
 var _scatto_usato := false
 var _schivata_in_aria := false
 var _velocita_caduta := 0.0
@@ -329,6 +341,10 @@ func _physics_process(delta: float) -> void:
 			_arrampicata(delta)
 		Stato.NUOTO:
 			_nuoto(delta)
+		Stato.CARICA:
+			_in_carica(delta, a_terra)
+	if stato != Stato.CARICA and _luce_carica != null:
+		_spegni_carica()   # uscita dalla carica in qualunque modo (colpo, colpiti, acqua, morte, rotolo)
 
 	_velocita_caduta = velocity.y
 	move_and_slide()
@@ -354,6 +370,7 @@ func _scorri_tempi(delta: float) -> void:
 	_t_pausa_rotolata = maxf(0.0, _t_pausa_rotolata - delta)
 	_t_pausa_schivata = maxf(0.0, _t_pausa_schivata - delta)
 	_t_protetto = maxf(0.0, _t_protetto - delta)
+	_t_giustizia = maxf(0.0, _t_giustizia - delta)
 	_t_atterra = maxf(0.0, _t_atterra - delta)
 	_t_passo -= delta
 	if _t_passo <= 0.0 and stato == Stato.NORMALE and is_on_floor() and absf(velocity.x) > 40.0:
@@ -443,16 +460,19 @@ func _normale(delta: float, a_terra: bool) -> void:
 		_inizia_schivata(a_terra, direzione)
 	elif Input.is_action_just_pressed("attacca"):
 		_arma = Armi.attuali()
+		_t_carica_colpo = 0.0
+		_carica_tenuta = true
 		_inizia_attacco(1, a_terra)
 	elif Input.is_action_just_pressed("tira"):
 		_inizia_tiro()
 
 
-func _inizia_attacco(numero: int, a_terra: bool) -> void:
+func _inizia_attacco(numero: int, a_terra: bool, pesante: Dictionary = {}) -> void:
+	# pesante = colpo caricato (Armi.colpo_caricato): stessa finestra e stesso _colpisci, animazione "attacco2".
 	if _arma.is_empty():
 		_arma = Armi.attuali()
 	var lista: Array = _arma["colpi"]
-	_colpo_ora = lista[clampi(numero - 1, 0, lista.size() - 1)]
+	_colpo_ora = pesante if not pesante.is_empty() else lista[clampi(numero - 1, 0, lista.size() - 1)]
 	stato = Stato.ATTACCO
 	_t_stato = 0.0
 	_colpo_numero = numero
@@ -462,7 +482,7 @@ func _inizia_attacco(numero: int, a_terra: bool) -> void:
 	(_forma_colpo.shape as RectangleShape2D).size = Vector2(portata, float(_colpo_ora["h"]))
 	_forma_colpo.position = Vector2((portata * 0.5 + 4.0) * verso, -float(_colpo_ora["h"]) * 0.5)
 	# Le animazioni sono due (attacco1, attacco2): si alternano e si adattano ai tempi dell'arma.
-	var anim := "attacco1" if numero % 2 == 1 else "attacco2"
+	var anim := "attacco1" if numero % 2 == 1 and pesante.is_empty() else "attacco2"
 	var lunga := sprite.durata(anim)
 	sprite.riproduci(anim, true, lunga / float(_colpo_ora["t"]) if lunga > 0.0 else 1.0)
 	if a_terra:
@@ -472,13 +492,22 @@ func _inizia_attacco(numero: int, a_terra: bool) -> void:
 
 
 func colpo_attuale() -> Dictionary:
-	# Per i nemici e il bot: il colpo in corso (vuoto se non sta attaccando).
+	# Per i nemici e il bot: il colpo in corso (vuoto se non sta attaccando); in CARICA quello pesante che partirebbe.
+	if stato == Stato.CARICA:
+		return Armi.colpo_caricato(_arma, carica_colpo())
 	return _colpo_ora if stato == Stato.ATTACCO else {}
 
 
 func attacco_in_carica() -> bool:
-	# Sta caricando un colpo che non fa ancora male.
-	return stato == Stato.ATTACCO and _t_stato < float(_colpo_ora.get("da", 0.1))
+	# Sta caricando un colpo che non fa ancora male (anche il colpo caricato, finché lo tiene).
+	return stato == Stato.CARICA or (stato == Stato.ATTACCO and _t_stato < float(_colpo_ora.get("da", 0.1)))
+
+
+func carica_colpo() -> float:
+	# Da 0 a 1: quanto è carico il colpo pesante (in CARICA, o mentre si tiene premuto Attacca durante un colpo).
+	if stato != Stato.CARICA and not (stato == Stato.ATTACCO and _carica_tenuta):
+		return 0.0
+	return clampf(_t_carica_colpo / Armi.tempo_carica(String(_arma.get("famiglia", famiglia_arma()))), 0.0, 1.0)
 
 
 func attacco_scoperto() -> bool:
@@ -506,8 +535,15 @@ func _attacco(delta: float, a_terra: bool) -> void:
 		_fendente()
 	if _t_stato >= da and _t_stato <= a:
 		_colpisci()
-	if Input.is_action_just_pressed("attacca") and _t_stato >= minf(0.06, da):
-		_colpo_prenotato = true
+	if Input.is_action_just_pressed("attacca"):
+		_t_carica_colpo = 0.0   # una pressione nuova: la carica ricomincia da qui
+		_carica_tenuta = true
+		if _t_stato >= minf(0.06, da):
+			_colpo_prenotato = true
+	elif _carica_tenuta and Input.is_action_pressed("attacca"):
+		_t_carica_colpo += delta
+	else:
+		_carica_tenuta = false
 
 	if _t_stato > a:
 		if Input.is_action_just_pressed("rotola") and a_terra and _t_pausa_rotolata <= 0.0:
@@ -525,11 +561,114 @@ func _attacco(delta: float, a_terra: bool) -> void:
 				verso = 1 if direzione > 0.0 else -1
 			_inizia_attacco(_colpo_numero + 1, a_terra)
 			return
+		if _carica_tenuta and not _colpo_prenotato and not _colpo_ora.get("caricato", false):
+			_inizia_carica()   # Attacca ancora premuto a colpo finito: si carica il colpo pesante
+			return
 	if _t_stato >= float(_colpo_ora["t"]):
 		stato = Stato.NORMALE
 
 
+# ------------------------------------------------------------------ colpo caricato (0.1.43)
+
+func _inizia_carica() -> void:
+	stato = Stato.CARICA
+	_t_stato = 0.0
+	_colpo_carico_pieno = false
+	_t_tenuta_piena = 0.0
+	sprite.posa("attacco2", POSA_CARICA)   # l'arma resta alzata, pronta
+	# Una luce calda cresce sull'arma e scintille piccole ci convergono sopra.
+	_luce_carica = Effetti.luce(COLORE_CARICA, 18.0, 0.2, 30.0)
+	_luce_carica.position = Vector2(LUCE_CARICA.x * verso, LUCE_CARICA.y)
+	add_child(_luce_carica)
+	_scintille_carica = CPUParticles2D.new()
+	_scintille_carica.amount = Effetti.quantita(10)
+	_scintille_carica.lifetime = 0.35
+	_scintille_carica.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	_scintille_carica.emission_sphere_radius = 16.0
+	_scintille_carica.gravity = Vector2.ZERO
+	_scintille_carica.initial_velocity_min = 0.0
+	_scintille_carica.initial_velocity_max = 0.0
+	_scintille_carica.radial_accel_min = -260.0   # verso il centro: convergono sull'arma
+	_scintille_carica.radial_accel_max = -180.0
+	_scintille_carica.color = COLORE_CARICA
+	_scintille_carica.color_ramp = Effetti.sfumatura()
+	_scintille_carica.material = Effetti.materiale_luminoso()
+	_scintille_carica.light_mask = 0
+	_scintille_carica.z_index = 20
+	_scintille_carica.position = _luce_carica.position
+	add_child(_scintille_carica)
+	_scintille_carica.emitting = true
+	Suoni.suona("carica", global_position, -4.0)
+
+
+func _in_carica(delta: float, a_terra: bool) -> void:
+	_t_stato += delta
+	var direzione := Input.get_axis("sinistra", "destra")
+	if absf(direzione) > 0.01:
+		verso = 1 if direzione > 0.0 else -1   # ci si può girare
+	velocity.x = move_toward(velocity.x, direzione * VELOCITA * Armi.CARICA_PASSO * moltiplicatore_velocita(),
+			(ACCELERAZIONE if a_terra else ACCELERAZIONE_ARIA) * delta)
+	_gravita(delta)
+	# Rotolo, scatto e parata annullano la carica e partono subito (come dopo un colpo).
+	if Input.is_action_just_pressed("rotola") and a_terra and _t_pausa_rotolata <= 0.0:
+		_inizia_rotolata(direzione)
+		return
+	if Input.is_action_just_pressed("schiva") and a_terra and absf(direzione) < 0.01 and _ha_scudo() and _t_pausa_schivata <= 0.0:
+		_inizia_parata()
+		return
+	if Input.is_action_just_pressed("schiva") and _t_pausa_schivata <= 0.0 and (a_terra or not _scatto_usato):
+		_inizia_schivata(a_terra, direzione)
+		return
+	var tiene := Input.is_action_pressed("attacca")
+	if tiene:
+		_t_carica_colpo += delta
+	var k := carica_colpo()
+	if k >= 1.0 and not _colpo_carico_pieno:
+		_colpo_carico_pieno = true
+		Effetti.lampo(sprite)
+		Effetti.scoppio(get_parent(), global_position + _luce_carica.position, COLORE_CARICA, 8, 50.0, 0.3, 0.0)
+		Suoni.suona("carica_piena", global_position, -3.0)
+		Controlli.vibra_ritmo("carica_piena")
+		Rapporto.conta("cariche_piene")
+	if _colpo_carico_pieno:
+		_t_tenuta_piena += delta
+	# La luce cresce con la carica; piena, pulsa. L'arma trema appena.
+	_luce_carica.position = Vector2(LUCE_CARICA.x * verso, LUCE_CARICA.y)
+	_scintille_carica.position = _luce_carica.position
+	var pulsa := 1.0 + (0.3 * sin(_t_stato * 18.0) if _colpo_carico_pieno else 0.0)
+	_luce_carica.energy = (0.3 + 1.4 * k) * pulsa
+	_luce_carica.texture_scale = (18.0 + 34.0 * k) / 64.0
+	sprite.posa("attacco2", POSA_CARICA)
+	if _colpo_carico_pieno:
+		sprite.position.x = 0.5 if int(_t_stato * 30.0) % 2 == 0 else -0.5
+	if tiene and _t_tenuta_piena < Armi.CARICA_TENUTA:
+		return
+	_carica_tenuta = false
+	if k < Armi.CARICA_MINIMA:
+		stato = Stato.NORMALE   # lasciato troppo presto: nessun colpo
+		return
+	_inizia_attacco((_arma["colpi"] as Array).size(), a_terra, Armi.colpo_caricato(_arma, k))
+	_conta("colpi_caricati")
+
+
+func _spegni_carica() -> void:
+	if is_instance_valid(_luce_carica):
+		_luce_carica.queue_free()
+	if is_instance_valid(_scintille_carica):
+		_scintille_carica.emitting = false
+		_scintille_carica.queue_free()
+	_luce_carica = null
+	_scintille_carica = null
+	Suoni.ferma("carica")
+
+
+func _exit_tree() -> void:
+	if _luce_carica != null:
+		Suoni.ferma("carica")   # stanza cambiata a metà carica
+
+
 func _colpisci() -> void:
+	var caricato := bool(_colpo_ora.get("caricato", false))
 	for area in _colpo.get_overlapping_areas():
 		var chi: Variant = area.get_meta("bersaglio", null)
 		if chi == null or not is_instance_valid(chi) or _gia_colpiti.has(chi):
@@ -539,28 +678,71 @@ func _colpisci() -> void:
 			continue
 		var danno := int(_colpo_ora["d"])
 		var riuscito := false
+		var deviato := false
 		if chi is Nemico:
 			var nemico := chi as Nemico
+			# Esecuzione: uno stordito allo stremo muore sul colpo.
+			if nemico.eseguibile():
+				_esegui(nemico)
+				continue
 			# Pugnale: alle spalle (il nemico guarda dall'altra parte) fa di più.
 			var spalle := nemico.verso == int(signf(nemico.global_position.x - global_position.x))
 			if spalle and _arma.has("alle_spalle"):
 				danno *= int(_arma["alle_spalle"])
 				Rapporto.conta("colpi_alle_spalle")
-			riuscito = nemico.subisci(danno, global_position, float(_colpo_ora["spinta"]), "mischia", {
-				"famiglia": _arma.get("famiglia", "spada"), "rompe": _colpo_ora.get("rompe", false),
-				"stordisce": float(_colpo_ora.get("stordisce", 0.0))})
+			var dettagli := {"famiglia": _arma.get("famiglia", "spada"), "rompe": _colpo_ora.get("rompe", false),
+					"stordisce": float(_colpo_ora.get("stordisce", 0.0)), "caricato": caricato}
+			# Deviazione: il tuo colpo arriva mentre il suo sta per partire (lo guarda in faccia): il suo si annulla.
+			if not spalle and nemico.colpo_imminente():
+				nemico.devia()
+				dettagli["devia"] = true
+				deviato = true
+				Rapporto.conta("deviazioni")
+			riuscito = nemico.subisci(danno, global_position, float(_colpo_ora["spinta"]), "mischia", dettagli)
 		else:
 			riuscito = chi.subisci(danno, global_position, float(_colpo_ora["spinta"]))
+		if deviato:
+			var dove := (area as Area2D).global_position.lerp(global_position + Vector2(verso * 24.0, -28.0), 0.5)
+			Effetti.impatto(get_parent(), dove, "metallo", -float(verso), 1.8)
+			Suoni.suona("parata_perfetta", dove, -2.0, 1.35)
+			regia.colpo(2.0)
 		if riuscito:
 			var punto: Vector2 = (area as Area2D).global_position.lerp(global_position + Vector2(verso * 24.0, -24.0), 0.5)
 			# Schizzi e scintille secondo ciò che si colpisce (ossa, carne, stoffa, metallo, pietra, legno).
-			Effetti.impatto(get_parent(), punto, Effetti.materiale_di(chi), float(verso), 0.8 + 0.25 * danno)
-			scuoti(2.0 + danno * 0.8)
-			Controlli.vibra_ritmo("colpo_leggero" if danno <= 1 else ("colpo_medio" if danno == 2 else "colpo_pesante"))
-			if danno >= 2:
+			Effetti.impatto(get_parent(), punto, Effetti.materiale_di(chi), float(verso), 0.8 + 0.25 * danno + (0.6 if caricato else 0.0))
+			scuoti(2.0 + danno * 0.8 + (2.0 if caricato else 0.0))
+			if deviato:
+				Controlli.vibra_ritmo("deviazione")
+			elif caricato:
+				Controlli.vibra_ritmo("colpo_caricato")
+			else:
+				Controlli.vibra_ritmo("colpo_leggero" if danno <= 1 else ("colpo_medio" if danno == 2 else "colpo_pesante"))
+			if caricato:
+				regia.colpo(3.0)
+				Suoni.suona("colpo_pesante", punto)
+			elif danno >= 2:
 				regia.colpo(float(danno))   # i colpi forti allargano un attimo l'inquadratura
 			Suoni.suona("colpo", punto, 0.0, 1.1 - 0.06 * danno)
-			Effetti.fermo_immagine(self, 0.04 + 0.015 * danno)
+			Effetti.fermo_immagine(self, 0.04 + 0.015 * danno + (0.03 if caricato else 0.0))
+		elif deviato:
+			Controlli.vibra_ritmo("deviazione")
+
+
+func _esegui(nemico: Nemico) -> void:
+	# Esecuzione (0.1.43): il nemico si dissolve in cenere, la telecamera si avvicina e il tempo rallenta un attimo;
+	# chi gioca riprende un cuore e resta protetto per poco.
+	var punto := (global_position + Vector2(0.0, -24.0)).lerp(nemico.centro(), 0.5)
+	regia.rallenta(0.25, 0.35)
+	nemico.giustizia(signf(nemico.global_position.x - global_position.x) if nemico.global_position.x != global_position.x else float(verso),
+			String(_arma.get("famiglia", famiglia_arma())))
+	regia.primo_piano(punto, 1.18, 0.5)
+	Effetti.impatto(get_parent(), nemico.centro(), Effetti.materiale_di(nemico), float(verso), 1.6)
+	Suoni.suona("esecuzione", nemico.centro())
+	Controlli.vibra_ritmo("esecuzione")
+	scuoti(5.0)
+	_conta("esecuzioni")
+	cura(1)
+	_t_giustizia = PROTEZIONE_ESECUZIONE
 
 
 # ------------------------------------------------------------------ parata (con lo scudo)
@@ -590,6 +772,24 @@ func _parata(delta: float) -> void:
 func sta_parando(da: Vector2) -> bool:
 	# Para i colpi che arrivano da davanti, nei primi istanti della parata.
 	return stato == Stato.PARATA and _t_stato <= Armi.PARATA_FINESTRA and int(signf(da.x - global_position.x)) == verso
+
+
+func _parata_perfetta(chi: Node) -> void:
+	# Parata a tempo (0.1.43): lo scudo alzato proprio mentre arriva il colpo apre la guardia di chi colpisce
+	# da vicino. Un colpo da lontano (chi = null: sfere e dardi) è parato e basta.
+	Rapporto.conta("parate_perfette")
+	Suoni.suona("parata_perfetta", global_position)
+	Effetti.impatto(get_parent(), global_position + Vector2(verso * 12.0, -26.0), "metallo", -float(verso), 2.2)
+	Controlli.vibra_ritmo("parata_perfetta")
+	regia.colpo(3.0)
+	scuoti(3.0)
+	Effetti.fermo_immagine(self, 0.06)
+	velocity.x = -verso * 40.0
+	if chi is Nemico and (chi as Nemico).tipo in Nemico.CORPO_A_CORPO \
+			and (chi as Nemico).global_position.distance_to(global_position) < 90.0:
+		(chi as Nemico).apri_guardia(1.6)
+	elif is_instance_valid(chi) and chi.has_method("barcolla"):
+		chi.call("barcolla", 0.8)
 
 
 func _conta(azione: String) -> void:
@@ -1175,7 +1375,7 @@ func _da_morto(delta: float) -> void:
 # ------------------------------------------------------------------ danni
 
 func intoccabile() -> bool:
-	if stato == Stato.MORTO or _t_protetto > 0.0 or stato == Stato.SCHIVATA or stato == Stato.SCAVALCO:
+	if stato == Stato.MORTO or _t_protetto > 0.0 or _t_giustizia > 0.0 or stato == Stato.SCHIVATA or stato == Stato.SCAVALCO:
 		return true
 	return stato == Stato.ROTOLATA and _t_stato > 0.03 and _t_stato < 0.33
 
@@ -1185,6 +1385,9 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 		return false
 	if sta_parando(da):
 		Rapporto.conta("parate_riuscite")
+		if _t_stato <= Armi.PARATA_PERFETTA:
+			_parata_perfetta(chi)
+			return false
 		Suoni.suona("parata", global_position)
 		Effetti.impatto(get_parent(), global_position + Vector2(verso * 12.0, -26.0), "metallo", -float(verso), 1.2)
 		scuoti(2.0)
@@ -1418,7 +1621,7 @@ func _controlla_acqua() -> void:
 				80.0 + absf(velocity.y) * 0.2, 0.5, 300.0, false, 1.0, Vector2.UP, 50.0)
 		Suoni.suona("tuffo", Vector2(global_position.x, _superficie), -2.0 if velocity.y > 200.0 else -6.0)
 		_conta("tuffi")
-	if in_acqua and stato in [Stato.NORMALE, Stato.ROTOLATA, Stato.SCHIVATA, Stato.ATTACCO, Stato.TIRO, Stato.ARRAMPICATA, Stato.PARATA]:
+	if in_acqua and stato in [Stato.NORMALE, Stato.ROTOLATA, Stato.SCHIVATA, Stato.ATTACCO, Stato.TIRO, Stato.ARRAMPICATA, Stato.PARATA, Stato.CARICA]:
 		if stato == Stato.ROTOLATA:
 			_imposta_forma(ALTO)
 		if stato == Stato.TIRO and sprite.has_method("mostra_in_mano"):
@@ -1616,7 +1819,7 @@ func _separa_dai_nemici() -> void:
 
 
 func _spingi_oggetti(delta: float) -> void:
-	if stato != Stato.NORMALE and stato != Stato.ATTACCO:
+	if stato not in [Stato.NORMALE, Stato.ATTACCO, Stato.CARICA]:
 		return
 	for i in get_slide_collision_count():
 		var urto := get_slide_collision(i)

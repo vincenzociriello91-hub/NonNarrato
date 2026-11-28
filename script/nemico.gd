@@ -146,6 +146,18 @@ var _ultima_arma := ""             # con cosa è arrivato l'ultimo colpo: decide
 var bottino_lasciato: Array = []   # cosa ha lasciato morendo (per il rapporto e le prove)
 var in_tregua := false             # prove del bot: fermo, intoccabile e senza corpo per gli altri
 var _corpo := Vector2(14, 40)
+# Guardia aperta (0.1.43): stordito per un po' (barcolla e non reagisce); allo stremo si può giustiziare.
+var _t_stordito := 0.0
+var _vita_massima := 3            # con i bonus di nemesi, veterano, ondata e pelle dura
+var _stelle: Stordimento
+var _stelle_come := 0             # 0 nascoste, 1 gialle, 2 rosse (eseguibile)
+const FINESTRA_DEVIAZIONE := 0.12  # un colpo che arriva tanto prima del suo (o mentre fa male) lo devia
+const SOGLIA_ESECUZIONE := 0.4     # frazione della vita massima sotto cui uno stordito si giustizia
+# Dove sta la testa nella posa "colpito" (pixel sopra i piedi), se il foglio non è ritagliato: lì girano le stelle.
+const TESTA := {"scheletro": 43.0, "mago": 45.0, "arciere": 44.0, "bestione": 50.0, "saltatore": 40.0, "mimic": 50.0}
+# Barcollare secondo il peso del colpo (Armi.peso): secondi in COLPITO e quanto sposta.
+const BARCOLLA_DURATA := {"leggero": 0.18, "medio": 0.3, "pesante": 0.5}
+const BARCOLLA_SPINTA := {"leggero": 0.5, "medio": 1.0, "pesante": 1.5}
 
 
 func _ready() -> void:
@@ -173,6 +185,7 @@ func _ready() -> void:
 	if capacita.has("pelle_dura"):
 		_dati["vita"] = int(_dati["vita"]) + 3
 	vita = _dati["vita"]
+	_vita_massima = vita
 	_casa = position
 	collision_layer = Effetti.S_NEMICI
 	collision_mask = Effetti.S_MONDO | Effetti.S_PIATTAFORME | Effetti.S_OGGETTI
@@ -446,22 +459,112 @@ func colpi_in_arrivo() -> int:
 	return _combo_rimasti if stato == Stato.ATTACCO else 0
 
 
+func apri_guardia(durata: float) -> void:
+	# Parata perfetta, deviazione, guardia rotta, colpo che stordisce: barcolla e resta stordito (stelle) per durata.
+	# Il pipistrello vola via e basta; chi dorme o si sta svegliando non ha guardia da aprire.
+	if stato in [Stato.MORTO, Stato.DORME, Stato.RISVEGLIO]:
+		return
+	if tipo == "pipistrello":
+		barcolla(durata)
+		return
+	var d := maxf(durata, _t_stordito if stordito() else 0.0)
+	barcolla(d)
+	_t_stordito = d
+	Suoni.suona("stordito", centro(), -4.0)
+	Rapporto.conta("guardie_aperte")
+	_aggiorna_stelle()
+
+
+func stordito() -> bool:
+	return _t_stordito > 0.0 and stato == Stato.COLPITO
+
+
+func soglia_esecuzione() -> int:
+	return maxi(1, ceili(float(_vita_massima) * SOGLIA_ESECUZIONE))
+
+
+func eseguibile() -> bool:
+	return stordito() and vita > 0 and vita <= soglia_esecuzione()
+
+
+func giustizia(lato: float, famiglia: String = "") -> void:
+	# Esecuzione: muore sul colpo (bottino, memoria e veterani come una morte qualsiasi) e si dissolve in cenere.
+	if stato == Stato.MORTO:
+		return
+	if famiglia != "":
+		_ultima_famiglia = famiglia
+	_ultima_arma = "mischia"
+	vita = 0
+	_muori(lato)
+	Effetti.cenere(get_parent(), centro(), 36 if tipo != "bestione" else 52)
+	var tw := sprite.create_tween()
+	tw.tween_interval(0.12)
+	tw.tween_property(sprite, "modulate", Color(0.32, 0.3, 0.34, 0.0), 0.6)
+
+
+func colpo_imminente() -> bool:
+	# Il suo colpo da mischia sta per fare male (o fa già male e non ti ha ancora preso): si può deviare.
+	# Non i balzi (saltatore, mimic), non le finte, non chi vola.
+	if stato != Stato.ATTACCO or _in_balzo or _finta or _colpo_dato or tipo not in CORPO_A_CORPO or tipo in SALTANO:
+		return false
+	var tempi := tempi_attacco()
+	return _t_stato >= float(tempi[1]) - FINESTRA_DEVIAZIONE and _t_stato <= float(tempi[2])
+
+
+func devia() -> void:
+	# Colpo deviato da chi gioca: il suo non fa danno, la combinazione finisce e la guardia si apre.
+	if tattica != "":
+		_verifica_attacco()   # la tattica non ha funzionato: se lo ricorda
+	_colpo_dato = true
+	_combo_rimasti = 0
+	apri_guardia(1.2)
+
+
+func _aggiorna_stelle() -> void:
+	var come := 0 if not stordito() else (2 if eseguibile() else 1)
+	if come > 0 and _stelle != null:
+		_stelle.position.y = lerpf(_stelle.position.y, _altezza_stelle(), 0.3)   # seguono la testa che si piega
+	if come == _stelle_come:
+		return
+	_stelle_come = come
+	if come > 0 and _stelle == null:
+		_stelle = Stordimento.new()
+		add_child(_stelle)
+	if come > 0:
+		_stelle.position = Vector2(0.0, _altezza_stelle())
+	if _stelle != null:
+		_stelle.mostra(come > 0, come == 2)
+
+
+func _altezza_stelle() -> float:
+	# Poco sopra la cima del fotogramma che si vede: i fogli sono ritagliati attorno alla figura, quindi la cima
+	# è la testa anche quando il colpo la piega in avanti (il bestione si accascia).
+	var cima := -float(TESTA.get(tipo, _corpo.y))
+	if not (sprite.get("_fotogrammi") as Array).is_empty():
+		cima = (sprite.offset.y + 2.0) * absf(sprite.scale.y)   # 2 = margine del ritaglio
+	return minf(cima, -12.0) - 4.0
+
+
 func barcolla(durata: float) -> void:
 	# Colpito su uno scudo, stordito, o con la guardia rotta: resta scoperto per un po'.
 	if stato in [Stato.MORTO, Stato.DORME, Stato.RISVEGLIO]:
 		return
+	var resta := maxf(durata, _t_stordito if stordito() else 0.0)   # non accorcia uno stordimento in corso
 	_carica = false
 	_in_balzo = false
 	_combo_rimasti = 0
 	_t_parata = 0.0
 	_cambia(Stato.COLPITO)
-	_t_stato = 0.3 - durata   # COLPITO finisce a 0,3
+	_t_stato = 0.3 - resta   # COLPITO finisce a 0,3
 	velocity.x = 0.0
 	sprite.riproduci("colpito", true)
 	Rapporto.conta("nemici_barcollano")
 
 
 func _physics_process(delta: float) -> void:
+	if _t_stordito > 0.0:
+		_t_stordito = maxf(0.0, _t_stordito - delta) if stato == Stato.COLPITO else 0.0
+	_aggiorna_stelle()
 	_t_stato += delta
 	_t_tattica += delta
 	_t_ricarica = maxf(0.0, _t_ricarica - delta)
@@ -604,7 +707,7 @@ func _vede(g: Giocatore) -> bool:
 
 func _sente(g: Giocatore, dx: float, dy: float) -> bool:
 	# Colpi, rotoli, scatti e scavalchi fanno rumore.
-	var rumore := g.stato in [Giocatore.Stato.ATTACCO, Giocatore.Stato.ROTOLATA, Giocatore.Stato.SCHIVATA, Giocatore.Stato.SCAVALCO, Giocatore.Stato.TIRO]
+	var rumore := g.stato in [Giocatore.Stato.ATTACCO, Giocatore.Stato.ROTOLATA, Giocatore.Stato.SCHIVATA, Giocatore.Stato.SCAVALCO, Giocatore.Stato.TIRO, Giocatore.Stato.CARICA]
 	return rumore and absf(dx) < UDITO and absf(dy) < 90.0
 
 
@@ -1188,7 +1291,7 @@ func _pipistrello(g: Giocatore, delta: float, dx: float, dy: float, allerta: boo
 			else:
 				_t_bloccato = 0.0
 			var pronto := _t_ricarica <= 0.0 and (global_position.distance_to(posto) < 40.0 or _t_bloccato > 1.2)
-			var scoperto := _t_finestra > 0.0 or g.stato in [Giocatore.Stato.ATTACCO, Giocatore.Stato.TIRO, Giocatore.Stato.USA]
+			var scoperto := _t_finestra > 0.0 or g.stato in [Giocatore.Stato.ATTACCO, Giocatore.Stato.TIRO, Giocatore.Stato.USA, Giocatore.Stato.CARICA]
 			if pronto and (tattica != "attesa" or scoperto or _t_tattica > 3.0):
 				_fase_volo = "scende"
 				_colpo_dato = false
@@ -1469,18 +1572,21 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 	if famiglia != "":
 		_ultima_famiglia = famiglia
 	_ultima_arma = String(dettagli.get("munizione", tipo_colpo))
+	var devia: bool = dettagli.get("devia", false)   # colpo che ha deviato il suo: passa parata e corazza
+	var era_stordito := stordito()
 	# Parata: da davanti la spada e i tiri non passano, a meno che l'arma non rompa la guardia.
-	if _t_parata > 0.0 and davanti and tipo_colpo in ["mischia", "tiro"]:
+	if _t_parata > 0.0 and davanti and tipo_colpo in ["mischia", "tiro"] and not devia:
 		if dettagli.get("rompe", false):
 			Rapporto.conta("guardie_rotte")
-			Effetti.scoppio(get_parent(), global_position + Vector2(verso * 12.0, -30.0), Color(1.0, 0.7, 0.4), 12, 120.0, 0.25, 100.0)
+			Effetti.impatto(get_parent(), global_position + Vector2(verso * 12.0, -30.0), "metallo", signf(global_position.x - da.x), 1.6)
 			_t_parata = 0.0
-			barcolla(0.8)
+			apri_guardia(1.0)
 			return true
 		_parato(da)
 		return false
-	# La nemesi che hai battuto con quest'arma ha imparato a difendersene.
-	if famiglia != "" and famiglia == String(nemesi.get("arma_nemica", "")) and davanti and _caso.randf() < 0.4:
+	# La nemesi che hai battuto con quest'arma ha imparato a difendersene (non da stordita).
+	if famiglia != "" and famiglia == String(nemesi.get("arma_nemica", "")) and davanti and not era_stordito and not devia \
+			and _caso.randf() < 0.4:
 		Rapporto.conta("resistenze_nemesi")
 		_parato(da)
 		return false
@@ -1493,11 +1599,14 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 		return false
 	# Il bestione para da davanti, se non è scoperto (la magia e le trappole passano la corazza).
 	if tipo == "bestione" and tipo_colpo not in ["magia", "trappola"] and not esposto() and davanti \
-			and not dettagli.get("rompe", false):
+			and not dettagli.get("rompe", false) and not devia:
 		sprite.riproduci("parata", true)
 		Effetti.impatto(get_parent(), global_position + Vector2(verso * 14.0, -34.0), "metallo", signf(global_position.x - da.x), 1.2)
 		Rapporto.conta("parate_bestione")
 		return false
+	if tipo_colpo == "mischia" and era_stordito and not devia:
+		danno += 1   # stordito: incassa di più
+		Rapporto.conta("colpi_su_storditi")
 	vita -= danno
 	Effetti.lampo(sprite)
 	Effetti.numero_danno(get_parent(), centro() + Vector2(0, -14), danno)
@@ -1511,17 +1620,38 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 	_in_balzo = false
 	_combo_rimasti = 0
 	_t_parata = 0.0
-	_cambia(Stato.COLPITO)
-	if float(dettagli.get("stordisce", 0.0)) > 0.0:
-		barcolla(float(dettagli["stordisce"]))
+	var stordisce := float(dettagli.get("stordisce", 0.0))
+	if era_stordito:
+		# Uno stordito colpito resta stordito fino alla fine del suo tempo (non si riprende prima) e non vola via.
+		var resta := maxf(_t_stordito, stordisce)
+		_cambia(Stato.COLPITO)
+		_t_stato = 0.3 - resta
+		_t_stordito = resta
+		velocity = Vector2(lato * spinta * (0.08 if tipo == "bestione" else 0.2), 0.0)
+		sprite.riproduci("colpito", true)
+		_aggiorna_stelle()   # sotto la soglia le stelle diventano rosse
 		return true
+	_cambia(Stato.COLPITO)
+	if stordisce > 0.0:
+		apri_guardia(stordisce)
+		return true
+	# Barcolla secondo il peso del colpo: le armi leggere fanno sussultare, quelle pesanti spostano e fanno polvere.
+	var peso := Armi.peso(famiglia, bool(dettagli.get("caricato", false))) if tipo_colpo == "mischia" else "medio"
+	var durata: float = BARCOLLA_DURATA[peso]
+	var forza: float = BARCOLLA_SPINTA[peso]
+	if tipo == "bestione" and peso == "pesante":
+		durata = 0.4
+	_t_stato = 0.3 - durata   # COLPITO finisce a 0,3
 	if tipo == "bestione":
-		velocity = Vector2(lato * spinta * 0.15, 0.0)   # pesante: quasi non si sposta
+		velocity = Vector2(lato * spinta * (0.35 if peso == "pesante" else 0.15 * forza), 0.0)   # pesante: quasi non si sposta
 	elif tipo == "pipistrello":
-		velocity = Vector2(lato * spinta * 0.6, -60.0)
+		velocity = Vector2(lato * spinta * 0.6 * forza, -60.0)
 	else:
-		velocity = Vector2(lato * spinta * 0.7, -90.0)
-	sprite.riproduci("colpito", true)
+		velocity = Vector2(lato * spinta * 0.7 * forza, 0.0 if peso == "leggero" else -90.0)
+	if peso == "pesante" and tipo != "pipistrello":
+		Effetti.scoppio(get_parent(), global_position + Vector2(0, -2), Color(0.62, 0.58, 0.55, 0.75), 11, 60.0, 0.45, 40.0,
+				false, 1.2, Vector2.UP, 80.0)
+	sprite.riproduci("colpito", true, 0.3 / durata)
 	return true
 
 
@@ -1530,6 +1660,8 @@ func _muori(lato: float) -> void:
 	# L'ultimo colpo pesa più degli altri: fermo un po' più lungo (vince su quello del colpo).
 	Effetti.fermo_immagine(self, 0.1 if tipo in ["bestione", "mimic"] or not nemesi.is_empty() else 0.07)
 	_cambia(Stato.MORTO)
+	_t_stordito = 0.0
+	_aggiorna_stelle()
 	_controlla_ultimo()
 	velocity = Vector2(lato * 60.0, -80.0)
 	collision_layer = 0

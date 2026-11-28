@@ -55,6 +55,7 @@ const TATTICHE := {
 const LEZIONI := {
 	"rotolate": "aspetta", "scatti_indietro": "affondo", "salti": "anticipa",
 	"attacchi": "arretra", "scatti_avanti": "arretra", "tiri": "schiva_tiri",
+	"colpi_caricati": "arretra",   # chi carica spesso: si arretra mentre carica e si risponde
 }
 const LEZIONE_TATTICA := {
 	"scheletro": {"aspetta": "attesa", "affondo": "affondo", "anticipa": "attesa", "arretra": "finta", "schiva_tiri": "affondo"},
@@ -72,7 +73,9 @@ const SPIEGA_LEZIONE := {
 	"schiva_tiri": "Ha imparato che colpisci da lontano: schiverà i tuoi tiri.",
 }
 # Pesi: gli attacchi sono sempre tanti, contano meno nel capire "che tipo di giocatore sei".
-const PESI := {"attacchi": 0.3, "rotolate": 1.0, "scatti_indietro": 1.2, "scatti_avanti": 0.8, "salti": 0.5, "tiri": 0.7}
+# Le esecuzioni si contano (storico) ma non decidono la lezione: peso 0.
+const PESI := {"attacchi": 0.3, "rotolate": 1.0, "scatti_indietro": 1.2, "scatti_avanti": 0.8, "salti": 0.5, "tiri": 0.7,
+		"colpi_caricati": 1.0, "esecuzioni": 0.0}
 
 const FRASI := {
 	"vittoria": {

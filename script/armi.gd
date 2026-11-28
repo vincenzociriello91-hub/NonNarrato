@@ -94,8 +94,20 @@ const MANO := {
 }
 const PARATA_DURATA := 0.42          # con lo scudo: Schiva senza direzione
 const PARATA_FINESTRA := 0.3         # i colpi da davanti in questo tempo sono parati
+const PARATA_PERFETTA := 0.14        # ...e in questo (all'inizio della parata) la parata è perfetta: guardia aperta
 const PARATA_PAUSA := 0.45
 const DOPPIA_VELOCITA := 0.85        # con la seconda arma la combinazione è più svelta...
+
+# Colpo caricato (0.1.43): tenendo premuto Attacca dopo un colpo si carica un colpo pesante.
+const CARICA_RAPIDE := 0.5           # secondi per la carica piena: armi rapide, medie, lente
+const CARICA_MEDIE := 0.7
+const CARICA_LENTE := 0.9
+const CARICA_MINIMA := 0.6           # lasciando prima di tanto (frazione) il colpo non parte
+const CARICA_TENUTA := 2.5           # carica piena tenuta al massimo tanti secondi: poi il colpo parte da solo
+const CARICA_PASSO := 0.4            # caricando si cammina piano
+# Peso del colpo (quanto fa barcollare chi lo prende): leggero, medio o pesante.
+const LEGGERE := ["pugnale", "mani_nude", "bacchetta"]
+const PESANTI := ["spadone", "bipenne"]
 
 
 static func famiglia(arma: String) -> String:
@@ -129,9 +141,39 @@ static func attuali() -> Dictionary:
 	return dati
 
 
+static func tempo_carica(fam: String) -> float:
+	if RAPIDE.has(fam):
+		return CARICA_RAPIDE
+	return CARICA_LENTE if LENTE.has(fam) else CARICA_MEDIE
+
+
+static func colpo_caricato(dati: Dictionary, k: float) -> Dictionary:
+	# Il colpo pesante: l'ultimo colpo della famiglia, più lungo e più forte; a carica piena +1 danno, stordisce
+	# e rompe le parate (a metà carica le rompe solo se l'arma lo fa già: tenere il tasto un attimo non basta).
+	var lista: Array = dati.get("colpi", FAMIGLIE["spada"]["colpi"])
+	var c: Dictionary = (lista[-1] as Dictionary).duplicate()
+	var piena := k >= 1.0
+	if piena:
+		c["d"] = int(c["d"]) + 1
+		c["stordisce"] = maxf(0.8, float(c.get("stordisce", 0.0)))
+		c["rompe"] = true
+	c["passo"] = float(c["passo"]) * 1.4
+	c["spinta"] = float(c["spinta"]) * 1.4
+	c["p"] = float(c["p"]) + 6.0
+	c["caricato"] = true
+	c["piena"] = piena
+	return c
+
+
+static func peso(fam: String, caricato: bool = false) -> String:
+	if caricato or PESANTI.has(fam):
+		return "pesante"
+	return "leggero" if LEGGERE.has(fam) else "medio"
+
+
 static func descrizione(arma: String, mano: String) -> String:
 	var fam := famiglia(arma)
-	var testo := "%s — %s" % [FAMIGLIE[fam]["nome"], FAMIGLIE[fam]["dote"]]
+	var testo := "%s — %s Tieni premuto Attacca per un colpo caricato." % [FAMIGLIE[fam]["nome"], FAMIGLIE[fam]["dote"]]
 	match dote_mano(mano):
 		"scudo":
 			testo += " Scudo: Schiva da fermo para i colpi da davanti."

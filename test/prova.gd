@@ -313,6 +313,7 @@ func _esegui() -> void:
 	await _prova_atmosfera()
 	await _prova_figure()
 	await _prova_sensazioni()
+	await _prova_colpi()
 	_prova_quaternius()
 	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
@@ -1694,6 +1695,307 @@ func _prova_sensazioni() -> void:
 	Impostazioni.scrivi("gioco/regia", regia_prima)
 	Impostazioni.scrivi("controlli/vibrazione", vibrazione_prima)
 	Impostazioni.scrivi("acc/meno_lampi", false)
+
+
+func _bersaglio_colpi(tipo: String, dx: float) -> Nemico:
+	# Un nemico fermo (senza cervello ma col suo corpo e la sua zona da colpire) davanti a chi gioca, rivolto verso di lui.
+	var n := Nemico.new()
+	n.tipo = tipo
+	n.evocato = true   # niente esperienza né bottino: è solo un controllo
+	n.position = _g().global_position + Vector2(dx, 0.0)
+	n.verso = -1 if dx > 0.0 else 1
+	n.add_to_group("nemici")
+	_principale.stanza.add_child(n)
+	n.set_physics_process(false)
+	return n
+
+
+func _prova_colpi() -> void:
+	# Colpi che si sentono (0.1.43): colpo caricato, parata a tempo, deviazione, stordimento, esecuzione, barcollare.
+	var memoria := Memoria.stato()
+	var aspetto := Equipaggiamento.stato()
+	var regia_prima: Variant = Impostazioni.leggi("gioco/regia")
+	Impostazioni.scrivi("gioco/regia", true)
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	var stanza: Stanza = _principale.stanza
+	stanza.ondate_attive = false
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		n.remove_from_group("nemici")
+		n.queue_free()   # nessuno in mezzo: un nemico alla volta
+	Equipaggiamento.indossa("arma", "spada_viandante")
+	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	var g := _g()
+	g.vita = Giocatore.VITA_MASSIMA
+	var spada: Array = Armi.colpi("spada", "mano_vuota")
+	# 1. Un tocco di Attacca: il colpo di sempre, con gli stessi tempi, e nessuna carica.
+	var attacchi := Rapporto.contatore("attacchi")
+	Input.action_press("attacca")
+	var in_attacco := 0
+	var carica_vista := false
+	for i in 60:
+		await _fotogrammi(1)
+		if i == 1:
+			Input.action_release("attacca")
+		if g.stato == Giocatore.Stato.ATTACCO:
+			in_attacco += 1
+		carica_vista = carica_vista or g.stato == Giocatore.Stato.CARICA
+		if i > 3 and g.stato == Giocatore.Stato.NORMALE:
+			break
+	_verifica("colpi: un tocco di Attacca = colpo normale con gli stessi tempi, niente carica",
+			not carica_vista and absf(in_attacco / 60.0 - float(spada[0]["t"])) <= 2.0 / 60.0 and Rapporto.contatore("attacchi") == attacchi + 1,
+			"%d fotogrammi (%.2f s attesi)" % [in_attacco, float(spada[0]["t"])])
+	await _fotogrammi(20)
+	# 2. Tenendo premuto: CARICA, la carica sale fino a 1 nel tempo della spada, la luce cresce; lasciando parte il colpo pesante.
+	var piene := Rapporto.contatore("cariche_piene")
+	var caricati := Rapporto.contatore("colpi_caricati")
+	var ritmi_piena := int(Controlli.ritmi_chiesti.get("carica_piena", 0))
+	Input.action_press("attacca")
+	var fotogramma_carica := -1
+	var fotogramma_piena := -1
+	var luce_inizio := 0.0
+	var luce_piena := 0.0
+	for i in 90:
+		await _fotogrammi(1)
+		if g.stato == Giocatore.Stato.CARICA and fotogramma_carica < 0:
+			fotogramma_carica = i
+		if fotogramma_carica >= 0 and i == fotogramma_carica + 1 and is_instance_valid(g.get("_luce_carica")):
+			luce_inizio = (g.get("_luce_carica") as PointLight2D).energy
+		if g.carica_colpo() >= 1.0 and fotogramma_piena < 0:
+			fotogramma_piena = i
+			await _fotogrammi(1)
+			if is_instance_valid(g.get("_luce_carica")):
+				luce_piena = (g.get("_luce_carica") as PointLight2D).energy
+			break
+	var tempo_piena := (fotogramma_piena + 1) / 60.0
+	_verifica("colpi: tenendo premuto si carica e la carica è piena nel tempo della spada, con la luce che cresce",
+			fotogramma_carica > 0 and absf(tempo_piena - Armi.tempo_carica("spada")) <= 3.0 / 60.0 and luce_piena > luce_inizio
+			and Rapporto.contatore("cariche_piene") == piene + 1 and int(Controlli.ritmi_chiesti.get("carica_piena", 0)) == ritmi_piena + 1,
+			"in carica dal fotogramma %d, piena a %.2f s, luce %.2f -> %.2f" % [fotogramma_carica, tempo_piena, luce_inizio, luce_piena])
+	var bersaglio := _bersaglio_colpi("scheletro", 32.0)
+	var vita_bersaglio := bersaglio.vita
+	await _fotogrammi(2)
+	Input.action_release("attacca")
+	await _fotogrammi(2)
+	var pesante := g.colpo_attuale()
+	var luce_spenta := not is_instance_valid(g.get("_luce_carica"))
+	await _fotogrammi(20)
+	_verifica("colpi: il colpo pesante rompe, fa un danno in più e stordisce; la luce si spegne",
+			bool(pesante.get("caricato", false)) and bool(pesante.get("rompe", false)) and int(pesante.get("d", 0)) == int(spada[-1]["d"]) + 1
+			and Rapporto.contatore("colpi_caricati") == caricati + 1 and luce_spenta
+			and bersaglio.vita == vita_bersaglio - int(spada[-1]["d"]) - 1 and bersaglio.stordito(),
+			"colpo %s, vita %d -> %d" % [str(pesante), vita_bersaglio, bersaglio.vita])
+	bersaglio.queue_free()
+	await _fotogrammi(30)
+	# Lasciando sotto il 60% non parte niente.
+	Input.action_press("attacca")
+	for i in 60:
+		await _fotogrammi(1)
+		if g.stato == Giocatore.Stato.CARICA:
+			break
+	g.set("_t_carica_colpo", 0.05)
+	attacchi = Rapporto.contatore("attacchi")
+	caricati = Rapporto.contatore("colpi_caricati")
+	Input.action_release("attacca")
+	await _fotogrammi(3)
+	_verifica("colpi: lasciando la carica sotto il 60% non parte nessun colpo", g.stato == Giocatore.Stato.NORMALE
+			and Rapporto.contatore("attacchi") == attacchi and Rapporto.contatore("colpi_caricati") == caricati
+			and not is_instance_valid(g.get("_luce_carica")), Giocatore.Stato.keys()[g.stato])
+	await _fotogrammi(20)
+	# 3. Un colpo caricato rompe la parata di uno scheletro e lo lascia stordito, con le stelle.
+	Input.action_press("attacca")
+	for i in 90:
+		await _fotogrammi(1)
+		if g.carica_colpo() >= 1.0:
+			break
+	var parante := _bersaglio_colpi("scheletro", 32.0)
+	await _fotogrammi(1)
+	parante.set("_t_parata", 0.4)
+	var rotte := Rapporto.contatore("guardie_rotte")
+	Input.action_release("attacca")
+	await _fotogrammi(20)
+	var stelle := parante.get("_stelle") as Stordimento
+	_verifica("colpi: il colpo caricato rompe la parata e lascia stordito (stelle visibili)",
+			Rapporto.contatore("guardie_rotte") == rotte + 1 and parante.stordito() and stelle != null and stelle.visible
+			and stelle.position.y < -36.0 and stelle.position.y > -56.0,
+			"stordito %s, stelle %s" % [parante.stordito(), str(stelle.position) if stelle != null else "-"])
+	parante.queue_free()
+	await _fotogrammi(30)
+	# 4. Colpiti mentre si carica: la carica si annulla.
+	Input.action_press("attacca")
+	for i in 60:
+		await _fotogrammi(1)
+		if g.stato == Giocatore.Stato.CARICA:
+			break
+	g.set("_t_protetto", 0.0)
+	g.subisci(1, g.global_position + Vector2(g.verso * 30.0, -20.0), 100.0)
+	await _fotogrammi(2)
+	_verifica("colpi: colpiti in carica la carica si annulla e la luce sparisce", g.stato == Giocatore.Stato.COLPITO
+			and not is_instance_valid(g.get("_luce_carica")) and g.carica_colpo() == 0.0, Giocatore.Stato.keys()[g.stato])
+	Input.action_release("attacca")
+	g.vita = Giocatore.VITA_MASSIMA
+	await _fotogrammi(70)
+	# 5. Parata a tempo con lo scudo: guardia aperta per 1,6 s. In ritardo: parata normale, nessuno stordito.
+	Equipaggiamento.indossa("mano_sinistra", "scudo_tondo")
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	g = _g()
+	var perfette := Rapporto.contatore("parate_perfette")
+	var assalitore := _bersaglio_colpi("scheletro", 30.0)
+	await _fotogrammi(1)
+	g.call("_inizia_parata")
+	var passato := g.subisci(1, assalitore.global_position + Vector2(0, -20), 100.0, assalitore)
+	var subito_stordito := assalitore.stordito()
+	g.global_position.x -= 120.0   # lontano: finito lo stordimento non deve trovarlo addosso
+	assalitore.set_physics_process(true)
+	await _fotogrammi(84)
+	var ancora := assalitore.stordito()
+	await _fotogrammi(18)
+	var finito := not assalitore.stordito()
+	_verifica("colpi: parata perfetta = nemico stordito per circa 1,6 s", not passato and subito_stordito and ancora and finito
+			and Rapporto.contatore("parate_perfette") == perfette + 1,
+			"subito %s, a 1,4 s %s, a 1,7 s finito %s" % [subito_stordito, ancora, finito])
+	assalitore.queue_free()
+	await _fotogrammi(30)
+	var tardivo := _bersaglio_colpi("scheletro", 30.0)
+	await _fotogrammi(1)
+	g.call("_inizia_parata")
+	g.set("_t_stato", 0.2)
+	var passato_tardi := g.subisci(1, tardivo.global_position + Vector2(0, -20), 100.0, tardivo)
+	_verifica("colpi: parata in ritardo = parata normale, chi colpisce barcolla ma non è stordito", not passato_tardi
+			and not tardivo.stordito() and tardivo.stato == Nemico.Stato.COLPITO and Rapporto.contatore("parate_perfette") == perfette + 1)
+	g.call("_inizia_parata")
+	g.subisci(1, g.global_position + Vector2(g.verso * 30.0, -20.0), 150.0, null)   # una sfera parata a tempo
+	_verifica("colpi: una sfera parata a tempo non stordisce nessuno", Rapporto.contatore("parate_perfette") == perfette + 2
+			and not tardivo.stordito())
+	tardivo.queue_free()
+	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
+	await _fotogrammi(40)
+	# 6. Deviazione: il colpo arriva mentre il suo sta per partire: niente danno a chi gioca, nemico stordito.
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	g = _g()
+	g.vita = Giocatore.VITA_MASSIMA
+	g.set("_t_protetto", 0.0)
+	var deviazioni := Rapporto.contatore("deviazioni")
+	var duellante := _bersaglio_colpi("scheletro", 32.0)
+	await _fotogrammi(1)
+	var tempi := duellante.tempi_attacco()
+	duellante.stato = Nemico.Stato.ATTACCO
+	duellante.set("_t_stato", float(tempi[1]) - 0.14)
+	duellante.set("_colpo_dato", false)
+	var vita_duellante := duellante.vita
+	duellante.set_physics_process(true)
+	await _tocca("attacca")
+	await _fotogrammi(16)
+	_verifica("colpi: deviazione = il suo colpo non arriva, il nemico è stordito, il tuo colpo fa danno",
+			Rapporto.contatore("deviazioni") == deviazioni + 1 and g.vita == Giocatore.VITA_MASSIMA and duellante.stordito()
+			and duellante.vita == vita_duellante - 1, "vita %d, stordito %s, deviazioni +%d" % [g.vita, duellante.stordito(),
+			Rapporto.contatore("deviazioni") - deviazioni])
+	duellante.queue_free()
+	await _fotogrammi(30)
+	var presto := _bersaglio_colpi("scheletro", 32.0)
+	await _fotogrammi(1)
+	presto.stato = Nemico.Stato.ATTACCO
+	presto.set("_t_stato", 0.05)
+	presto.set("_colpo_dato", false)
+	var imminente_presto := presto.colpo_imminente()
+	await _tocca("attacca")
+	await _fotogrammi(16)
+	_verifica("colpi: fuori dalla finestra niente deviazione", not imminente_presto and Rapporto.contatore("deviazioni") == deviazioni + 1
+			and not presto.stordito())
+	presto.queue_free()
+	await _fotogrammi(30)
+	# 7. Esecuzione: stordito e allo stremo muore sul colpo; sopra la soglia +1 danno; non stordito colpo normale.
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	g = _g()
+	var condannato := _bersaglio_colpi("scheletro", 32.0)
+	await _fotogrammi(1)
+	condannato.vita = condannato.soglia_esecuzione()
+	condannato.apri_guardia(5.0)
+	g.vita = Giocatore.VITA_MASSIMA - 1
+	var esecuzioni := Rapporto.contatore("esecuzioni")
+	var primi_piani := Rapporto.contatore("regia_primi_piani")
+	var ceneri_prima := stanza.get_children().filter(func(c: Node) -> bool:
+			return c is CPUParticles2D and (c as CPUParticles2D).emission_shape == CPUParticles2D.EMISSION_SHAPE_RECTANGLE).size()
+	var rosse: bool = int(condannato.get("_stelle_come")) == 2
+	await _tocca("attacca")
+	await _fotogrammi(10)
+	var ceneri := stanza.get_children().filter(func(c: Node) -> bool:
+			return c is CPUParticles2D and (c as CPUParticles2D).emission_shape == CPUParticles2D.EMISSION_SHAPE_RECTANGLE).size()
+	_verifica("colpi: esecuzione = muore sul colpo, cenere, primo piano, +1 vita a chi gioca", condannato.stato == Nemico.Stato.MORTO
+			and Rapporto.contatore("esecuzioni") == esecuzioni + 1 and g.vita == Giocatore.VITA_MASSIMA and ceneri > ceneri_prima
+			and Rapporto.contatore("regia_primi_piani") == primi_piani + 1 and rosse and condannato.soglia_esecuzione() == 2
+			and g.intoccabile() and float(g.get("_t_protetto")) <= 0.0,
+			"stato %s, vita %d, ceneri %d -> %d, stelle rosse %s" % [Nemico.Stato.keys()[condannato.stato], g.vita, ceneri_prima, ceneri, rosse])
+	await _fotogrammi(30)
+	var robusto := _bersaglio_colpi("scheletro", 32.0)
+	await _fotogrammi(1)
+	robusto.apri_guardia(5.0)
+	var su_storditi := Rapporto.contatore("colpi_su_storditi")
+	await _tocca("attacca")
+	await _fotogrammi(10)
+	_verifica("colpi: stordito sopra la soglia = un danno in più, non muore, resta stordito con le stelle rosse",
+			robusto.vita == 4 - 2 and robusto.stato != Nemico.Stato.MORTO and robusto.stordito() and Rapporto.contatore("colpi_su_storditi") == su_storditi + 1
+			and int(robusto.get("_stelle_come")) == 2 and Rapporto.contatore("esecuzioni") == esecuzioni + 1, "vita %d" % robusto.vita)
+	robusto.queue_free()
+	await _fotogrammi(30)
+	var sveglio := _bersaglio_colpi("scheletro", 32.0)
+	await _fotogrammi(1)
+	sveglio.vita = sveglio.soglia_esecuzione()
+	await _tocca("attacca")
+	await _fotogrammi(10)
+	_verifica("colpi: non stordito sotto la soglia = colpo normale", sveglio.vita == 1 and sveglio.stato != Nemico.Stato.MORTO
+			and Rapporto.contatore("esecuzioni") == esecuzioni + 1)
+	sveglio.queue_free()
+	await _fotogrammi(30)
+	# 8. Barcollare secondo l'arma: pugnale, spada, spadone.
+	var esiti := {}
+	for famiglia: String in ["pugnale", "spada", "spadone"]:
+		var colpito := _bersaglio_colpi("scheletro", -60.0)   # fra i barili (432, 461) e chi gioca, lontano dalla cassa (770)
+		await _fotogrammi(2)
+		colpito.vita = 99
+		var x0 := colpito.global_position.x
+		colpito.subisci(1, colpito.global_position + Vector2(30.0, -20.0), 150.0, "mischia", {"famiglia": famiglia})
+		colpito.set_physics_process(true)
+		var fotogrammi := 0
+		for i in 60:
+			if colpito.stato != Nemico.Stato.COLPITO:
+				break
+			await _fotogrammi(1)
+			fotogrammi += 1
+		esiti[famiglia] = [fotogrammi / 60.0, absf(colpito.global_position.x - x0)]
+		colpito.queue_free()
+		await _fotogrammi(4)
+	_verifica("colpi: si barcolla 0,18 / 0,3 / 0,5 s con pugnale, spada, spadone, e il pesante sposta di più",
+			absf(float(esiti["pugnale"][0]) - 0.18) <= 0.04 and absf(float(esiti["spada"][0]) - 0.3) <= 0.04
+			and absf(float(esiti["spadone"][0]) - 0.5) <= 0.04 and float(esiti["spadone"][1]) > float(esiti["spada"][1])
+			and float(esiti["spada"][1]) > float(esiti["pugnale"][1]), str(esiti))
+	# 9. Il pipistrello non si stordisce; il bestione stordito si ferisce anche da davanti.
+	var pipistrello := _bersaglio_colpi("pipistrello", 60.0)
+	await _fotogrammi(1)
+	pipistrello.apri_guardia(1.6)
+	_verifica("colpi: il pipistrello non si stordisce", not pipistrello.stordito() and float(pipistrello.get("_t_stordito")) == 0.0)
+	pipistrello.queue_free()
+	var bestione := _bersaglio_colpi("bestione", 60.0)
+	await _fotogrammi(1)
+	var davanti := bestione.global_position + Vector2(-30.0, -20.0)
+	var parato := not bestione.subisci(1, davanti, 100.0, "mischia", {"famiglia": "spada"})
+	bestione.apri_guardia(2.0)
+	var vita_b := bestione.vita
+	var ferito := bestione.subisci(1, davanti, 100.0, "mischia", {"famiglia": "spada"})
+	_verifica("colpi: il bestione para da davanti, ma stordito si ferisce (con un danno in più)", parato and bestione.esposto() and ferito
+			and bestione.vita == vita_b - 2, "vita %d -> %d" % [vita_b, bestione.vita])
+	bestione.queue_free()
+	await _fotogrammi(10)
+	# 10. Stato pulito.
+	Equipaggiamento.ripristina_stato(aspetto)
+	Impostazioni.scrivi("gioco/regia", regia_prima)
+	Memoria.ripristina_stato(memoria)
+	_rilascia_tutto()
+	_verifica("colpi: tutto rimesso com'era (aspetto, memoria, velocità del gioco)", Equipaggiamento.stato() == aspetto
+			and Memoria.stato() == memoria and is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(Effetti.fattore_regia, 1.0))
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
 
 
 func _prova_figure() -> void:

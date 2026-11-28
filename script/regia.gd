@@ -35,6 +35,7 @@ var _pp_durata := 0.0
 var _pp_punto := Vector2.ZERO
 var _rallentando := false
 var _numero_rallentatore := 0
+var _fine_rallentamento := 0        # quando finisce il rallentatore in corso (millisecondi veri)
 
 
 func _ready() -> void:
@@ -173,9 +174,16 @@ func rallenta(fattore: float, durata_reale: float) -> void:
 	Rapporto.conta("rallentatori")
 	if Dispositivo.in_prova or Dispositivo.bot_attivo or Impostazioni.leggi("acc/meno_lampi"):
 		return
-	Effetti.fattore_regia = clampf(fattore, 0.05, 1.0)
+	var fine := Time.get_ticks_msec() + int(durata_reale * 1000.0)
+	if _rallentando and fine <= _fine_rallentamento:
+		# Due rallentatori insieme (esecuzione dell'ultimo nemico): vale il più lungo, col rallentamento più forte.
+		Effetti.fattore_regia = minf(Effetti.fattore_regia, clampf(fattore, 0.05, 1.0))
+		Effetti.applica_velocita()
+		return
+	Effetti.fattore_regia = clampf(fattore, 0.05, 1.0) if not _rallentando else minf(Effetti.fattore_regia, clampf(fattore, 0.05, 1.0))
 	Effetti.applica_velocita()
 	_rallentando = true
+	_fine_rallentamento = fine
 	_numero_rallentatore += 1
 	get_tree().create_timer(durata_reale, true, false, true).timeout.connect(_fine_rallentatore.bind(_numero_rallentatore))
 

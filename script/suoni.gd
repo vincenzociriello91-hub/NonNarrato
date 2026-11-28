@@ -321,6 +321,19 @@ func suona(nome: String, dove: Variant = null, volume_db: float = 0.0, tono: flo
 		_didascalia(nome, null)
 
 
+func ferma(nome: String) -> void:
+	# Ferma un suono ancora in corso (la carica di un colpo annullata a metà).
+	var flusso := _flusso(nome)
+	if flusso == null:
+		return
+	for p in _effetti:
+		if p.stream == flusso and p.playing:
+			p.stop()
+	for q in _piatti:
+		if q.stream == flusso and q.playing:
+			q.stop()
+
+
 func _sposta_nel_mondo(p: AudioStreamPlayer2D) -> void:
 	# I suoni posizionali devono stare nel viewport del mondo, dove c'è la telecamera che "ascolta".
 	var principale := get_tree().current_scene
