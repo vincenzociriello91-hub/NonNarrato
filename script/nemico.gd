@@ -402,8 +402,8 @@ func _scosta_dagli_oggetti(delta: float) -> void:
 	# al forziere come davanti a un mobile, senza fermarsi (niente "camminare sul posto").
 	if not solido() or tipo == "pipistrello" or not is_on_floor() or absf(velocity.x) > 8.0:
 		return
-	if stato == Stato.ATTACCO:
-		return
+	if stato == Stato.ATTACCO or stordito():
+		return   # stordito resta dov'è: scivolando via con le stelle in testa il colpo di chi gioca non lo raggiungeva
 	var oggetti: Array = get_tree().get_nodes_in_group("forzieri") + get_tree().get_nodes_in_group("casse")
 	for n: Node in oggetti:
 		var f := n as Node2D

@@ -788,6 +788,7 @@ func _parata_perfetta(chi: Node) -> void:
 	if chi is Nemico and (chi as Nemico).tipo in Nemico.CORPO_A_CORPO \
 			and (chi as Nemico).global_position.distance_to(global_position) < 90.0:
 		(chi as Nemico).apri_guardia(1.6)
+		stato = Stato.NORMALE   # guardia aperta: si colpisce subito, senza aspettare che lo scudo scenda (armi lente comprese)
 	elif is_instance_valid(chi) and chi.has_method("barcolla"):
 		chi.call("barcolla", 0.8)
 

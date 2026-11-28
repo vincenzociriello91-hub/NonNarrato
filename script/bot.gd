@@ -88,18 +88,33 @@ var _ignorati := {}              # nemici che non si riesce a raggiungere: lasci
 const DURATA_PARTITA := 420.0    # secondi di gioco della partita libera
 # Prove tecniche: l'ordine cambia a ogni giro (ordine_prove), il bot non ripete mai la stessa sequenza.
 const PROVE := ["movimento", "oggetti", "tasti_a_schermo", "qualita", "menu_e_aspetto", "mosse_in_partita",
-		"ambiente", "sotterraneo", "bottino", "armi_da_mischia", "armi_a_distanza"]
+		"ambiente", "sotterraneo", "bottino", "armi_da_mischia", "armi_a_distanza", "colpi"]
 const NOMI_PROVE := {"movimento": "movimento", "oggetti": "casse e barili", "tasti_a_schermo": "tasti a schermo",
 		"qualita": "grafica", "menu_e_aspetto": "menu e aspetto", "mosse_in_partita": "gruppi di mosse",
 		"ambiente": "trappole e passaggi", "sotterraneo": "sotterraneo", "bottino": "forzieri e bottino",
-		"armi_da_mischia": "armi da mischia", "armi_a_distanza": "armi a distanza"}
+		"armi_da_mischia": "armi da mischia", "armi_a_distanza": "armi a distanza", "colpi": "colpi caricati e parate"}
+# Colpi che si sentono (0.1.43): quanto spesso il bot prova le mosse nuove (poi conta com'è andata, per tipo di nemico).
+const VOGLIA_CARICATO_PARATA := 0.5    # contro chi para (lo scheletro con lo scudo alzato): il colpo pieno rompe la guardia
+const VOGLIA_CARICATO_BESTIONE := 0.35 # contro il bestione da davanti: in alternativa alla magia e al rotolo alle spalle
+const VOGLIA_CARICATO_SCOPERTO := 0.25 # contro chi non può colpire subito (dorme, gira le spalle, ricarica)
+const VOGLIA_CARICATO_STORDITO := 0.35 # su uno stordito con tempo d'avanzo: il colpo pieno fa di più
+const MIRA_PARATA := 0.07              # lo scudo si alza tanto prima che il suo colpo faccia male (finestra perfetta 0,14)
+const MIRA_DEVIAZIONE := 0.05          # il proprio colpo arriva tanto prima del suo (finestra della deviazione 0,12)
+const ERRORE_PARATA := 0.13            # errore sui tempi da inesperto (secondi, ±); col livello cala, mai sotto il 40%
+const ERRORE_DEVIAZIONE := 0.11
+var _mosse := {}                 # tipo di nemico -> mossa d'attacco -> [prove, riuscite] (bot_cervello.cfg, mai azzerato)
+var _colpi_bot := {}             # questo giro: mosse nuove tentate e riuscite (per il rapporto)
+var _ultimo_caricato := {}       # com'è andato l'ultimo colpo caricato (carica al rilascio, bersaglio intero)
 const TENTATIVI_PROVA := 4
 const BOT_NOIA := 0.7          # nella partita: ogni volta che una scelta compare fra le ultime 3, vale così tanto in meno
 # Crescita del bot (come il bot di Minecraft): cinque bravure che salgono con l'esperienza di ogni giro e non
 # si azzerano mai. Livello = radice(xp / XP_LIVELLO), massimo 10.
 const ABILITA := ["combattere", "schivare", "muoversi", "enigmi", "tirare"]
 const XP_LIVELLO := 30.0
-const CONTATORI_CRESCITA := ["nemici_uccisi", "tiri_a_segno", "enigmi_risolti", "forzieri_aperti", "colpi_subiti", "morti", "scavalchi"]
+const CONTATORI_CRESCITA := ["nemici_uccisi", "tiri_a_segno", "enigmi_risolti", "forzieri_aperti", "colpi_subiti", "morti", "scavalchi",
+		"colpi_caricati", "cariche_piene", "parate_perfette", "deviazioni", "esecuzioni", "colpi_su_storditi", "guardie_aperte"]
+const CONTATORI_COLPI := ["colpi_caricati", "cariche_piene", "parate_riuscite", "parate_perfette", "deviazioni", "guardie_aperte",
+		"guardie_rotte", "esecuzioni", "colpi_su_storditi", "nemici_barcollano"]
 var _abilita := {}               # bravura -> xp di sempre
 var _cronologia: Array = []      # un riassunto per ogni giro del bot, mai cancellato
 var _contatori_inizio := {}
@@ -151,9 +166,11 @@ func avvia() -> void:
 	_caso.seed = seme if seme != 0 else int(Time.get_unix_time_from_system() * 1000.0) % 2147483647
 	_carica_crescita()
 	_contatori_inizio = {}
-	for nome: String in CONTATORI_CRESCITA:
+	for nome: String in CONTATORI_CRESCITA + CONTATORI_COLPI:
 		_contatori_inizio[nome] = Rapporto.contatore(nome)
 	_crescita_inizio = Memoria.crescita()
+	_colpi_bot = {"caricati_provati": 0, "caricati_a_segno": 0, "pieni_a_segno": 0, "parate_provate": 0, "deviazioni_provate": 0,
+			"storditi_colpiti": 0, "esecuzioni_cercate": 0}
 	_schivate_inizio = 0
 	for mossa: String in _difese:
 		_schivate_inizio += int((_difese[mossa] as Array)[1])
@@ -1013,12 +1030,17 @@ func _tira_contro(n: Nemico, arma: String) -> bool:
 	return true
 
 
-func _scegli_difesa(pericolo: String) -> String:
+func _scegli_difesa(pericolo: String, n: Node2D = null) -> String:
 	# Come i nemici: prova le schivate, ricorda quali funzionano e usa più spesso quelle.
 	# Contro sfere e frecce si salta, si colpisce o si rotola verso il colpo (rotolando via, arriva a fine rotolo).
 	var opzioni: Array = ["salto", "colpisci", "rotolo_avanti"]
 	if pericolo == "colpo":
 		opzioni = ["scatto_indietro", "rotolo_indietro", "rotolo_avanti"]
+		# 0.1.43: con lo scudo la parata a tempo; contro un colpo da mischia ancora in tempo, la deviazione.
+		if n is Nemico and _puo_parare():
+			opzioni.append("parata")
+		if n is Nemico and _puo_deviare(n as Nemico):
+			opzioni.append("deviazione")
 	elif pericolo == "picchiata":
 		opzioni = ["colpisci", "rotolo_avanti", "scatto_indietro"]   # il pipistrello muore con un colpo
 	elif pericolo == "balzo":
@@ -1034,18 +1056,21 @@ func _scegli_difesa(pericolo: String) -> String:
 	for o: String in opzioni:
 		var c: Array = _difese.get(o, [0, 0])
 		var p := (1.0 + float(c[1])) / (2.0 + float(c[0]))
+		if c.size() > 2:
+			# Parata e deviazione: non essere colpiti vale metà, il nemico stordito l'altra metà.
+			p = (1.0 + 0.5 * float(c[1]) + 0.5 * float(c[2])) / (2.0 + float(c[0]))
 		if p > punti:
 			punti = p
 			migliore = o
 	return migliore
 
 
-func _difenditi(n: Node2D, pericolo: String) -> void:
+func _difenditi(n: Node2D, pericolo: String, forzata: String = "") -> void:
 	var g := _g()
 	var v := 1 if n.global_position.x > g.global_position.x else -1
 	var avanti := "destra" if v > 0 else "sinistra"
 	var indietro := "sinistra" if v > 0 else "destra"
-	var mossa := _scegli_difesa(pericolo)
+	var mossa := forzata if forzata != "" else _scegli_difesa(pericolo, n)
 	var vita_prima := g.vita
 	var origine := ""
 	if n is Proiettile:
@@ -1064,9 +1089,13 @@ func _difenditi(n: Node2D, pericolo: String) -> void:
 		print("PROVA difesa: %s contro %s%s a %.0f px, stato %s, a terra %s" % [mossa, pericolo, origine,
 				n.global_position.distance_to(g.global_position + Vector2(0, -22)), Giocatore.Stato.keys()[g.stato], g.is_on_floor()])
 	_rilascia_tutto()
-	if g.verso != v and mossa in ["scatto_indietro", "rotolo_indietro"]:
+	if g.verso != v and mossa in ["scatto_indietro", "rotolo_indietro", "parata", "deviazione"]:
 		await _guarda(v)
 	match mossa:
+		"parata":
+			await _parata_a_tempo(n as Nemico)
+		"deviazione":
+			await _devia(n as Nemico)
 		"scatto_indietro":
 			await _premi_insieme(indietro, "schiva")
 		"rotolo_indietro":
@@ -1079,10 +1108,242 @@ func _difenditi(n: Node2D, pericolo: String) -> void:
 			await _guarda(v)
 			await _tocca("attacca")
 	_rilascia_tutto()
+	if mossa in ["parata", "deviazione"]:
+		# Riuscita piena = guardia aperta: allora non si aspetta, lo stordito va colpito subito (ci pensa chi combatte).
+		var piena := false
+		for i in 30:
+			if is_instance_valid(n) and (n as Nemico).stordito():
+				piena = true
+				break
+			await _fotogrammi(1)
+		var ok := _g().vita >= vita_prima
+		var d: Array = _difese.get(mossa, [0, 0, 0])
+		_difese[mossa] = [int(d[0]) + 1, int(d[1]) + (1 if ok else 0), int(d[2] if d.size() > 2 else 0) + (1 if piena else 0)]
+		if Dispositivo.in_prova:
+			print("PROVA difesa %s: %s%s" % [mossa, "non colpito" if ok else "colpito", ", nemico stordito" if piena else ""])
+		return
 	await _fotogrammi(30)
 	var riuscita := _g().vita >= vita_prima
 	var c: Array = _difese.get(mossa, [0, 0])
 	_difese[mossa] = [int(c[0]) + 1, int(c[1]) + (1 if riuscita else 0)]
+
+
+# ------------------------------------------------------------------ colpi che si sentono (0.1.43)
+# Colpo caricato, parata a tempo, deviazione, colpi sugli storditi ed esecuzioni: solo tasti, come chi gioca.
+# I tempi si leggono dal nemico (come per le schivate); da inesperto il bot sbaglia di più, crescendo meno,
+# ma mai zero: resta vario e a volte sbaglia, come una persona.
+
+func _imprecisione(base: float) -> float:
+	return maxf(base * 0.4, base * (1.0 - 0.06 * livello("schivare")))
+
+
+func _scudo_in_mano() -> bool:
+	return Armi.dote_mano(Equipaggiamento.indossati.get("mano_sinistra", "")) == "scudo"
+
+
+func _puo_parare() -> bool:
+	var g := _g()
+	return _scudo_in_mano() and g.is_on_floor() and float(g.get("_t_pausa_schivata")) <= 0.0 \
+			and g.stato in [Giocatore.Stato.NORMALE, Giocatore.Stato.CARICA]
+
+
+func _quando_deviare(n: Nemico) -> float:
+	# Il momento del suo colpo in cui premere Attacca: il proprio colpo fa male `da` secondi dopo (più un fotogramma
+	# per partire) e deve arrivare poco prima del suo (Nemico.FINESTRA_DEVIAZIONE).
+	var da := float(((Armi.attuali()["colpi"] as Array)[0] as Dictionary)["da"])
+	return float(n.tempi_attacco()[1]) - MIRA_DEVIAZIONE - da - 1.0 / 60.0
+
+
+func _puo_deviare(n: Nemico) -> bool:
+	# Solo i colpi da mischia (non i balzi né le finte che non si vedono), da davanti, a portata e ancora in tempo.
+	var g := _g()
+	if not is_instance_valid(n) or n.stato != Nemico.Stato.ATTACCO or n.tipo not in Nemico.CORPO_A_CORPO \
+			or n.tipo in Nemico.SALTANO or n.get("_in_balzo") or n.get("_colpo_dato"):
+		return false
+	if g.stato != Giocatore.Stato.NORMALE or not g.is_on_floor():
+		return false
+	var dx := n.global_position.x - g.global_position.x
+	var portata := float(((Armi.attuali()["colpi"] as Array)[0] as Dictionary)["p"])
+	return n.verso == (-1 if dx > 0.0 else 1) and absf(dx) <= portata + n.mezza_larghezza() + 4.0 \
+			and absf(n.global_position.y - g.global_position.y) < 30.0 and float(n.get("_t_stato")) <= _quando_deviare(n)
+
+
+func _parata_a_tempo(n: Nemico) -> void:
+	# Scudo alzato (Schiva da fermo) perché il colpo arrivi nei primi istanti della parata: parata perfetta.
+	if not is_instance_valid(n):
+		return
+	_colpi_bot["parate_provate"] = int(_colpi_bot.get("parate_provate", 0)) + 1
+	var quando := float(n.tempi_attacco()[1]) - MIRA_PARATA + _caso.randf_range(-1.0, 1.0) * _imprecisione(ERRORE_PARATA)
+	_rilascia_tutto()
+	for i in 90:
+		if not is_instance_valid(n) or n.stato != Nemico.Stato.ATTACCO or float(n.get("_t_stato")) >= quando:
+			break
+		await _fotogrammi(1)
+	if is_instance_valid(n) and n.stato == Nemico.Stato.ATTACCO:
+		await _tocca("schiva")
+
+
+func _devia(n: Nemico) -> void:
+	# Il proprio colpo arriva mentre il suo sta per partire: il suo si annulla e la guardia si apre.
+	if not is_instance_valid(n):
+		return
+	_colpi_bot["deviazioni_provate"] = int(_colpi_bot.get("deviazioni_provate", 0)) + 1
+	var quando := _quando_deviare(n) + _caso.randf_range(-1.0, 1.0) * _imprecisione(ERRORE_DEVIAZIONE)
+	_rilascia_tutto()
+	for i in 90:
+		if not is_instance_valid(n) or n.stato != Nemico.Stato.ATTACCO or float(n.get("_t_stato")) >= quando:
+			break
+		await _fotogrammi(1)
+	if is_instance_valid(n) and n.stato == Nemico.Stato.ATTACCO:
+		await _tocca("attacca")
+
+
+func _colpo_caricato(n: Node2D, pieno: bool = true, guarda_prima: bool = true) -> bool:
+	# Tiene premuto Attacca: parte il primo colpo, poi si carica (Giocatore.Stato.CARICA) restando rivolti al
+	# bersaglio e avvicinandosi piano fino alla portata del colpo pesante; si lascia a carica piena (da inesperto
+	# a volte prima, se non serve pieno), o appena sopra il minimo se un nemico sta per colpire. Vero se è partito.
+	var caricati := Rapporto.contatore("colpi_caricati")
+	_ultimo_caricato = {}
+	_rilascia_tutto()
+	for i in 40:   # da fermi e a terra (un colpo in corso lo prenoterebbe)
+		if _g().stato == Giocatore.Stato.NORMALE and _g().is_on_floor():
+			break
+		await _fotogrammi(1)
+	await _fotogrammi(1)   # mai lasciare e ripremere nello stesso istante
+	if guarda_prima and n is Nemico and is_instance_valid(n):
+		# Prima ci si avvicina a passo pieno (caricando si cammina piano: uno stordito finirebbe di esserlo).
+		var vicino_colpo := Giocatore.SPAZIO + (n as Nemico).mezza_larghezza() + 6.0
+		for i in 40:
+			var dx := n.global_position.x - _g().global_position.x
+			if absf(dx) <= vicino_colpo or absf(n.global_position.y - _g().global_position.y) > 30.0 \
+					or _pericolo(n as Nemico) != "" or _g().stato != Giocatore.Stato.NORMALE:
+				break
+			Input.action_release("sinistra" if dx > 0.0 else "destra")
+			Input.action_press("destra" if dx > 0.0 else "sinistra")
+			await _fotogrammi(1)
+			if not is_instance_valid(n):
+				break
+		_rilascia_tutto()
+		await _fotogrammi(1)
+	if guarda_prima and is_instance_valid(n):
+		await _guarda(1 if n.global_position.x > _g().global_position.x else -1)
+	if _g().stato != Giocatore.Stato.NORMALE:
+		return false
+	var fretta := not pieno and _caso.randf() < clampf(0.3 - 0.025 * livello("combattere"), 0.05, 0.3)
+	var soglia := _caso.randf_range(Armi.CARICA_MINIMA + 0.05, 0.95) if fretta else 1.0
+	Input.action_press("attacca")
+	var entrata := false
+	var t_pieno := 0
+	var k := 0.0
+	for i in 240:
+		await _fotogrammi(1)
+		var g := _g()
+		if g.stato == Giocatore.Stato.CARICA:
+			entrata = true
+		elif entrata or (g.stato != Giocatore.Stato.ATTACCO and i >= 3):
+			break   # colpiti, caduti, o il colpo è partito da solo (carica piena tenuta troppo a lungo)
+		if not entrata:
+			continue
+		k = g.carica_colpo()
+		var vicino := true
+		var bersaglio := is_instance_valid(n) and not (n is Nemico and (n as Nemico).stato == Nemico.Stato.MORTO)
+		if bersaglio:
+			var dx := n.global_position.x - g.global_position.x
+			var v := 1 if dx > 0.0 else -1
+			var mezza := (n as Nemico).mezza_larghezza() if n is Nemico else 10.0
+			var giusta := maxf(Giocatore.SPAZIO + mezza + 4.0, float(g.colpo_attuale().get("p", 40.0)) * 0.8)
+			vicino = absf(dx) <= giusta + 8.0 and g.verso == v
+			Input.action_release("sinistra" if v > 0 else "destra")
+			if absf(dx) > giusta or g.verso != v:
+				Input.action_press("destra" if v > 0 else "sinistra")   # caricando si gira e si cammina piano
+			else:
+				Input.action_release("destra" if v > 0 else "sinistra")
+			if n is Nemico and _pericolo(n as Nemico) in ["colpo", "balzo", "carica"]:
+				if k < Armi.CARICA_MINIMA:
+					Input.action_release("attacca")   # troppo presto: nessun colpo, ci si difende
+					_rilascia_tutto()
+					await _fotogrammi(1)
+					return false
+				break   # sopra il minimo: parte adesso, prima del suo
+		if k >= 1.0:
+			t_pieno += 1
+		if (k >= soglia and vicino) or t_pieno > 60:
+			break
+	_ultimo_caricato = {"k": k, "intero": is_instance_valid(n) and int(n.get("vita")) > 0, "entrata": entrata,
+			"uscita": Giocatore.Stato.keys()[_g().stato]}
+	_rilascia_tutto()
+	await _fotogrammi(2)
+	for i in 60:   # il colpo pesante va fino in fondo
+		if _g().stato != Giocatore.Stato.ATTACCO:
+			break
+		await _fotogrammi(1)
+	return Rapporto.contatore("colpi_caricati") > caricati
+
+
+func _voglia(tipo: String, mossa: String, base: float) -> bool:
+	# Quanto spesso provare una mossa contro questo tipo di nemico: dalla voglia di base e da com'è andata
+	# (mai zero e mai sempre: un po' di caso resta).
+	var c: Array = (_mosse.get(tipo, {}) as Dictionary).get(mossa, [0, 0])
+	var riuscita := (1.0 + float(c[1])) / (2.0 + float(c[0]))
+	return _caso.randf() < clampf(base * (0.4 + 1.2 * riuscita), 0.05, 0.85)
+
+
+func _ricorda_mossa(tipo: String, mossa: String, ok: bool) -> void:
+	if not _mosse.has(tipo):
+		_mosse[tipo] = {}
+	var c: Array = (_mosse[tipo] as Dictionary).get(mossa, [0, 0])
+	_mosse[tipo][mossa] = [int(c[0]) + 1, int(c[1]) + (1 if ok else 0)]
+
+
+func _caricato_contro(n: Nemico, mossa: String = "caricato", pieno: bool = true) -> void:
+	# Un colpo caricato in combattimento: riuscito se ferisce o stordisce senza che il bot sia colpito.
+	var tipo := n.tipo
+	var vita_n := n.vita
+	var vita_mia := _g().vita
+	_colpi_bot["caricati_provati"] = int(_colpi_bot.get("caricati_provati", 0)) + 1
+	var partito := await _colpo_caricato(n, pieno)
+	var colpito := not is_instance_valid(n) or n.stato == Nemico.Stato.MORTO or n.vita < vita_n or n.stordito()
+	var ok := partito and colpito and _g().vita >= vita_mia
+	if ok:
+		_colpi_bot["caricati_a_segno"] = int(_colpi_bot.get("caricati_a_segno", 0)) + 1
+		if float(_ultimo_caricato.get("k", 0.0)) >= 1.0:
+			_colpi_bot["pieni_a_segno"] = int(_colpi_bot.get("pieni_a_segno", 0)) + 1
+	_ricorda_mossa(tipo, mossa, ok)
+	if Dispositivo.in_prova:
+		print("PROVA colpo caricato contro %s (%s): %s, carica %.2f, %s" % [tipo, mossa, "a segno" if ok else "non riuscito",
+				float(_ultimo_caricato.get("k", 0.0)), str(_ultimo_caricato)])
+
+
+func _colpisci_stordito(n: Nemico) -> void:
+	# Guardia aperta: ci si avvicina e si colpisce subito; allo stremo (eseguibile) un colpo lo giustizia.
+	# Con tempo d'avanzo e vita alta, a volte un colpo caricato pieno (lo stordimento non finisce prima).
+	var g := _g()
+	if n.eseguibile():
+		_colpi_bot["esecuzioni_cercate"] = int(_colpi_bot.get("esecuzioni_cercate", 0)) + 1
+	var giusta := Giocatore.SPAZIO + n.mezza_larghezza() + 6.0
+	for i in 40:
+		var dx := n.global_position.x - _g().global_position.x
+		if absf(dx) <= giusta or not n.stordito() or _g().stato == Giocatore.Stato.MORTO:
+			break
+		Input.action_release("sinistra" if dx > 0.0 else "destra")
+		Input.action_press("destra" if dx > 0.0 else "sinistra")
+		await _fotogrammi(1)
+	_rilascia_tutto()
+	if not is_instance_valid(n) or not n.stordito():
+		await _fotogrammi(1)
+		return
+	_colpi_bot["storditi_colpiti"] = int(_colpi_bot.get("storditi_colpiti", 0)) + 1
+	var resta := float(n.get("_t_stordito"))
+	if not n.eseguibile() and resta > Armi.tempo_carica(g.famiglia_arma()) + 0.5 \
+			and _voglia(n.tipo, "caricato_stordito", VOGLIA_CARICATO_STORDITO):
+		await _caricato_contro(n, "caricato_stordito")
+		return
+	await _guarda(1 if n.global_position.x > _g().global_position.x else -1)
+	await _tocca("attacca")
+	await _fotogrammi(6)
+	if is_instance_valid(n) and n.stordito():
+		await _tocca("attacca")
+		await _fotogrammi(10)
 
 
 func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
@@ -1098,6 +1359,7 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 	var bloccato := 0
 	var vita_nemico := n.vita
 	var vita_mia := _g().vita
+	var prossima_scelta := 0   # le mosse nuove si decidono una volta ogni tanto, non a ogni fotogramma
 	for i in massimo:
 		if is_instance_valid(n) and (n.vita < vita_nemico or _g().vita < vita_mia):
 			vita_nemico = n.vita
@@ -1166,6 +1428,11 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 		if pericolo != "":
 			await _difenditi(_pericolo_da_chi if is_instance_valid(_pericolo_da_chi) else n, pericolo)
 			continue
+		# Guardia aperta (parata perfetta, deviazione, colpo che stordisce): lo si colpisce subito, o lo si giustizia.
+		if n.stordito():
+			await _colpisci_stordito(n)
+			continue
+		var scegli := Engine.get_physics_frames() >= prossima_scelta
 		var v := 1 if d.x > 0.0 else -1
 		var avanti := "destra" if v > 0 else "sinistra"
 		Input.action_release("sinistra" if v > 0 else "destra")
@@ -1187,7 +1454,12 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 				Input.action_release("sinistra" if v > 0 else "destra")
 				continue
 		if n.sta_parando() and absf(d.x) < 70.0:
-			# Para: non si colpisce lo scudo, si aspetta (o si gira attorno).
+			# Para: non si colpisce lo scudo, si aspetta (o si gira attorno); oppure un colpo caricato pieno la rompe.
+			if scegli:
+				prossima_scelta = Engine.get_physics_frames() + 75
+				if _voglia(n.tipo, "caricato", VOGLIA_CARICATO_PARATA):
+					await _caricato_contro(n)
+					continue
 			Input.action_release(avanti)
 			await _fotogrammi(4)
 			continue
@@ -1211,6 +1483,11 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 				_armatura_provata = false   # ci si riprova alla prossima occasione
 			continue
 		if n.tipo == "bestione" and not n.esposto() and signf(-d.x) == float(n.verso) and not carica:
+			if scegli and absf(d.x) < 110.0:
+				prossima_scelta = Engine.get_physics_frames() + 75
+				if _voglia(n.tipo, "caricato", VOGLIA_CARICATO_BESTIONE):
+					await _caricato_contro(n)   # pieno rompe la guardia: passa la corazza
+					continue
 			if t_tiro <= 0 and g.puo_tirare("magia") and absf(d.x) > 50.0:
 				await _tira_contro(n, "magia")
 				t_tiro = 40
@@ -1263,6 +1540,14 @@ func _combatti_contro(n: Nemico, massimo: int = 1200) -> void:
 		else:
 			Input.action_release(avanti)
 			Input.action_release("su")
+			# Chi non può colpire subito (dorme, gira le spalle, ricarica): a volte un colpo caricato.
+			var lungo := n.stato == Nemico.Stato.DORME or n.verso == v \
+					or float(n.get("_t_ricarica")) > Armi.tempo_carica(g.famiglia_arma()) * 0.8
+			if scegli and lungo and not carica:
+				prossima_scelta = Engine.get_physics_frames() + 75
+				if _voglia(n.tipo, "caricato_scoperto", VOGLIA_CARICATO_SCOPERTO):
+					await _caricato_contro(n, "caricato_scoperto", false)
+					continue
 			await _guarda(v)
 			await _tocca("attacca")
 			await _fotogrammi(6)
@@ -2406,6 +2691,160 @@ func _armi_da_mischia() -> void:
 	await _fotogrammi(10)
 
 
+func _colpi() -> void:
+	# Colpi che si sentono (0.1.43), coi nemici svegli come in ogni prova: colpo caricato, parata a tempo con lo
+	# scudo contro un nemico da mischia, colpo caricato pieno e colpi su uno stordito (o esecuzione).
+	# Alla fine arma e mano sinistra tornano quelle di prima.
+	_nuova_fase("colpi")
+	var stanza_fase: Node = _principale.stanza
+	var arma_prima: String = Equipaggiamento.indossati.get("arma", "spada_viandante")
+	var mano_prima: String = Equipaggiamento.indossati.get("mano_sinistra", "mano_vuota")
+	Equipaggiamento.indossa("arma", "spada_viandante")
+	Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
+	await _fotogrammi(6)
+	# Colpo caricato sul posto: tenendo premuto Attacca parte il primo colpo, poi si carica fino in fondo e si lascia.
+	# Il bersaglio vero arriva dopo: un nemico da mischia, stordito dalla parata (con i nemici svegli è il più
+	# affidabile: i barili qui vicino il bot li rompe passando o combattendo).
+	var caricati := Rapporto.contatore("colpi_caricati")
+	var piene := Rapporto.contatore("cariche_piene")
+	var pieni := int(_colpi_bot.get("pieni_a_segno", 0))
+	await _scatta("colpi_carica")
+	await _colpo_caricato(null, true, false)
+	# Parata a tempo con lo scudo contro un nemico da mischia (si aspetta il suo colpo davanti a lui, e se tarda
+	# lo si provoca); poi, se nessuno stordito è stato ancora colpito, colpi caricati pieni finché uno resta stordito.
+	Equipaggiamento.indossa("mano_sinistra", "scudo_tondo")
+	await _fotogrammi(6)
+	var riuscite := Rapporto.contatore("parate_riuscite")
+	var perfette := Rapporto.contatore("parate_perfette")
+	var storditi := Rapporto.contatore("colpi_su_storditi") + Rapporto.contatore("esecuzioni")
+	var provate := int(_colpi_bot.get("parate_provate", 0))
+	var tentate := 0
+	var cariche := 0
+	var attesa := 0
+	var spinte := 0
+	var ricominciata := false
+	var fine := Engine.get_physics_frames() + 60 * 80
+	while Engine.get_physics_frames() < fine:
+		tentate = int(_colpi_bot.get("parate_provate", 0)) - provate   # anche quelle scelte da sé combattendo
+		var parate_fatte := tentate >= 8 or (Rapporto.contatore("parate_riuscite") > riuscite and Rapporto.contatore("parate_perfette") > perfette)
+		var stordito_colpito := Rapporto.contatore("colpi_su_storditi") + Rapporto.contatore("esecuzioni") > storditi
+		var carica_provata := int(_colpi_bot.get("pieni_a_segno", 0)) > pieni
+		if parate_fatte and ((stordito_colpito and carica_provata) or cariche >= 6):
+			break
+		await _atterra()   # da terra si sa su che piano si è (in aria il navigatore non lo dice)
+		var g := _g()
+		if g.stato == Giocatore.Stato.MORTO or _interrotta(stanza_fase):
+			break
+		var n := _avversario_da_mischia()
+		if n == null:
+			if Dispositivo.in_prova:
+				print("PROVA colpi: nessun nemico da mischia vicino (%s, piano %s)" % [str(g.global_position.round()), _nav.superficie_di(g.global_position)])
+			if ricominciata:
+				break
+			ricominciata = true   # nessuno qui vicino: una stanza nuova (con il velo, come fra le prove), non si va lontano
+			await _principale.ricomincia_con_velo("Il bot cerca un avversario")
+			await _fotogrammi(20)
+			stanza_fase = _principale.stanza
+			continue
+		var d := n.global_position - g.global_position
+		var v := 1 if d.x > 0.0 else -1
+		var stesso_piano := _nav.superficie_di(g.global_position) != "" \
+				and _nav.superficie_di(g.global_position) == _nav.superficie_di(n.global_position)
+		if absf(d.y) > 40.0 or (absf(d.x) > 140.0 and not stesso_piano):
+			_rilascia_tutto()
+			if not await _vai_a(n.global_position + Vector2(-v * 48.0, 0.0), 20.0) and is_instance_valid(n):
+				_ignorati[n.get_instance_id()] = Engine.get_physics_frames() + 60 * 20
+			await _fotogrammi(2)
+			continue   # per strada si difende e combatte come sempre (_vai_a): se muore, la stanza è nuova e si smette
+		if n.stordito():
+			# Stordito con tempo d'avanzo e colpo pieno non ancora provato su un nemico: lo si prova adesso (il primo
+			# colpo e quello pieno arrivano mentre è stordito); altrimenti lo si colpisce come sempre.
+			if not carica_provata and not n.eseguibile() and float(n.get("_t_stordito")) > Armi.tempo_carica(_g().famiglia_arma()) + 0.6:
+				await _caricato_contro(n, "caricato_stordito")
+			else:
+				await _colpisci_stordito(n)
+			continue
+		var pericolo := _pericolo(n)
+		if pericolo == "colpo" and _pericolo_da_chi == n and _puo_parare() and not parate_fatte:
+			attesa = 0
+			await _difenditi(n, pericolo, "parata")
+			continue
+		if pericolo != "":
+			await _difenditi(_pericolo_da_chi if is_instance_valid(_pericolo_da_chi) else n, pericolo)
+			continue
+		if g.vita <= 2:
+			await _combatti_contro(n, 900)   # poca vita: niente esperimenti, lo si sistema
+			continue
+		var giusta := Giocatore.SPAZIO + n.mezza_larghezza() + 8.0
+		Input.action_release("sinistra" if v > 0 else "destra")
+		if absf(d.x) > giusta:
+			Input.action_press("destra" if v > 0 else "sinistra")
+			if g.is_on_floor() and _cassa_davanti(v):
+				Input.action_press("su")   # una cassa in mezzo si scavalca, non si spinge
+			else:
+				Input.action_release("su")
+			await _fotogrammi(1)
+			spinte = spinte + 1 if absf(_g().velocity.x) < 15.0 else 0
+			if spinte > 60:   # qualcosa in mezzo (una cassa): ci pensa il combattimento di sempre, che la scavalca
+				spinte = 0
+				_rilascia_tutto()
+				await _combatti_contro(n, 600)
+			continue
+		Input.action_release("destra" if v > 0 else "sinistra")
+		Input.action_release("su")
+		await _guarda(v)
+		if parate_fatte:
+			cariche += 1
+			await _caricato_contro(n)   # pieno: stordisce (il prossimo giro lo colpisce)
+			continue
+		attesa += 1
+		if attesa > 100:
+			attesa = 0
+			await _tocca("attacca")   # tarda a colpire: lo si provoca
+		await _fotogrammi(1)
+	_rilascia_tutto()
+	_verifica("colpi: tenendo premuto Attacca si carica fino in fondo e lasciando parte il colpo caricato",
+			Rapporto.contatore("colpi_caricati") > caricati and Rapporto.contatore("cariche_piene") > piene,
+			"caricati +%d, piene +%d" % [Rapporto.contatore("colpi_caricati") - caricati, Rapporto.contatore("cariche_piene") - piene])
+	_verifica("colpi: un colpo caricato pieno ferisce o stordisce un nemico", int(_colpi_bot.get("pieni_a_segno", 0)) > pieni,
+			"colpi pieni a segno %d" % (int(_colpi_bot.get("pieni_a_segno", 0)) - pieni))
+	var n_riuscite := Rapporto.contatore("parate_riuscite") - riuscite
+	var n_perfette := Rapporto.contatore("parate_perfette") - perfette
+	_verifica("colpi: con lo scudo para i colpi di un nemico da mischia", n_riuscite >= 1,
+			"parate riuscite %d, perfette %d, su %d tentativi" % [n_riuscite, n_perfette, tentate])
+	# La perfetta dipende dai tempi (il bot sbaglia di più da inesperto): basta che sia stata provata davvero.
+	_verifica("colpi: parata a tempo provata (perfetta se riesce)", n_perfette >= 1 or tentate >= 3,
+			"perfette %d su %d tentativi" % [n_perfette, tentate])
+	_verifica("colpi: un nemico stordito viene colpito o giustiziato",
+			Rapporto.contatore("colpi_su_storditi") + Rapporto.contatore("esecuzioni") > storditi,
+			"colpi su storditi ed esecuzioni +%d, colpi caricati per stordire %d" % [
+			Rapporto.contatore("colpi_su_storditi") + Rapporto.contatore("esecuzioni") - storditi, cariche])
+	Equipaggiamento.indossa("arma", arma_prima)
+	Equipaggiamento.indossa("mano_sinistra", mano_prima)
+	await _fotogrammi(6)
+	_verifica("colpi: arma e mano sinistra tornano quelle di prima", Equipaggiamento.indossati.get("arma", "") == arma_prima
+			and Equipaggiamento.indossati.get("mano_sinistra", "") == mano_prima, "%s, %s" % [arma_prima, mano_prima])
+
+
+func _avversario_da_mischia() -> Nemico:
+	# Per la parata a tempo: il più vicino che colpisce da vicino senza balzi (prima gli scheletri, poi il bestione).
+	var g := _g()
+	var migliore: Nemico = null
+	var punti := INF
+	for n: Nemico in _nemici_vivi():
+		if n.tipo not in ["scheletro", "bestione"] or n.has_meta("sotterraneo") or _ignorato(n) \
+				or n.global_position.distance_to(g.global_position) > 420.0:
+			continue   # lontano no: per strada ci sono gli altri nemici svegli
+		var sup := _nav.superficie_per(n.global_position)
+		if sup == "" or (_nav.superficie_di(g.global_position) != "" and not _raggiungibile(sup)):
+			continue   # sopra una cassa il navigatore non sa dove si è: si scende verso di lui e basta
+		var p := n.global_position.distance_to(g.global_position) + (400.0 if n.tipo == "bestione" else 0.0)
+		if p < punti:
+			punti = p
+			migliore = n
+	return migliore
+
+
 func _tieni_tiro(fino_alla_carica: bool, massimo: int = 90) -> void:
 	# Tiene premuto Tira: fino a carica piena (arco, magia) o per un po' (raffica), poi lascia.
 	Input.action_press("tira")
@@ -2623,6 +3062,10 @@ func _partita() -> void:
 	var uccisi_prima := Rapporto.contatore("nemici_uccisi")
 	var morti_prima := Rapporto.contatore("morti")
 	var ondate_prima := Rapporto.contatore("ondate")
+	var colpi_prima := {}
+	for nome: String in CONTATORI_COLPI:
+		colpi_prima[nome] = Rapporto.contatore(nome)
+	var bot_prima := _colpi_bot.duplicate()
 	var inizio := Engine.get_physics_frames()
 	var ultimi: Array = []
 	while Engine.get_physics_frames() - inizio < int(DURATA_PARTITA * 60.0) and not _fermato:
@@ -2675,6 +3118,15 @@ func _partita() -> void:
 			"%.1f s di fila (%s)" % [_sovrapposti_massimo, _sovrapposti_chi])
 	_verifica("partita: nessun nemico cammina sul posto", _sul_posto_massimo < 1.5,
 			"%.2f s di fila (%s)" % [_sul_posto_massimo, _sul_posto_chi])
+	# Colpi che si sentono (0.1.43): il combattimento normale usa le mosse nuove (quanto, lo decide da sé).
+	var colpi_partita := {}
+	for nome: String in CONTATORI_COLPI:
+		colpi_partita[nome] = Rapporto.contatore(nome) - int(colpi_prima[nome])
+	for nome: String in _colpi_bot:
+		colpi_partita["bot_" + nome] = int(_colpi_bot[nome]) - int(bot_prima.get(nome, 0))
+	_verifica("partita: usa i colpi nuovi (colpo caricato, parata a tempo o deviazione)",
+			int(colpi_partita["colpi_caricati"]) + int(colpi_partita["bot_parate_provate"]) + int(colpi_partita["bot_deviazioni_provate"]) >= 1,
+			str(colpi_partita))
 	_partita_finale = {
 		"carattere": _umore, "obiettivi": _obiettivi, "diario": _diario.slice(-60), "esiti": _esiti_partita,
 		"zone_viste": "%d su %d" % [viste, da_vedere.size()], "uccisi": Rapporto.contatore("nemici_uccisi") - uccisi_prima,
@@ -2683,7 +3135,7 @@ func _partita() -> void:
 		"esito_armi": _esito_armi, "pericolosi": _pericolosi, "fermo_massimo_s": snappedf(_stallo_massimo, 0.1),
 		"fermate_lunghe": _fermate, "sovrapposti_massimo_s": snappedf(_sovrapposti_massimo, 0.25),
 		"sovrapposti_chi": _sovrapposti_chi, "sul_posto_massimo_s": snappedf(_sul_posto_massimo, 0.25),
-		"sul_posto_chi": _sul_posto_chi,
+		"sul_posto_chi": _sul_posto_chi, "colpi_nuovi": colpi_partita,
 	}
 	if Dispositivo.in_prova:
 		print("PROVA partita libera: %s" % JSON.stringify(_partita_finale))
@@ -2896,6 +3348,17 @@ func _ritirata(n: Nemico) -> bool:
 func _arma_adatta(n: Nemico) -> void:
 	# Sceglie l'arma (come farebbe una persona dal menu): quella che contro questo nemico ha vinto di più;
 	# contro chi para (bestione, scheletro) all'inizio prova un'arma che rompe le parate.
+	# 0.1.43: contro chi combatte da vicino a volte prende lo scudo (parata a tempo), più spesso se le parate gli
+	# riescono; ogni tanto lo rimette via.
+	var con_scudo := _scudo_in_mano()
+	var parate: Array = _difese.get("parata", [0, 0, 0])
+	var bene := (1.0 + 0.5 * float(parate[1]) + 0.5 * float(parate[2] if parate.size() > 2 else 0)) / (2.0 + float(parate[0]))
+	if not con_scudo and n.tipo in Nemico.CORPO_A_CORPO and _caso.randf() < 0.1 + 0.3 * bene:
+		Equipaggiamento.indossa("mano_sinistra", "scudo_tondo")
+		await _fotogrammi(4)
+	elif con_scudo and _caso.randf() < 0.15:
+		Equipaggiamento.indossa("mano_sinistra", "mano_vuota")
+		await _fotogrammi(4)
 	var conti: Dictionary = _esito_armi.get(n.tipo, {})
 	var migliore := ""
 	var punti := -1.0
@@ -2932,6 +3395,7 @@ func _carica_crescita() -> void:
 	_abilita = cfg.get_value("crescita", "abilita", {})
 	_difese = cfg.get_value("crescita", "difese", {})
 	_cronologia = cfg.get_value("crescita", "cronologia", [])
+	_mosse = cfg.get_value("cervello", "mosse", {})   # 0.1.43: chiave nuova, i file vecchi non ce l'hanno
 	for a: String in ABILITA:
 		if not _abilita.has(a):
 			_abilita[a] = 0.0
@@ -2943,6 +3407,7 @@ func _salva_crescita() -> void:
 	cfg.set_value("crescita", "abilita", _abilita)
 	cfg.set_value("crescita", "difese", _difese)
 	cfg.set_value("crescita", "cronologia", _cronologia)
+	cfg.set_value("cervello", "mosse", _mosse)
 	Salvataggio.scrivi_cfg(cfg, ESPERIENZA_CERVELLO)
 
 
@@ -2982,8 +3447,10 @@ func _cresci() -> void:
 	for tipo: String in _passaggi:
 		passaggi += int(_passaggi[tipo])
 	var guadagno := {
-		"combattere": _differenza("nemici_uccisi") * 3.0 + _lotte * 0.5,
-		"schivare": maxf(0.0, schivate_giro) * 1.0,
+		# 0.1.43: esecuzioni e colpi caricati a segno insegnano a combattere; parate perfette e deviazioni a difendersi.
+		"combattere": _differenza("nemici_uccisi") * 3.0 + _lotte * 0.5 + _differenza("esecuzioni") * 2.0
+				+ int(_colpi_bot.get("caricati_a_segno", 0)) * 0.5,
+		"schivare": maxf(0.0, schivate_giro) * 1.0 + _differenza("parate_perfette") * 1.0 + _differenza("deviazioni") * 1.5,
 		"muoversi": passaggi * 0.3 + _arrampicate * 1.0 + _differenza("scavalchi") * 0.2,
 		"enigmi": _differenza("enigmi_risolti") * 5.0 + _differenza("forzieri_aperti") * 1.0,
 		"tirare": _differenza("tiri_a_segno") * 0.5,
@@ -2997,8 +3464,18 @@ func _cresci() -> void:
 		"quando": Time.get_datetime_string_from_system(), "versione": String(ProjectSettings.get_setting("application/config/version", "?")),
 		"bot": livelli(), "xp": _abilita.duplicate(), "uccisi": _differenza("nemici_uccisi"), "colpi_subiti": _differenza("colpi_subiti"),
 		"morti": _differenza("morti"), "prove_ripetute": _prove_ripetute.duplicate(), "nemici": nemici,
+		"colpi_nuovi": _colpi_nuovi_giro(),
 	})
 	_salva_crescita()
+
+
+func _colpi_nuovi_giro() -> Dictionary:
+	# Mosse nuove (0.1.43) in questo giro: contatori del gioco e tentativi del bot.
+	var conti := {}
+	for nome: String in CONTATORI_COLPI:
+		conti[nome] = Rapporto.contatore(nome) - int(_contatori_inizio.get(nome, 0))
+	conti["bot"] = _colpi_bot.duplicate()
+	return conti
 
 
 func crescita() -> Dictionary:
@@ -3648,6 +4125,11 @@ func _esito(motivo: String) -> Dictionary:
 		"ordine_prove": ordine_prove(_caso.seed),
 		"prove_ripetute": _prove_ripetute,
 		"disturbate_dai_nemici": disturbate,
+		"colpi_nuovi": {
+			"giro": _colpi_nuovi_giro(),
+			"difese_nuove": {"parata": _difese.get("parata", [0, 0, 0]), "deviazione": _difese.get("deviazione", [0, 0, 0])},
+			"mosse_imparate": _mosse,
+		},
 		"galleria": {
 			"attese_davanti_alle_trappole": _attese_trappole,
 			"colpi_schivati_camminando": _difese_in_cammino,

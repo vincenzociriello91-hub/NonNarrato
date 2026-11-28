@@ -1846,14 +1846,15 @@ func _prova_colpi() -> void:
 	g.call("_inizia_parata")
 	var passato := g.subisci(1, assalitore.global_position + Vector2(0, -20), 100.0, assalitore)
 	var subito_stordito := assalitore.stordito()
+	var libero := g.stato == Giocatore.Stato.NORMALE   # guardia aperta: si può colpire subito
 	g.global_position.x -= 120.0   # lontano: finito lo stordimento non deve trovarlo addosso
 	assalitore.set_physics_process(true)
 	await _fotogrammi(84)
 	var ancora := assalitore.stordito()
 	await _fotogrammi(18)
 	var finito := not assalitore.stordito()
-	_verifica("colpi: parata perfetta = nemico stordito per circa 1,6 s", not passato and subito_stordito and ancora and finito
-			and Rapporto.contatore("parate_perfette") == perfette + 1,
+	_verifica("colpi: parata perfetta = nemico stordito per circa 1,6 s, e chi gioca è subito libero di colpire", not passato
+			and subito_stordito and libero and ancora and finito and Rapporto.contatore("parate_perfette") == perfette + 1,
 			"subito %s, a 1,4 s %s, a 1,7 s finito %s" % [subito_stordito, ancora, finito])
 	assalitore.queue_free()
 	await _fotogrammi(30)
@@ -1987,6 +1988,24 @@ func _prova_colpi() -> void:
 			and bestione.vita == vita_b - 2, "vita %d -> %d" % [vita_b, bestione.vita])
 	bestione.queue_free()
 	await _fotogrammi(10)
+	# 9 bis. Uno stordito resta dov'è anche accanto a una cassa o a un forziere (prima scivolava via di lato con le
+	# stelle in testa, e il colpo caricato non lo raggiungeva).
+	var fermo := _bersaglio_colpi("scheletro", 120.0)
+	var mobile := RigidBody2D.new()   # una cassa finta, senza forma: conta solo il posto
+	mobile.freeze = true
+	mobile.position = fermo.position + Vector2(6.0, 0.0)
+	mobile.add_to_group("casse")
+	_principale.stanza.add_child(mobile)
+	fermo.set_physics_process(true)
+	await _fotogrammi(3)
+	fermo.apri_guardia(2.0)
+	var x_fermo := fermo.global_position.x
+	await _fotogrammi(45)
+	_verifica("colpi: un nemico stordito non scivola via da casse e forzieri", fermo.stordito()
+			and absf(fermo.global_position.x - x_fermo) < 1.0, "spostato di %.1f px" % absf(fermo.global_position.x - x_fermo))
+	fermo.queue_free()
+	mobile.queue_free()
+	await _fotogrammi(4)
 	# 10. Stato pulito.
 	Equipaggiamento.ripristina_stato(aspetto)
 	Impostazioni.scrivi("gioco/regia", regia_prima)
