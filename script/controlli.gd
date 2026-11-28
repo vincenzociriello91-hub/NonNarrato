@@ -9,6 +9,28 @@ const ZONA_MORTA := 0.35
 var touch := false           # true = si gioca con i tasti a schermo
 var controller := ""         # nome del controller collegato, se c'è
 var cambi_modo := 0
+var ritmi_chiesti := {}      # nome del ritmo -> quante volte (anche con la vibrazione spenta: serve a prove e rapporto)
+var _sequenza := 0           # numero del ritmo in corso: un ritmo nuovo interrompe quello vecchio
+
+# Vibrazione a ritmi (0.1.43): ogni evento ha il suo disegno, [forza 0-1, durata s, pausa dopo s] per passo.
+# Colpi leggeri = un tocco corto e debole; pesanti = più lunghi; parata perfetta = doppio colpetto;
+# esecuzione = tre colpi che crescono e uno lungo.
+const RITMI := {
+	"colpo_leggero": [[0.3, 0.05, 0.0]],
+	"colpo_medio": [[0.5, 0.08, 0.0]],
+	"colpo_pesante": [[0.85, 0.07, 0.04], [0.55, 0.12, 0.0]],
+	"colpo_caricato": [[0.5, 0.05, 0.04], [1.0, 0.16, 0.05], [0.5, 0.1, 0.0]],
+	"carica_piena": [[0.35, 0.04, 0.05], [0.6, 0.06, 0.0]],
+	"parata": [[0.45, 0.06, 0.0]],
+	"parata_perfetta": [[0.9, 0.04, 0.06], [0.9, 0.04, 0.0]],
+	"deviazione": [[0.6, 0.03, 0.05], [0.35, 0.07, 0.0]],
+	"esecuzione": [[0.3, 0.05, 0.04], [0.5, 0.06, 0.04], [0.75, 0.08, 0.05], [1.0, 0.22, 0.0]],
+	"ferito": [[0.8, 0.2, 0.0]],
+	"atterraggio": [[0.2, 0.05, 0.0]],
+	"atterraggio_pesante": [[0.55, 0.1, 0.04], [0.3, 0.1, 0.0]],
+	"ultimo_nemico": [[0.4, 0.08, 0.07], [0.7, 0.14, 0.08], [0.3, 0.3, 0.0]],
+	"morte": [[1.0, 0.25, 0.08], [0.7, 0.4, 0.0]],
+}
 
 
 func _ready() -> void:
@@ -153,6 +175,26 @@ func vibra(forza: float, durata: float) -> void:
 	else:
 		for dispositivo in Input.get_connected_joypads():
 			Input.start_joy_vibration(dispositivo, forza * 0.6, forza, durata)
+
+
+func vibra_ritmo(nome: String) -> void:
+	# Un ritmo di RITMI. Si conta sempre (anche a vibrazione spenta: il bot la spegne); suona passo dopo passo
+	# con timer che non risentono del rallentatore né della pausa.
+	ritmi_chiesti[nome] = int(ritmi_chiesti.get(nome, 0)) + 1
+	if not RITMI.has(nome) or not Impostazioni.leggi("controlli/vibrazione"):
+		return
+	_sequenza += 1
+	var mia := _sequenza
+	var passi: Array = RITMI[nome]
+	for i in passi.size():
+		var passo: Array = passi[i]
+		vibra(float(passo[0]), float(passo[1]))
+		var attesa := float(passo[1]) + float(passo[2])
+		if i == passi.size() - 1:
+			return
+		await get_tree().create_timer(attesa, true, false, true).timeout
+		if mia != _sequenza:
+			return   # è arrivato un ritmo più recente
 
 
 func elenco_controller() -> Array:

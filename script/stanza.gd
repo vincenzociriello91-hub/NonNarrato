@@ -104,6 +104,11 @@ const MURO_SOTTO: Array[String] = [
 
 var giocatore: Giocatore
 var meccanismi := {}               # nome -> porta, leva, piastra, forziere, lastra fragile, enigma
+# Campo largo della telecamera da regista (Regia): le parti alte e ampie della galleria, dove conviene vedere
+# di più. La torre (lastre che crollano, montacarichi, forziere in cima) e il salone (balconata con arciere e
+# bestione, mago in alto, bracieri e nicchia segreta) sono alti 770 px: a zoom 1 se ne vede un terzo. La cripta
+# e il corridoio della galleria (alti solo 480 e stretti) restano a zoom normale.
+const ZONE_LARGHE := [Rect2(1900, CIELO, 440, PAVIMENTO - CIELO + 24), Rect2(2340, CIELO, 540, PAVIMENTO - CIELO + 24)]
 const ONDATE := 4                  # in ogni sogno i caduti si rialzano tre volte, ogni volta più esperti
 const ATTESA_ONDATA := 4.0
 var ondata := 1
@@ -608,6 +613,7 @@ func _cassa(dove: Vector2) -> RigidBody2D:
 	Ombra.aggiungi(cassa, _sprite("cassa", Vector2.ZERO, Effetti.L_DAVANTI, 0, cassa), 38.0)
 	Effetti.occlusore(cassa, Rect2(-17, -32, 34, 32), false)   # niente ombra: strisce dalle torce
 	cassa.add_to_group("casse")
+	cassa.set_meta("materiale", "legno")
 	add_child(cassa)
 	return cassa
 

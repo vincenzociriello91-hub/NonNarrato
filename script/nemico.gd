@@ -314,6 +314,20 @@ func tregua(si: bool) -> void:
 			sprite.riproduci("vola" if tipo == "pipistrello" else "fermo")
 
 
+func materiale() -> String:
+	# Di cosa è fatto, per gli schizzi dei colpi (Effetti.impatto): ossa, stoffa, carne, metallo, legno.
+	match tipo:
+		"scheletro":
+			return "ossa"
+		"mago", "arciere":
+			return "stoffa"
+		"mimic":
+			return "legno"
+		"bestione":
+			return "metallo" if _t_parata > 0.0 else "carne"   # la corazza risuona quando para
+	return "carne"
+
+
 func solido() -> bool:
 	# Ha un corpo che non si attraversa: non chi è morto, chi dorme a terra, chi vola, chi è in tregua.
 	return stato not in [Stato.MORTO, Stato.DORME] and tipo != "pipistrello" and not in_tregua and is_inside_tree()
@@ -1419,7 +1433,7 @@ func _reagisci_al_colpo(g: Giocatore, dx: float, dy: float) -> bool:
 
 
 func _parato(da: Vector2) -> void:
-	Effetti.scoppio(get_parent(), global_position + Vector2(verso * 14.0, -30.0), Color(1.0, 0.9, 0.6), 8, 90.0, 0.2, 100.0)
+	Effetti.impatto(get_parent(), global_position + Vector2(verso * 14.0, -30.0), "metallo", signf(global_position.x - da.x), 1.0)
 	_schivate += 1
 	_t_ricarica = 0.0   # risponde subito
 	var g := get_tree().get_first_node_in_group("giocatore") as Giocatore
@@ -1481,7 +1495,7 @@ func subisci(danno: int, da: Vector2, spinta: float, tipo_colpo: String = "", de
 	if tipo == "bestione" and tipo_colpo not in ["magia", "trappola"] and not esposto() and davanti \
 			and not dettagli.get("rompe", false):
 		sprite.riproduci("parata", true)
-		Effetti.scoppio(get_parent(), global_position + Vector2(verso * 14.0, -34.0), Color(1.0, 0.9, 0.6), 8, 90.0, 0.2, 100.0)
+		Effetti.impatto(get_parent(), global_position + Vector2(verso * 14.0, -34.0), "metallo", signf(global_position.x - da.x), 1.2)
 		Rapporto.conta("parate_bestione")
 		return false
 	vita -= danno
@@ -1516,6 +1530,7 @@ func _muori(lato: float) -> void:
 	# L'ultimo colpo pesa più degli altri: fermo un po' più lungo (vince su quello del colpo).
 	Effetti.fermo_immagine(self, 0.1 if tipo in ["bestione", "mimic"] or not nemesi.is_empty() else 0.07)
 	_cambia(Stato.MORTO)
+	_controlla_ultimo()
 	velocity = Vector2(lato * 60.0, -80.0)
 	collision_layer = 0
 	if tipo == "pipistrello":
@@ -1537,6 +1552,16 @@ func _muori(lato: float) -> void:
 	if frase != "":
 		get_tree().call_group("hud", "messaggio", frase, 3.0, true)
 	_lascia_bottino()
+
+
+func _controlla_ultimo() -> void:
+	# Morto l'ultimo nemico dell'ondata (quelli del sotterraneo non contano): la regia dilata il tempo.
+	var stanza := get_parent() as Stanza
+	if stanza == null or has_meta("sotterraneo") or stanza.nemici_vivi() > 0:
+		return
+	var g := get_tree().get_first_node_in_group("giocatore") as Giocatore
+	if g != null and g.regia != null:
+		g.regia.ultimo_nemico()
 
 
 func _lascia_bottino() -> void:

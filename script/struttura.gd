@@ -125,13 +125,16 @@ func _aggiorna_crepe() -> void:
 	_crepe.points = punti
 
 
+func materiale() -> String:
+	return "pietra" if tipo == "muro" else "legno"
+
+
 func subisci(danno: int, da: Vector2, _spinta: float) -> bool:
 	if not integra:
 		return false
 	vita -= maxi(1, danno)
 	var lato := signf(global_position.x + misura.x * 0.5 - da.x)
-	Effetti.scoppio(get_parent(), centro(), Color(0.5, 0.46, 0.44, 0.8) if tipo == "muro" else COLORE_LEGNO,
-			6, 60.0, 0.35, 200.0, false, 1.0, Vector2(lato, -0.5).normalized(), 70.0)
+	Effetti.impatto(get_parent(), centro(), materiale(), lato, 0.7)   # schegge e polvere della crepa
 	if vita <= 0:
 		_rompi.call_deferred()
 	else:

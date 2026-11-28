@@ -18,6 +18,7 @@ const PREDEFINITE := {
 	"controlli/vibrazione": true,
 	"controlli/forza_vibrazione": 1.0,
 	"gioco/numeri_danno": false,         # numeri dei danni sopra i nemici
+	"gioco/regia": true,				 # telecamera da regista: zoom sui colpi, rallentatore, campo largo
 	"gioco/messaggi": true,              # frasi delle nemesi e messaggi della storia
 	"gioco/debug": false,                # schermata con FPS e dati del dispositivo (copre l'angolo: spenta di base)
 	"gioco/controlla_aggiornamenti": true,

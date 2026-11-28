@@ -500,6 +500,62 @@ def s_crepa():
                  passa(rumore(0.05), "bandpass", [1500, 3500]) * decad(0.05, 0.008) * 0.6)
 
 
+def s_carica():
+    # Un colpo che si carica: ronzio che sale (grave, con un fruscio che si schiarisce), circa 0,9 s.
+    n = 0.9
+    f = scorri(75, 290, n)
+    corpo = passa(tono(f, n, "sega"), "lowpass", 1100) * 0.8
+    ottava = tono(f * 2.0, n) * 0.35
+    fruscio = banda_mobile(rumore(n), 400, 3000, 0.7) * 0.22
+    crescendo = np.linspace(0.2, 1.0, n_(n)) ** 1.6
+    coda = np.ones(n_(n))
+    coda[-n_(0.05):] = np.linspace(1.0, 0.0, n_(0.05))
+    return somma(corpo, ottava, fruscio) * crescendo * coda
+
+
+def s_carica_piena():
+    # Il colpo è carico: tintinnio netto di metallo, due tocchi ravvicinati.
+    primo = metallo(1850, 0.3, tau=0.1)
+    secondo = ritarda(metallo(2480, 0.3, tau=0.09) * 0.7, 0.07)
+    clic = passa(rumore(0.02), "highpass", 3500) * decad(0.02, 0.004) * 0.6
+    return somma(primo, secondo, clic)
+
+
+def s_colpo_pesante():
+    # Botto grave e corto: un colpo che pesa (sub che cala, tonfo, un crac sottile in cima).
+    sub = tono(scorri(105, 36, 0.28), 0.28) * decad(0.28, 0.07)
+    tonfo = passa(rumore(0.14), "lowpass", 520) * decad(0.14, 0.03)
+    crac = passa(rumore(0.04), "bandpass", [1200, 3000]) * decad(0.04, 0.006) * 0.55
+    return somma(sub * 1.1, tonfo, crac)
+
+
+def s_parata_perfetta():
+    # Metallo squillante, più acuto e più lungo di una parata normale, con un lampo di tintinnio in cima.
+    corpo = metallo(780, 0.8, tau=0.3)
+    squillo = campana(2637, 0.6, tau=0.25) * 0.5
+    clic = passa(rumore(0.025), "highpass", 3000) * decad(0.025, 0.005) * 0.9
+    return riverbero(somma(corpo, squillo, clic), 0.5, 0.18)
+
+
+def s_esecuzione():
+    # Il colpo grave e, dietro, la coda: un soffio che si spegne e un rimbombo che scende.
+    colpo = somma(tono(scorri(120, 38, 0.3), 0.3) * decad(0.3, 0.08) * 1.1,
+                  passa(rumore(0.12), "lowpass", 700) * decad(0.12, 0.03),
+                  passa(rumore(0.04), "bandpass", [1300, 3200]) * decad(0.04, 0.006) * 0.5)
+    n = 0.7
+    soffio = banda_mobile(rumore(n), 1900, 220, 0.8) * inviluppo(n_(n), 0.02, 0.35) * 0.55
+    rimbombo = tono(scorri(70, 32, n), n) * inviluppo(n_(n), 0.02, 0.4) * 0.5
+    return riverbero(somma(colpo, ritarda(somma(soffio, rimbombo), 0.08)), 0.9, 0.25)
+
+
+def s_stordito():
+    # Breve e sordo: il rintocco di una testa scossa.
+    n = 0.22
+    rintocco = tono(scorri(310, 150, n), n, "triangolo") * decad(n, 0.07)
+    tonfo = passa(rumore(0.08), "lowpass", 420) * decad(0.08, 0.02)
+    return passa(somma(rintocco * 0.8, tonfo), "lowpass", 1400)
+
+
 # ------------------------------------------------------------------ anelli (ambiente e musica)
 
 def s_bevi():
@@ -856,12 +912,16 @@ SUONI = {
     "presa": s_presa, "affanno": s_affanno, "tuffo": s_tuffo, "bolle": s_bolle, "respiro": s_respiro,
     "muro_rotto": s_muro_rotto, "legno_rotto": s_legno_rotto, "crepa": s_crepa,
     "bevi": s_bevi, "pozione_cade": s_pozione_cade, "mimic_ruggito": s_mimic_ruggito, "mimic_morso": s_mimic_morso,
+    "carica": s_carica, "carica_piena": s_carica_piena, "colpo_pesante": s_colpo_pesante,
+    "parata_perfetta": s_parata_perfetta, "esecuzione": s_esecuzione, "stordito": s_stordito,
 }
 # Brani lunghi in OGG: livello di picco (gli strati della musica suonano insieme: la somma resta sotto 1).
 LUNGHI = {"musica_base": (s_musica_base, 0.42), "musica_presenza": (s_musica_presenza, 0.30),
           "musica_lotta": (s_musica_lotta, 0.42), "ambiente_cripta": (s_ambiente_cripta, 0.55),
           "ambiente_sotto": (s_ambiente_sotto, 0.55)}
-LIVELLI = {"pozione_cade": 0.5, "presa": 0.5, "bolle": 0.5, "passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5}
+# I suoni della 0.1.43 non sono più forti di "colpo" (picco 0,62, 100 ms più rumorosi a -15,9 dB RMS).
+LIVELLI = {"carica": 0.31, "carica_piena": 0.58, "colpo_pesante": 0.43, "parata_perfetta": 0.52, "esecuzione": 0.39, "stordito": 0.46,
+           "pozione_cade": 0.5, "presa": 0.5, "bolle": 0.5, "passo": 0.5, "ui_tocco": 0.5, "ui_indietro": 0.5, "tiro_vuoto": 0.5}
 
 
 def main():

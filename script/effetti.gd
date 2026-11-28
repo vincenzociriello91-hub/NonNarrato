@@ -23,6 +23,38 @@ static var _luce: GradientTexture2D
 static var _luminoso: CanvasItemMaterial
 static var _piatto: CanvasItemMaterial
 static var _sfuma: Gradient
+static var fattore_regia := 1.0   # rallentatore della telecamera da regista (vedi Regia.rallenta): 1 = nessuno
+
+# Materiali dei colpi (0.1.43): schizzi e scintille diversi per ciò che si colpisce (vedi impatto).
+const MATERIALI := ["ossa", "carne", "stoffa", "metallo", "pietra", "legno"]
+# Due strati per materiale: [colore, quanti, velocità, durata, gravità, luminoso, grandezza, apertura, verso]
+# verso: 1 = nella direzione del colpo, -1 = indietro verso chi colpisce, 0 = tutto attorno (verso l'alto).
+const IMPATTI := {
+	"ossa": [
+		[Color(0.9, 0.86, 0.72), 7, 130.0, 0.38, 380.0, false, 1.5, 75.0, 1],       # schegge color osso
+		[Color(0.74, 0.7, 0.62, 0.6), 6, 38.0, 0.55, -6.0, false, 1.8, 140.0, 0],    # polverina
+	],
+	"carne": [
+		[Color(0.56, 0.05, 0.08), 9, 125.0, 0.5, 560.0, false, 1.6, 62.0, 1],       # schizzi che cadono
+		[Color(0.34, 0.03, 0.06), 4, 60.0, 0.45, 620.0, false, 2.2, 120.0, 1],      # gocce più scure e grosse
+	],
+	"stoffa": [
+		[Color(0.4, 0.32, 0.4), 7, 50.0, 0.9, 75.0, false, 2.0, 110.0, 1],          # brandelli lenti, color malva spento
+		[Color(0.5, 0.44, 0.46, 0.5), 6, 30.0, 0.7, -14.0, false, 2.2, 150.0, 0],   # polvere
+	],
+	"metallo": [
+		[Color(1.0, 0.86, 0.4), 6, 230.0, 0.28, 430.0, true, 1.0, 80.0, -1],        # scintille gialle, poche e sottili
+		[Color(1.0, 0.52, 0.16), 4, 160.0, 0.34, 380.0, true, 1.0, 140.0, -1],      # arancio
+	],
+	"pietra": [
+		[Color(0.58, 0.57, 0.62), 7, 115.0, 0.42, 460.0, false, 1.6, 80.0, 1],      # schegge grigie
+		[Color(0.5, 0.5, 0.52, 0.55), 7, 34.0, 0.7, -8.0, false, 2.3, 150.0, 0],    # polvere
+	],
+	"legno": [
+		[Color(0.5, 0.33, 0.18), 8, 125.0, 0.44, 430.0, false, 1.7, 80.0, 1],       # schegge marroni
+		[Color(0.7, 0.53, 0.33), 3, 90.0, 0.4, 450.0, false, 1.3, 100.0, 1],        # schegge chiare di taglio
+	],
+}
 
 
 static func texture_luce() -> Texture2D:
@@ -98,6 +130,47 @@ static func scoppio(genitore: Node, dove: Vector2, colore: Color, quanti: int, v
 	return p
 
 
+static func materiale_di(nodo: Object) -> String:
+	# Di cosa è fatto ciò che si colpisce: metodo materiale(), poi meta "materiale", altrimenti pietra.
+	if nodo != null and is_instance_valid(nodo):
+		var m := ""
+		if nodo.has_method("materiale"):
+			m = String(nodo.call("materiale"))
+		elif nodo.has_meta("materiale"):
+			m = String(nodo.get_meta("materiale"))
+		if MATERIALI.has(m):
+			return m
+	return "pietra"
+
+
+static func impatto(genitore: Node, dove: Vector2, materiale: String, verso: float, forza: float = 1.0) -> void:
+	# Schizzi e scintille di un colpo andato a segno: ogni materiale si riconosce subito (ossa = schegge chiare,
+	# carne = schizzi scuri che cadono, stoffa = brandelli lenti, metallo = scintille, pietra = schegge grigie
+	# e polvere, legno = schegge marroni). "verso" = direzione del colpo (+1 / -1); forza 1 = colpo normale.
+	if genitore == null or not is_instance_valid(genitore):
+		return
+	var strati: Array = IMPATTI.get(materiale, IMPATTI["pietra"])
+	var lato := 1.0 if verso >= 0.0 else -1.0
+	for s: Array in strati:
+		var v := int(s[8])
+		var dir := Vector2(lato * v, -0.45).normalized() if v != 0 else Vector2(lato * 0.3, -1.0).normalized()
+		scoppio(genitore, dove, s[0], maxi(1, roundi(float(s[1]) * forza)), float(s[2]) * (0.8 + 0.2 * forza),
+				float(s[3]), float(s[4]), bool(s[5]), float(s[6]), dir, float(s[7]))
+
+
+static func cenere(genitore: Node, dove: Vector2, quanta: int = 24) -> void:
+	# Fiocchi grigio scuro che salgono piano e svaniscono: la dissoluzione dell'esecuzione. Nascono su tutta
+	# la sagoma di un corpo (non in un mucchietto) e a più riprese.
+	if genitore == null or not is_instance_valid(genitore):
+		return
+	for strato: Array in [[Color(0.5, 0.48, 0.51, 0.95), quanta, 26.0, 1.5, -22.0, 1.8, 45.0],
+			[Color(0.28, 0.27, 0.3, 0.9), maxi(1, quanta / 2), 14.0, 1.7, -12.0, 2.4, 70.0]]:
+		var p := scoppio(genitore, dove, strato[0], strato[1], strato[2], strato[3], strato[4], false, strato[5], Vector2.UP, strato[6])
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		p.emission_rect_extents = Vector2(8.0, 15.0)
+		p.explosiveness = 0.35
+
+
 static func velocita_base() -> float:
 	# Velocità del gioco scelta in Accessibilità (1 = normale). Nelle prove resta sempre 1.
 	if Dispositivo.in_prova or Dispositivo.bot_attivo:
@@ -106,7 +179,7 @@ static func velocita_base() -> float:
 
 
 static func applica_velocita() -> void:
-	Engine.time_scale = velocita_base()
+	Engine.time_scale = velocita_base() * fattore_regia
 
 
 static func fermo_immagine(nodo: Node, durata: float) -> void:
@@ -116,7 +189,7 @@ static func fermo_immagine(nodo: Node, durata: float) -> void:
 		return
 	Engine.time_scale = 0.05
 	await nodo.get_tree().create_timer(durata, true, false, true).timeout
-	Engine.time_scale = velocita_base()
+	applica_velocita()   # torna alla velocità giusta, rallentatore della regia compreso
 
 
 static func occlusore(genitore: Node, rett: Rect2, fa_ombra: bool = true) -> LightOccluder2D:

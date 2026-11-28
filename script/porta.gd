@@ -21,6 +21,7 @@ var _voluta := 0.0
 func _ready() -> void:
 	collision_layer = Effetti.S_MONDO
 	collision_mask = 0
+	set_meta("materiale", "metallo" if foglio != "" else "pietra")   # grate e cancelli di ferro; il gradino è pietra
 	sync_to_physics = true
 	_chiusa_in = position
 	var rett := RectangleShape2D.new()

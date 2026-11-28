@@ -91,6 +91,7 @@ const SPINTA_SCALATA := 0.85        # il corpo sale a strattoni: veloce mentre l
 const SPAZIO := 14.0                   # mezza larghezza "visiva" (mantello compreso): più del corpo fisico, perché gli sprite non si coprano
 const SCOSTA_DAL_MURO := 5.0           # sulla parete lo sprite si stacca un po': mani e piedi toccano la roccia, non ci entrano
 const SALTO_MURO := Vector2(165.0, 330.0)
+const ATTERRAGGIO_PESANTE := 560.0   # velocità di caduta oltre la quale l'atterraggio si sente di più (circa 105 px di caduta)
 # Nuoto (Stanza.ACQUE) e respiro.
 const RESPIRO_MASSIMO := 100.0
 const RESPIRO_CONSUMO := 9.0        # al secondo con la testa sott'acqua: circa 11 secondi
@@ -122,6 +123,7 @@ var munizioni := MUNIZIONI_INIZIALI.duplicate()
 var sprite: SpriteAnimato
 var ombra: Ombra                 # ombra corta sul pavimento (macchia e sagome)
 var camera: Camera2D
+var regia: Regia                 # telecamera da regista: zoom sui colpi, rallentatore, campo largo
 
 var _t_stato := 0.0
 var _t_coyote := 0.0
@@ -250,6 +252,9 @@ func _ready() -> void:
 	camera.process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
 	add_child(camera)
 	camera.make_current()
+	regia = Regia.new()
+	regia.name = "Regia"
+	add_child(regia)
 
 	# Un tenue alone freddo: il Non Narrato si vede sempre, anche nel buio.
 	var aura := Effetti.luce(Color(0.6, 0.68, 1.0), 110.0, 1.0, 60.0)
@@ -284,6 +289,7 @@ func _process(delta: float) -> void:
 		camera.offset = Vector2(_rumore_scossa.get_noise_2d(_t_scossa, 0.0), _rumore_scossa.get_noise_2d(0.0, _t_scossa + 50.0)) * forza
 	else:
 		camera.offset = Vector2.ZERO
+	camera.offset += regia.spostamento   # la regia sposta la vista (primo piano): si somma alla scossa
 
 
 func _physics_process(delta: float) -> void:
@@ -547,9 +553,12 @@ func _colpisci() -> void:
 			riuscito = chi.subisci(danno, global_position, float(_colpo_ora["spinta"]))
 		if riuscito:
 			var punto: Vector2 = (area as Area2D).global_position.lerp(global_position + Vector2(verso * 24.0, -24.0), 0.5)
-			Effetti.scoppio(get_parent(), punto, Color(1.0, 0.9, 0.7), 8, 110.0, 0.22, 200.0)
+			# Schizzi e scintille secondo ciò che si colpisce (ossa, carne, stoffa, metallo, pietra, legno).
+			Effetti.impatto(get_parent(), punto, Effetti.materiale_di(chi), float(verso), 0.8 + 0.25 * danno)
 			scuoti(2.0 + danno * 0.8)
-			Controlli.vibra(0.3 + 0.1 * danno, 0.08)
+			Controlli.vibra_ritmo("colpo_leggero" if danno <= 1 else ("colpo_medio" if danno == 2 else "colpo_pesante"))
+			if danno >= 2:
+				regia.colpo(float(danno))   # i colpi forti allargano un attimo l'inquadratura
 			Suoni.suona("colpo", punto, 0.0, 1.1 - 0.06 * danno)
 			Effetti.fermo_immagine(self, 0.04 + 0.015 * danno)
 
@@ -1177,8 +1186,9 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 	if sta_parando(da):
 		Rapporto.conta("parate_riuscite")
 		Suoni.suona("parata", global_position)
-		Effetti.scoppio(get_parent(), global_position + Vector2(verso * 12.0, -26.0), Color(1.0, 0.92, 0.7), 10, 120.0, 0.25, 150.0)
+		Effetti.impatto(get_parent(), global_position + Vector2(verso * 12.0, -26.0), "metallo", -float(verso), 1.2)
 		scuoti(2.0)
+		Controlli.vibra_ritmo("parata")
 		velocity.x = -verso * 60.0
 		if is_instance_valid(chi) and chi.has_method("barcolla"):
 			chi.call("barcolla", 0.8)   # chi colpisce uno scudo resta scoperto
@@ -1197,7 +1207,8 @@ func subisci(danno: int, da: Vector2, spinta: float, chi: Node = null) -> bool:
 	vita_cambiata.emit(vita, VITA_MASSIMA)
 	Rapporto.conta("colpi_subiti")
 	Rapporto.evento("colpito", {"vita": vita, "x": roundi(global_position.x), "y": roundi(global_position.y)})
-	Controlli.vibra(0.8, 0.2)
+	Controlli.vibra_ritmo("ferito")
+	regia.colpo(2.0)
 	scuoti(5.0)
 	Effetti.lampo(sprite)
 	Effetti.fermo_immagine(self, 0.09)   # un attimo per capire cosa ti ha colpito
@@ -1247,7 +1258,7 @@ func _muori() -> void:
 	sprite.riponi_armi(false)
 	Rapporto.evento("morte", {"x": roundi(global_position.x), "y": roundi(global_position.y), "da": assassino})
 	Suoni.suona("morte")
-	Controlli.vibra(1.0, 0.4)
+	Controlli.vibra_ritmo("morte")
 
 
 func scuoti(forza: float) -> void:
@@ -1500,7 +1511,7 @@ func ferita_ambiente(danno: int, causa: String) -> void:
 	Rapporto.evento("ferita", {"causa": causa, "vita": vita})
 	Effetti.lampo(sprite)
 	Suoni.suona("colpito", global_position, -4.0, 0.8)
-	Controlli.vibra(0.5, 0.15)
+	Controlli.vibra_ritmo("ferito")
 	get_tree().call_group("hud", "didascalia", "[senza respiro]" if causa == "annegamento" else "[ferito]")
 	if vita <= 0:
 		_muori()
@@ -1622,7 +1633,7 @@ func _atterrato() -> void:
 	if _velocita_caduta > 220.0:
 		_t_atterra = 0.14
 		_polvere(5)
-		Controlli.vibra(0.2, 0.05)
+		Controlli.vibra_ritmo("atterraggio_pesante" if _velocita_caduta > ATTERRAGGIO_PESANTE else "atterraggio")
 		Suoni.suona("atterra", global_position, -3.0)
 		# Schiacciato un attimo dall'atterraggio (il perno è ai piedi: resta appoggiato a terra).
 		var peso := clampf((_velocita_caduta - 220.0) / 400.0, 0.0, 1.0)

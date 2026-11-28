@@ -189,6 +189,8 @@ func _costruisci_gioco(p: VBoxContainer) -> void:
 	_cursore(p, "Forza della vibrazione", "controlli/forza_vibrazione", 0.2, 1.0, 0.1, "%d%%", false, 100.0)
 	_sezione(p, "Partita")
 	_interruttore(p, "Numeri dei danni sopra i nemici", "gioco/numeri_danno")
+	_interruttore(p, "Telecamera da regista", "gioco/regia")
+	_nota(p, "Un piccolo zoom sui colpi forti, il tempo che rallenta all'ultimo nemico e, nei saloni più alti, più mondo in vista (quest'ultimo solo con la grafica alta).")
 	_interruttore(p, "Frasi delle nemesi e messaggi della storia", "gioco/messaggi")
 	_interruttore(p, "Schermata di debug (FPS e dispositivo)", "gioco/debug")
 	_sezione(p, "Il tuo dispositivo")

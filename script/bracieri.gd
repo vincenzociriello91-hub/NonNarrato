@@ -39,6 +39,7 @@ class Braciere extends Area2D:
 		collision_mask = 0
 		monitoring = false
 		set_meta("bersaglio", self)
+		set_meta("materiale", "metallo")
 		var rett := RectangleShape2D.new()
 		rett.size = Vector2(26, 40)
 		var forma := CollisionShape2D.new()

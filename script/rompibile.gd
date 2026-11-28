@@ -15,6 +15,7 @@ func _ready() -> void:
 	collision_mask = 0
 	monitoring = false
 	set_meta("bersaglio", self)
+	set_meta("materiale", "legno")
 	z_index = 2
 
 	sprite = SpriteAnimato.new()
@@ -106,6 +107,7 @@ func _rompi(da: Vector2) -> void:
 			tw.tween_callback(pezzo.queue_free)
 	Effetti.scoppio(get_parent(), global_position + Vector2(0.0, -misura.y * 0.5), Color(0.52, 0.43, 0.33, 0.8),
 			14, 90.0, 0.5, 220.0, false)
+	Effetti.impatto(get_parent(), global_position + Vector2(0.0, -misura.y * 0.5), "legno", lato, 1.4)   # schegge di legno
 	if not silenzioso:
 		Controlli.vibra(0.5, 0.1)
 		_lascia_munizioni()

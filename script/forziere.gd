@@ -30,6 +30,7 @@ func _ready() -> void:
 	if oro:
 		sprite.modulate = Color(1.12, 1.0, 0.78)
 	z_index = -1
+	set_meta("materiale", "legno")
 	_caso.seed = hash(nome) + int(Memoria.sogni) * 7919
 	Effetti.occlusore(self, Rect2(-14, -26, 28, 24), false)   # niente ombra: strisce dalle torce
 	Ombra.aggiungi(self, sprite, 32.0)

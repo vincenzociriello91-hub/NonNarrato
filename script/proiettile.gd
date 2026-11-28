@@ -25,6 +25,7 @@ var _gia_colpiti: Array = []
 var _vita := 3.5
 var _spenta := false
 var _colpito := false
+var _materiale_colpito := ""	  # di cosa era fatto ciò che ha colpito: dà il tipo di schegge (vedi _svanisci)
 
 
 static func gravita_di(tipo_colpo: String) -> float:
@@ -67,6 +68,8 @@ func _ready() -> void:
 	body_entered.connect(func(corpo: Node2D) -> void:
 		if amico() and corpo is Struttura:
 			_colpisci_nemico(corpo)   # un muro crepato o un ripiano di legno: anche un tiro lo crepa
+		elif _materiale_colpito == "":
+			_materiale_colpito = "pietra"   # un muro: schegge di pietra
 		_svanisci())
 	area_entered.connect(_su_area)
 
@@ -161,10 +164,12 @@ func _su_area(area: Area2D) -> void:
 		return
 	if chi is Giocatore and (chi as Giocatore).sta_parando(global_position):
 		(chi as Giocatore).subisci(danno, global_position, 150.0, null)   # parato dallo scudo: si spegne qui
+		_materiale_colpito = "metallo"
 		_svanisci()
 		return
 	if chi is Giocatore and (chi as Giocatore).subisci(danno, global_position, 150.0, autore):
 		_colpito = true
+		_materiale_colpito = "carne"
 		if tipo == "freccia" and autore == null:
 			Rapporto.conta("trappole_subite")
 			Rapporto.evento("trappola", {"cosa": "freccia", "x": roundi(global_position.x)})
@@ -189,6 +194,8 @@ func _colpisci_nemico(chi: Variant) -> void:
 			Rapporto.conta("tiri_a_segno")
 	else:
 		a_segno = chi.subisci(danno, global_position, 110.0)
+	if a_segno:
+		_materiale_colpito = Effetti.materiale_di(chi)
 	if a_segno and is_instance_valid(autore) and autore.has_method("scuoti"):
 		autore.call("scuoti", 1.5)
 	if chi is Nemico and perfora > 0:
@@ -237,7 +244,11 @@ func _svanisci() -> void:
 		Suoni.suona("impatto_tiro", global_position, -6.0, 0.8 if tipo in ["sfera", "magia_eroe"] else 1.2)
 	match tipo:
 		"freccia", "freccia_eroe", "dardo":
-			Effetti.scoppio(get_parent(), global_position, Color(0.6, 0.5, 0.4, 0.8), 6, 60.0, 0.3, 200.0, false)
+			if _materiale_colpito != "":
+				# Schegge di ciò che ha colpito, nella direzione del volo (a metà forza: sono colpi piccoli).
+				Effetti.impatto(get_parent(), global_position, _materiale_colpito, signf(velocita.x), 0.6)
+			else:
+				Effetti.scoppio(get_parent(), global_position, Color(0.6, 0.5, 0.4, 0.8), 6, 60.0, 0.3, 200.0, false)
 		"magia_eroe":
 			Effetti.scoppio(get_parent(), global_position, COLORE_MAGIA, 10, 80.0, 0.35, 0.0)
 		_:

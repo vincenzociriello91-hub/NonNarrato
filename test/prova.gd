@@ -312,6 +312,7 @@ func _esegui() -> void:
 	await _prova_movimenti()
 	await _prova_atmosfera()
 	await _prova_figure()
+	await _prova_sensazioni()
 	_prova_quaternius()
 	await _prova_titolo_e_salvataggi()
 	await _prova_sotterraneo()
@@ -1370,6 +1371,329 @@ func _prova_atmosfera() -> void:
 	_verifica("atmosfera: il livello ultra esiste e si sceglie", Dispositivo.livello == "ultra" and float(Dispositivo.profilo["particelle"]) > 1.0)
 	Impostazioni.scegli_qualita(vecchia)
 	await _fotogrammi(6)
+
+
+func _prova_sensazioni() -> void:
+	# Libreria delle sensazioni (0.1.43): impatti per materiale, ritmi di vibrazione, telecamera da regista,
+	# stelle dello stordimento, suoni nuovi.
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	var stanza: Stanza = _principale.stanza
+	var g := _g()
+	var regia_prima: Variant = Impostazioni.leggi("gioco/regia")
+	var vibrazione_prima: Variant = Impostazioni.leggi("controlli/vibrazione")
+	Impostazioni.scrivi("gioco/regia", true)
+	Impostazioni.scrivi("controlli/vibrazione", true)
+	# --- Impatti: ogni materiale fa particelle, e si distinguono (colore del primo strato, scintille luminose).
+	var banco := Node2D.new()
+	stanza.add_child(banco)
+	var primi := {}
+	var conteggi := {}
+	var luminosi: Array = []
+	for m: String in Effetti.MATERIALI:
+		var prima := banco.get_child_count()
+		Effetti.impatto(banco, Vector2(0, -20), m, 1.0, 1.0)
+		conteggi[m] = banco.get_child_count() - prima
+		var p0 := banco.get_child(prima) as CPUParticles2D
+		primi[m] = p0.color.to_html()
+		if p0.material == Effetti.materiale_luminoso():
+			luminosi.append(m)
+	var distinti := {}
+	for m: String in primi:
+		distinti[primi[m]] = true
+	_verifica("sensazioni: ogni materiale fa particelle (almeno due strati)", conteggi.values().all(func(c: int) -> bool: return c >= 2), str(conteggi))
+	_verifica("sensazioni: i sei materiali hanno colori diversi", distinti.size() == Effetti.MATERIALI.size() and Effetti.MATERIALI.size() == 6, str(primi))
+	_verifica("sensazioni: solo il metallo ha scintille luminose", luminosi == ["metallo"], str(luminosi))
+	var prima_cenere := banco.get_child_count()
+	Effetti.cenere(banco, Vector2(0, -20), 24)
+	_verifica("sensazioni: la cenere fa particelle grigie", banco.get_child_count() - prima_cenere >= 2
+			and (banco.get_child(prima_cenere) as CPUParticles2D).color.s < 0.15)
+	var sconosciuto := banco.get_child_count()
+	Effetti.impatto(banco, Vector2.ZERO, "inesistente", -1.0)
+	_verifica("sensazioni: un materiale sconosciuto vale pietra", banco.get_child_count() > sconosciuto)
+	banco.queue_free()
+	# --- materiale_di: nemici, barile, cassa, struttura, forziere, grata, sconosciuto.
+	var attesi := {"scheletro": "ossa", "mago": "stoffa", "arciere": "stoffa", "saltatore": "carne", "pipistrello": "carne",
+			"bestione": "carne", "mimic": "legno"}
+	var sbagliati: Array = []
+	for tipo: String in attesi:
+		var n := Nemico.new()
+		n.tipo = tipo
+		if Effetti.materiale_di(n) != attesi[tipo]:
+			sbagliati.append("%s %s" % [tipo, Effetti.materiale_di(n)])
+		if tipo == "bestione":
+			n.set("_t_parata", 0.3)
+			if Effetti.materiale_di(n) != "metallo":
+				sbagliati.append("bestione che para")
+		n.free()
+	_verifica("sensazioni: materiale dei nemici (il bestione che para è di metallo)", sbagliati.is_empty(), str(sbagliati))
+	var oggetti_ok := true
+	var oggetti: Array = []
+	for gruppo: String in ["rompibili", "casse", "forzieri"]:
+		var nodi := get_tree().get_nodes_in_group(gruppo)
+		oggetti_ok = oggetti_ok and not nodi.is_empty() and Effetti.materiale_di(nodi[0]) == "legno"
+		oggetti.append("%s %s" % [gruppo, Effetti.materiale_di(nodi[0]) if not nodi.is_empty() else "-"])
+	_verifica("sensazioni: barili, casse e forzieri sono di legno", oggetti_ok, str(oggetti))
+	var strutture := {}
+	for n: Node in get_tree().get_nodes_in_group("strutture"):
+		strutture[(n as Struttura).tipo] = Effetti.materiale_di(n)
+	_verifica("sensazioni: le strutture sono di pietra o di legno secondo il tipo", strutture.get("muro", "") == "pietra" and strutture.get("legno", "") == "legno", str(strutture))
+	_verifica("sensazioni: grate e bracieri sono di metallo, il resto pietra", Effetti.materiale_di(stanza.meccanismi["porta_alcova"]) == "metallo"
+			and Effetti.materiale_di(stanza.meccanismi["gradino"]) == "pietra" and Effetti.materiale_di(null) == "pietra"
+			and Effetti.materiale_di(Node.new()) == "pietra")
+	# --- Ritmi di vibrazione.
+	var nomi_ritmi := ["colpo_leggero", "colpo_medio", "colpo_pesante", "colpo_caricato", "carica_piena", "parata", "parata_perfetta",
+			"deviazione", "esecuzione", "ferito", "atterraggio", "atterraggio_pesante", "ultimo_nemico", "morte"]
+	var ritmi_male: Array = []
+	for nome: String in nomi_ritmi:
+		var passi: Variant = Controlli.RITMI.get(nome, [])
+		if not passi is Array or (passi as Array).is_empty():
+			ritmi_male.append(nome + " manca")
+			continue
+		for passo: Array in passi:
+			if passo.size() != 3 or float(passo[0]) <= 0.0 or float(passo[0]) > 1.0 or float(passo[1]) <= 0.0 or float(passo[2]) < 0.0:
+				ritmi_male.append(nome + " passo")
+	_verifica("sensazioni: c'è un ritmo valido per ogni evento", ritmi_male.is_empty() and Controlli.RITMI.size() >= nomi_ritmi.size(), str(ritmi_male))
+	var contati := true
+	for nome: String in nomi_ritmi:
+		var prima := int(Controlli.ritmi_chiesti.get(nome, 0))
+		Controlli.vibra_ritmo(nome)
+		contati = contati and int(Controlli.ritmi_chiesti.get(nome, 0)) == prima + 1
+	Impostazioni.scrivi("controlli/vibrazione", false)
+	var prima_spenta := int(Controlli.ritmi_chiesti.get("parata", 0))
+	Controlli.vibra_ritmo("parata")
+	Impostazioni.scrivi("controlli/vibrazione", vibrazione_prima)
+	_verifica("sensazioni: ogni ritmo si conta, anche a vibrazione spenta", contati and int(Controlli.ritmi_chiesti.get("parata", 0)) == prima_spenta + 1)
+	var lunghezze := {}
+	for nome: String in ["colpo_leggero", "colpo_pesante", "esecuzione"]:
+		var tot := 0.0
+		for passo: Array in Controlli.RITMI[nome]:
+			tot += float(passo[1]) + float(passo[2])
+		lunghezze[nome] = tot
+	_verifica("sensazioni: colpo leggero corto, pesante più lungo, esecuzione la più lunga",
+			lunghezze["colpo_leggero"] < lunghezze["colpo_pesante"] and lunghezze["colpo_pesante"] < lunghezze["esecuzione"], str(lunghezze))
+	# Essere feriti chiede il ritmo "ferito" e dà un colpetto di zoom.
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	var regia := g.regia
+	_verifica("regia: figlia del giocatore col nome Regia", regia != null and g.get_node_or_null("Regia") == regia)
+	g.vita = Giocatore.VITA_MASSIMA
+	g.set("_t_protetto", 0.0)
+	g.stato = Giocatore.Stato.NORMALE
+	await _fotogrammi(20)
+	_verifica("regia: a riposo zoom 1 e nessuno spostamento", is_equal_approx(regia.zoom_ora, 1.0) and g.camera.zoom == Vector2.ONE and regia.spostamento == Vector2.ZERO)
+	var feriti := int(Controlli.ritmi_chiesti.get("ferito", 0))
+	g.subisci(1, g.global_position + Vector2(30, 0), 0.0)
+	await _fotogrammi(3)
+	_verifica("regia: essere feriti dà il ritmo \"ferito\" e un colpetto di zoom", int(Controlli.ritmi_chiesti.get("ferito", 0)) == feriti + 1 and regia.zoom_ora > 1.0,
+			"zoom %.3f" % regia.zoom_ora)
+	g.vita = Giocatore.VITA_MASSIMA
+	g.set("_t_protetto", 0.0)
+	g.stato = Giocatore.Stato.NORMALE
+	await _fotogrammi(40)
+	# --- Zoom del colpo: sale, non supera 1,10 anche con tanti colpi, torna a 1.
+	var zoom_conti := Rapporto.contatore("regia_zoom")
+	regia.colpo(2.0)
+	await _fotogrammi(2)
+	var salito := regia.zoom_ora
+	for i in 6:
+		regia.colpo(3.0)
+	await _fotogrammi(2)
+	var massimo := regia.zoom_ora
+	await _fotogrammi(40)
+	_verifica("regia: il colpetto porta lo zoom sopra 1, mai oltre 1,10, e torna a 1", salito > 1.0 and massimo <= 1.1001 and massimo > salito
+			and is_equal_approx(regia.zoom_ora, 1.0) and g.camera.zoom == Vector2.ONE and Rapporto.contatore("regia_zoom") == zoom_conti + 7,
+			"salito %.3f, massimo %.3f, dopo %.3f" % [salito, massimo, regia.zoom_ora])
+	# --- Primo piano: zoom e telecamera verso il punto, poi torna; con i limiti della stanza rispettati.
+	var piani := Rapporto.contatore("regia_primi_piani")
+	regia.primo_piano(g.global_position + Vector2(60, -20), 1.2, 0.3)
+	var picco_zoom := 0.0
+	var picco_spostamento := Vector2.ZERO
+	var offset_visto := false
+	for i in 24:
+		await _fotogrammi(1)
+		picco_zoom = maxf(picco_zoom, regia.zoom_ora)
+		if regia.spostamento.length() > picco_spostamento.length():
+			picco_spostamento = regia.spostamento
+		offset_visto = offset_visto or g.camera.offset.length() > 1.0
+	await _fotogrammi(45)
+	_verifica("regia: il primo piano ingrandisce, sposta la vista verso il punto e torna a riposo",
+			picco_zoom > 1.15 and picco_zoom <= 1.2001 and picco_spostamento.x > 5.0 and offset_visto
+			and is_equal_approx(regia.zoom_ora, 1.0) and regia.spostamento == Vector2.ZERO and Rapporto.contatore("regia_primi_piani") == piani + 1,
+			"zoom %.3f, spostamento %s" % [picco_zoom, str(picco_spostamento)])
+	await _sposta(Vector2(100, Stanza.PAVIMENTO), -1)
+	regia.primo_piano(Vector2(-400, Stanza.PAVIMENTO), 1.2, 0.3)
+	await _fotogrammi(20)
+	var meta_vista := g.camera.get_viewport_rect().size / (g.camera.zoom * 2.0)
+	_verifica("regia: la vista del primo piano non esce dai limiti della stanza",
+			g.camera.get_screen_center_position().x - meta_vista.x >= float(g.camera.limit_left) - 1.0,
+			"centro %s, mezza vista %s" % [str(g.camera.get_screen_center_position()), str(meta_vista)])
+	await _fotogrammi(50)
+	# --- Rallentatore: in prova il tempo non cambia, ma si conta.
+	var rallentatori := Rapporto.contatore("rallentatori")
+	var velocita := Engine.time_scale
+	regia.rallenta(0.3, 0.5)
+	_verifica("regia: in prova il rallentatore non cambia il tempo ma conta", is_equal_approx(Engine.time_scale, velocita)
+			and Rapporto.contatore("rallentatori") == rallentatori + 1, "tempo %.2f" % Engine.time_scale)
+	# Fuori dalla prova: il rallentatore rallenta davvero, un fermo immagine non lo rovina, e alla fine la velocità è giusta.
+	Dispositivo.in_prova = false
+	var fermo_visto := false
+	var rallentato_visto := false
+	var normale_dopo := false
+	var pausa_dopo := false
+	var meno_lampi_ok := false
+	if not Dispositivo.bot_attivo:
+		var in_secondi := func(s: float) -> void: await get_tree().create_timer(s, true, false, true).timeout
+		Effetti.fermo_immagine(g, 0.1)   # fermo immagine in corso...
+		fermo_visto = is_equal_approx(Engine.time_scale, 0.05)
+		regia.rallenta(0.3, 0.4)         # ...e subito un rallentatore
+		await in_secondi.call(0.2)       # il fermo è finito: resta il rallentatore, non la velocità piena
+		rallentato_visto = is_equal_approx(Engine.time_scale, 0.3) and Effetti.fattore_regia < 1.0
+		Effetti.fermo_immagine(g, 0.1)   # un fermo durante il rallentatore non fa niente
+		await in_secondi.call(0.4)
+		normale_dopo = is_equal_approx(Engine.time_scale, Effetti.velocita_base()) and is_equal_approx(Effetti.fattore_regia, 1.0)
+		# Il rallentatore e la pausa del gioco (il menu): la velocità torna giusta anche se si mette in pausa.
+		regia.rallenta(0.3, 0.3)
+		get_tree().paused = true
+		await in_secondi.call(0.5)
+		get_tree().paused = false
+		pausa_dopo = is_equal_approx(Engine.time_scale, Effetti.velocita_base()) and is_equal_approx(Effetti.fattore_regia, 1.0)
+		# "Meno lampi": niente rallentatore.
+		Impostazioni.scrivi("acc/meno_lampi", true)
+		regia.rallenta(0.3, 0.3)
+		meno_lampi_ok = is_equal_approx(Engine.time_scale, Effetti.velocita_base())
+		Impostazioni.scrivi("acc/meno_lampi", false)
+	Engine.time_scale = 1.0
+	Effetti.fattore_regia = 1.0
+	Dispositivo.in_prova = true
+	if not Dispositivo.bot_attivo:
+		_verifica("regia: rallentatore vero, compatibile con il fermo immagine, torna alla velocità giusta anche in pausa e con meno lampi",
+				fermo_visto and rallentato_visto and normale_dopo and pausa_dopo and meno_lampi_ok,
+				"fermo %s, rallentato %s, normale %s, pausa %s, meno lampi %s" % [fermo_visto, rallentato_visto, normale_dopo, pausa_dopo, meno_lampi_ok])
+	# L'ultimo nemico: rallentatore (contato) + zoom + ritmo.
+	var r_ultimo := Rapporto.contatore("rallentatori")
+	var v_ultimo := int(Controlli.ritmi_chiesti.get("ultimo_nemico", 0))
+	regia.ultimo_nemico()
+	await _fotogrammi(2)
+	_verifica("regia: ultimo nemico = rallentatore contato, zoom e ritmo", Rapporto.contatore("rallentatori") == r_ultimo + 1 and regia.zoom_ora > 1.0
+			and int(Controlli.ritmi_chiesti.get("ultimo_nemico", 0)) == v_ultimo + 1)
+	await _fotogrammi(50)
+	# Muore davvero l'ultimo nemico dell'ondata: la regia lo sa (quelli del sotterraneo non contano).
+	var da_uccidere: Array = []
+	for n: Node in get_tree().get_nodes_in_group("nemici"):
+		if (n as Nemico).stato != Nemico.Stato.MORTO and n.get_parent() == stanza:
+			da_uccidere.append(n)
+	var sotterranei := da_uccidere.filter(func(n: Node) -> bool: return n.has_meta("sotterraneo"))
+	var in_ondata := da_uccidere.filter(func(n: Node) -> bool: return not n.has_meta("sotterraneo"))
+	var ultimi := Rapporto.contatore("rallentatori")
+	var tutti_prima := true
+	for i in in_ondata.size():
+		var n := in_ondata[i] as Nemico
+		n.vita = 0
+		n.call("_muori", 1.0)
+		if i < in_ondata.size() - 1 and Rapporto.contatore("rallentatori") != ultimi:
+			tutti_prima = false   # non deve scattare prima dell'ultimo
+	_verifica("regia: il rallentatore scatta solo alla morte dell'ultimo nemico dell'ondata", tutti_prima and not in_ondata.is_empty()
+			and Rapporto.contatore("rallentatori") == ultimi + 1, "nemici %d, sotterranei %d" % [in_ondata.size(), sotterranei.size()])
+	_principale.ricomincia_stanza()
+	await _fotogrammi(20)
+	stanza = _principale.stanza
+	g = _g()
+	regia = g.regia
+	# --- Regia spenta: niente zoom, niente rallentatore.
+	Impostazioni.scrivi("gioco/regia", false)
+	var conti_spenta := [Rapporto.contatore("regia_zoom"), Rapporto.contatore("regia_primi_piani"), Rapporto.contatore("rallentatori")]
+	regia.colpo(5.0)
+	regia.primo_piano(g.global_position + Vector2(60, 0))
+	regia.rallenta(0.3, 0.5)
+	await _fotogrammi(4)
+	_verifica("regia: con \"gioco/regia\" spento lo zoom resta 1 e non conta niente", is_equal_approx(regia.zoom_ora, 1.0) and g.camera.zoom == Vector2.ONE
+			and conti_spenta == [Rapporto.contatore("regia_zoom"), Rapporto.contatore("regia_primi_piani"), Rapporto.contatore("rallentatori")])
+	Impostazioni.scrivi("gioco/regia", true)
+	# --- Campo largo: solo con il profilo giusto e le figure in doppia definizione.
+	var senza_chiave: Array = []
+	for livello: String in Dispositivo.LIVELLI:
+		if not (Dispositivo.PROFILI[livello] as Dictionary).has("campo_largo"):
+			senza_chiave.append(livello)
+	var d := Dispositivo.PROFILI
+	_verifica("regia: campo largo solo nei livelli alta e ultra", senza_chiave.is_empty() and not d["bassa"]["campo_largo"] and not d["media"]["campo_largo"]
+			and d["alta"]["campo_largo"] and d["ultra"]["campo_largo"], str(senza_chiave))
+	var zone_ok := not Stanza.ZONE_LARGHE.is_empty()
+	for r: Rect2 in Stanza.ZONE_LARGHE:
+		zone_ok = zone_ok and r.position.x >= 0.0 and r.end.x <= float(Stanza.LARGHEZZA) and r.position.y >= float(Stanza.CIELO)
+	_verifica("regia: le zone larghe stanno dentro la stanza", zone_ok)
+	var densita_prima := SpriteAnimato.densita_figure
+	var campo_prima: Variant = Dispositivo.profilo.get("campo_largo", false)
+	Dispositivo.profilo["campo_largo"] = true
+	SpriteAnimato.densita_figure = 1
+	await _sposta(Vector2(2000, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(70)
+	var zoom_dens1 := regia.zoom_ora
+	var largo_dens1 := regia.in_campo_largo
+	var conti_largo := Rapporto.contatore("regia_campo_largo")
+	SpriteAnimato.densita_figure = 2
+	await _fotogrammi(70)
+	var zoom_dentro := regia.zoom_ora
+	var contato := Rapporto.contatore("regia_campo_largo") == conti_largo + 1
+	await _sposta(Vector2(600, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(70)
+	var zoom_fuori := regia.zoom_ora
+	Dispositivo.profilo["campo_largo"] = false
+	await _sposta(Vector2(2000, Stanza.PAVIMENTO), 1)
+	await _fotogrammi(70)
+	var zoom_spento := regia.zoom_ora
+	Dispositivo.profilo["campo_largo"] = campo_prima
+	SpriteAnimato.densita_figure = densita_prima
+	_verifica("regia: campo largo 0,85 nelle zone larghe solo con profilo e doppia definizione, 1 fuori",
+			is_equal_approx(zoom_dens1, 1.0) and not largo_dens1 and absf(zoom_dentro - Regia.ZOOM_LARGO) < 0.005 and contato
+			and is_equal_approx(zoom_fuori, 1.0) and is_equal_approx(zoom_spento, 1.0),
+			"densità 1: %.3f, dentro %.3f, fuori %.3f, profilo spento %.3f" % [zoom_dens1, zoom_dentro, zoom_fuori, zoom_spento])
+	# Il caldo spegne il campo largo.
+	var livello_prima: String = Impostazioni.leggi("grafica/qualita")
+	var caldo_prima := Dispositivo.riduzione_caldo
+	Impostazioni.scegli_qualita("ultra")
+	Dispositivo.riduzione_caldo = 0
+	Dispositivo.applica()
+	var largo_freddo: bool = Dispositivo.profilo.get("campo_largo", false)
+	Dispositivo.riduzione_caldo = 1
+	Dispositivo.applica()
+	var largo_caldo: bool = Dispositivo.profilo.get("campo_largo", true)
+	Dispositivo.riduzione_caldo = caldo_prima
+	Impostazioni.scegli_qualita(livello_prima)
+	_verifica("regia: il caldo spegne il campo largo", largo_freddo and not largo_caldo, "freddo %s, caldo %s" % [largo_freddo, largo_caldo])
+	# --- L'impostazione ha scheda e interruttore nel menu.
+	_verifica("regia: \"gioco/regia\" è nella scheda Gioco, accesa di base, col suo interruttore", Impostazioni.PREDEFINITE.get("gioco/regia", false) == true
+			and Impostazioni.scheda_di("gioco/regia") == "gioco" and (_principale.menu.get("_controlli") as Dictionary).has("gioco/regia"))
+	# --- Stelle dello stordimento.
+	var stelle := Stordimento.new()
+	_verifica("stordimento: da creato è nascosto", not stelle.visible)
+	g.add_child(stelle)
+	stelle.position = Vector2(0, -60)
+	stelle.mostra(true)
+	await _fotogrammi(5)
+	var gialle := stelle.visible and stelle.is_processing() and stelle.z_index >= 20 and stelle.light_mask == 0
+	stelle.mostra(true, true)
+	await _fotogrammi(3)
+	var rosse: bool = stelle.visible and bool(stelle.get("_rosse"))
+	stelle.mostra(false)
+	_verifica("stordimento: si crea, si mostra gialle e rosse e si nasconde", gialle and rosse and not stelle.visible and not stelle.is_processing())
+	stelle.queue_free()
+	# --- Suoni nuovi: i file ci sono e le didascalie pure.
+	var suoni_nuovi := ["carica", "carica_piena", "colpo_pesante", "parata_perfetta", "esecuzione", "stordito"]
+	var senza_file: Array = []
+	var senza_didascalia: Array = []
+	for nome: String in suoni_nuovi:
+		if not ResourceLoader.exists(Suoni.CARTELLA + nome + ".wav"):
+			senza_file.append(nome)
+		if not Suoni.DIDASCALIE.has(nome):
+			senza_didascalia.append(nome)
+	_verifica("sensazioni: i sei suoni nuovi esistono e hanno la didascalia", senza_file.is_empty() and senza_didascalia.is_empty(), "%s %s" % [senza_file, senza_didascalia])
+	var suonati := int(Suoni.suonati)
+	for nome: String in suoni_nuovi:
+		Suoni.suona(nome, g.global_position)
+	_verifica("sensazioni: i suoni nuovi suonano", int(Suoni.suonati) == suonati + suoni_nuovi.size())
+	Impostazioni.scrivi("gioco/regia", regia_prima)
+	Impostazioni.scrivi("controlli/vibrazione", vibrazione_prima)
+	Impostazioni.scrivi("acc/meno_lampi", false)
 
 
 func _prova_figure() -> void:
