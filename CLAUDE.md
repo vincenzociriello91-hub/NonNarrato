@@ -513,3 +513,40 @@ Tutte CC0 (licenza letta nel file o nella pagina), scaricate davvero, convertite
 - `"colore"` nelle `SOSTITUZIONI` può essere {nome del materiale: colore} (elmo con le corna: "metal" e "horn", senza texture).
 - Prima di ogni push con armi o armature toccate: `strumenti/foglio_armi.gd` (armi e armature, tutte le animazioni) e foto
   ingrandite guardate una per una.
+
+## Colpi che si sentono (0.1.43, fase 5.2)
+
+- Fatta a pezzi da tre aiutanti (libreria, mosse, bot) con un progetto e nomi fissi scritti prima; la sessione principale
+  ha rivisto foto e prove e corretto i difetti.
+- Colpo caricato: `Giocatore.Stato.CARICA` (in fondo all'enum), `carica_colpo()` 0..1. La carica conta dalla pressione di
+  Attacca; se alla fine della finestra del colpo il tasto è ancora giù si entra in CARICA (40% della corsa, luce e scintille
+  sull'arma, posa = inizio di "attacco2"). `Armi.tempo_carica(fam)` (0,5 / 0,7 / 0,9 s), sotto `CARICA_MINIMA` (0,6) lasciando
+  si annulla (a 0,35 bastava tenere un attimo: non tornare lì), `Armi.colpo_caricato(dati, k)` = ultimo colpo della famiglia,
+  a carica piena +1 danno, stordisce 0,8 e `rompe`. Tenuta al massimo `CARICA_TENUTA` s. Essere colpiti la annulla.
+- Parata perfetta: scudo alzato da meno di `Armi.PARATA_PERFETTA` (0,14 s) → `Giocatore._parata_perfetta(chi)`:
+  `apri_guardia(1,6)` al nemico da mischia e chi gioca torna subito NORMALE (prima restava 0,42 s a scudo alto e con le
+  armi lente lo stordimento finiva). Deviazione: colpo di chi gioca mentre `Nemico.colpo_imminente()` (0,12 s prima del
+  suo colpo) → `devia()`, `apri_guardia(1,2)`; il dettaglio `"devia"` salta parata, corazza del bestione e resistenze.
+- `Nemico.apri_guardia(d)`, `stordito()` (`_t_stordito` e stato COLPITO), stelle `Stordimento` (rosse se `eseguibile()`),
+  `soglia_esecuzione()` = max(1, 40% della vita massima), `giustizia(lato, famiglia)`: colpo da mischia su uno stordito
+  sotto la soglia = morte, cenere, primo piano, rallentatore, +1 vita, `_t_giustizia` 0,5 s di protezione (in
+  `intoccabile()`, non `_t_protetto`: quello fa lampeggiare). Colpire uno stordito: +1 danno. Il pipistrello non si stordisce.
+  Uno stordito non si scosta da casse e forzieri (`_scosta_dagli_oggetti`): scivolava via con le stelle in testa.
+- Barcollare: `Armi.peso(fam, caricato)` leggero 0,18 s, medio 0,3 s, pesante 0,5 s con polvere (bestione meno).
+- `Effetti.impatto(genitore, dove, materiale, verso, forza)`, `Effetti.materiale_di(nodo)` (`materiale()` o meta, altrimenti
+  pietra), `Effetti.cenere`. Un oggetto colpibile nuovo = dire il suo materiale.
+- `Controlli.RITMI` + `vibra_ritmo(nome)` (`ritmi_chiesti` conta anche a vibrazione spenta: serve alle prove).
+- `Regia` (`script/regia.gd`, figlio "Regia" del giocatore): `colpo(forza)`, `primo_piano`, `rallenta(fattore, secondi veri)`
+  (moltiplica `Effetti.fattore_regia` dentro `Effetti.applica_velocita()`; in prova e col bot conta ma non rallenta),
+  `ultimo_nemico()`, campo largo 0,85 in `Stanza.ZONE_LARGHE` (torre e salone) solo con profilo `campo_largo` (alta e ultra)
+  e figure a densità 2. Impostazione `gioco/regia`.
+- Memoria: abitudini `colpi_caricati` (lezione "arretra") ed `esecuzioni`.
+- Bot: `_colpo_caricato`, `_parata_a_tempo`, `_devia`, `_colpisci_stordito`; errore sui tempi che cala col livello di
+  "schivare" ma mai sotto il 40% (`_imprecisione`); voglia di usare le mosse secondo la riuscita (`_voglia`, `_mosse` in
+  `bot_cervello.cfg`); parata e deviazione fra le difese di `_scegli_difesa`. Prova tecnica `colpi` in `Bot.PROVE`; rapporto
+  `bot.colpi_nuovi`. Il bot si avvicina a passo pieno prima di caricare (in CARICA si cammina piano).
+- Suoni nuovi (`genera_suoni.py`): carica, carica_piena, colpo_pesante, parata_perfetta, esecuzione, stordito. Il Python di
+  sistema non ha scipy: serve un ambiente a parte (`python3 -m venv`, `pip install numpy scipy`).
+- Prove: `_prova_sensazioni` e `_prova_colpi` in `test/prova.gd`.
+- Lezione: gli aiutanti non devono rimettere indietro la cartella `user://` dopo le foto (cancella la memoria cresciuta):
+  scriverlo nel compito.

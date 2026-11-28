@@ -76,7 +76,7 @@ Prima di ogni fase: impegno, modello, Ricerca (dieci giri quando servono fonti n
 ## 5. Combattimento che si sente
 - Fase 5.1, suoni veri: pacchetti CC0 (per esempio Kenney) per colpi, passi, ossa, acqua, al posto di quelli fatti al
   computer; musica che segue le azioni (tamburi sui colpi riusciti, suono grave quando si è quasi morti).
-- Fase 5.2, colpi: parata al momento giusto che apre la guardia (Blasphemous), colpi caricati con la luce che cresce e
+- Fase 5.2, colpi (FATTA nella 0.1.43): parata al momento giusto che apre la guardia (Blasphemous), colpi caricati con la luce che cresce e
   sfondano le difese, esecuzioni sui nemici storditi, schizzi e scintille diversi per ossa, pietra e legno, barcollare
   diverso secondo l'arma, vibrazione sul Pixel per colpi, atterraggi e danni (c'è già: completare), telecamera da regista
   (zoom sui colpi forti, rallentatore sull'ultimo nemico dell'ondata, inquadratura larga nelle stanze grandi).

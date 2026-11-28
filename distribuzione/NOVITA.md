@@ -1,5 +1,18 @@
 # Novità di NonNarrato
 
+## 0.1 — Colpi che si sentono (combattimento, fase 5.2)
+
+- **Colpo caricato**: tieni premuto Attacca. Una luce cresce sull'arma; quando lampeggia la carica è piena. Lasciando parte un colpo pesante: a carica piena fa più male, stordisce e sfonda le parate. Con le armi rapide la carica è più corta.
+- **Parata a tempo** (con lo scudo): se alzi lo scudo proprio mentre arriva il colpo, il nemico resta con la guardia aperta e tu puoi colpire subito.
+- **Deviazione** (senza scudo): se il tuo colpo arriva un attimo prima del suo, il suo colpo salta e la sua guardia si apre. Vale anche contro il boia da davanti.
+- **Nemici storditi**: stelle che girano sopra la testa; colpirli fa un danno in più. Quando le stelle diventano rosse il nemico è allo stremo: un colpo da vicino lo **giustizia** (cenere, rallentatore, primo piano) e ti ridà un punto di vita.
+- **Schizzi e scintille diversi** secondo ciò che colpisci: ossa, carne, stoffa, metallo, pietra, legno.
+- **I nemici barcollano secondo l'arma**: un sussulto col pugnale, un passo indietro con la spada, una spinta lunga con la polvere sotto i piedi con spadone, bipenne e colpi caricati.
+- **Vibrazione con un ritmo per ogni cosa**: colpo leggero, medio, pesante, carica piena, parata, esecuzione, ferita, atterraggio, ultimo nemico.
+- **Telecamera da regista**: piccolo zoom sui colpi forti, primo piano sulle esecuzioni, rallentatore sull'ultimo nemico dell'ondata, inquadratura più larga nella torre e nel salone (solo con le figure dettagliate). Si spegne da Impostazioni, Gioco, "Telecamera da regista".
+- **Il bot** usa le mosse nuove e ha una prova in più ("colpi caricati e parate").
+- Corretto: un nemico stordito accanto a una cassa o a un forziere scivolava via di lato.
+
 ## 0.1 — Armi impugnate dal manico
 
 - **Spade, spadone, pugnali e lama dei sepolti** ora si tengono per l'elsa, con la lama verso fuori: prima erano capovolte in mano (anche quelle dei nemici). Corretta anche la bacchetta, che si teneva dalla punta.

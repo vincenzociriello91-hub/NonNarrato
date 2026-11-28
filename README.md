@@ -29,7 +29,7 @@ prima volta, il permesso "Installa app sconosciute". Il lavoro lo fa il plugin A
 |---|---|---|---|
 | Muoversi | leva sinistra o croce | leva a sinistra | A D / frecce |
 | Saltare | A | Salto | Spazio |
-| Attaccare (due colpi) | X | Colpo | J |
+| Attaccare (combinazione dell'arma); tenendo premuto: colpo caricato | X | Colpo | J |
 | Rotolare | B | Rotola | K |
 | Schivare / scatto (con la direzione: avanti o indietro); con lo scudo, da fermo: parata | Y | Schiva | L |
 | Tirare (magia, dardi, frecce; con su in alto; tenendo premuto: magia caricata, raffica, arco carico) | RB o RT | Tira | I |
@@ -161,6 +161,11 @@ Sei tipi: scheletro, mago, arciere (dardi di balestra), pipistrello (dorme appes
 Ogni arma ha la sua combinazione (numero di colpi, danno, portata, tempi) e una dote: `script/armi.gd`.
 La mano sinistra aggiunge la parata (scudo) o un colpo in più (seconda arma). Le animazioni restano quelle del
 gruppo di mosse, accelerate o rallentate per seguire i tempi dell'arma.
+
+Dalla 0.1.43: colpo caricato (tenere premuto Attacca: a carica piena stordisce e sfonda le parate), parata a tempo con lo
+scudo e deviazione con l'arma (aprono la guardia del nemico), nemici storditi con le stelle sopra la testa, esecuzione
+quando le stelle sono rosse, schizzi diversi per materiale, vibrazione a ritmi (`Controlli.RITMI`) e telecamera da
+regista (`script/regia.gd`).
 
 ## Ondate e veterani
 
