@@ -70,28 +70,28 @@ const ATTACCHI := {
 
 # Armi, scudi ed elmi CC0 nello stile nuovo (0.1.40, sorgenti3d/armi): prendono il posto dei pezzi KayKit con lo stesso
 # nome (i salvataggi e i nemici restano validi). Il pezzo KayKit dice solo dove sta (impugnatura, centro, direzione).
-# "arma": il lato più largo è la punta (lama, testa dell'ascia); la mano stringe a "presa" (frazione dal manico);
-#   "lungo" = lunghezza vera in metri; "rovescia" se il lato largo è il manico.
+# "arma": "punta" = asse del modello verso la punta ("+z", "-y"...), scritto guardando il modello disteso; la mano
+#   stringe a "presa" (frazione dal manico); "lungo" = lunghezza vera in metri.
 # "centro": scudi, libri, elmi: stesso centro e stessa grandezza del pezzo di prima ("grande" = quanto più grande),
 #   "faccia" = scudi e libri (il lato più sottile guarda dove guardava quello di prima), "giro" in gradi attorno all'alto.
 const ARMI_NUOVE := "res://sorgenti3d/armi/"
 const SOSTITUZIONI := {
-	"Viandante__Spada": ["spada", "arma", {"presa": 0.09, "lungo": 0.95}],
-	"Cavaliere__1H_Sword": ["stocco", "arma", {"presa": 0.08, "lungo": 1.0}],
-	"Cavaliere__1H_Sword_Offhand": ["spada_bronzo", "arma", {"presa": 0.09, "lungo": 0.9}],
-	"Cavaliere__2H_Sword": ["spadone", "arma", {"presa": 0.1, "lungo": 1.35}],
-	"Barbaro__1H_Axe": ["ascia", "arma", {"presa": 0.15, "lungo": 0.7}],
-	"Barbaro__1H_Axe_Offhand": ["ascia_bronzo", "arma", {"presa": 0.15, "lungo": 0.65}],
-	"Barbaro__2H_Axe": ["bipenne", "arma", {"presa": 0.12, "lungo": 1.2}],
-	"Viandante__Knife": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
-	"Viandante__Knife_Offhand": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
-	"Ladro__Knife": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
-	"Ladro__Knife_Offhand": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
-	"Mago__2H_Staff": ["bastone", "arma", {"presa": 0.35, "lungo": 1.7}],
-	"Mago__1H_Wand": ["bacchetta", "arma", {"presa": 0.2, "lungo": 0.4}],
-	"Sepolto__Lama": ["spada_bronzo", "arma", {"presa": 0.09, "lungo": 0.9}],
-	"Sepolto__Ascia": ["ascia_bronzo", "arma", {"presa": 0.15, "lungo": 0.75}],
-	"Sepolto__Bastone": ["bastone_sepolti", "arma", {"presa": 0.35, "lungo": 1.6, "colore": "#a89c88"}],
+	"Viandante__Spada": ["spada", "arma", {"punta": "+z", "presa": 0.09, "lungo": 0.95}],
+	"Cavaliere__1H_Sword": ["stocco", "arma", {"punta": "+y", "presa": 0.08, "lungo": 1.0}],
+	"Cavaliere__1H_Sword_Offhand": ["spada_bronzo", "arma", {"punta": "+y", "presa": 0.09, "lungo": 0.9}],
+	"Cavaliere__2H_Sword": ["spadone", "arma", {"punta": "+z", "presa": 0.1, "lungo": 1.35}],
+	"Barbaro__1H_Axe": ["ascia", "arma", {"punta": "+z", "presa": 0.15, "lungo": 0.7}],
+	"Barbaro__1H_Axe_Offhand": ["ascia_bronzo", "arma", {"punta": "+y", "presa": 0.15, "lungo": 0.65}],
+	"Barbaro__2H_Axe": ["bipenne", "arma", {"punta": "+z", "presa": 0.12, "lungo": 1.2}],
+	"Viandante__Knife": ["pugnale", "arma", {"punta": "+z", "presa": 0.15, "lungo": 0.4}],
+	"Viandante__Knife_Offhand": ["pugnale", "arma", {"punta": "+z", "presa": 0.15, "lungo": 0.4}],
+	"Ladro__Knife": ["pugnale", "arma", {"punta": "+z", "presa": 0.15, "lungo": 0.4}],
+	"Ladro__Knife_Offhand": ["pugnale", "arma", {"punta": "+z", "presa": 0.15, "lungo": 0.4}],
+	"Mago__2H_Staff": ["bastone", "arma", {"punta": "+z", "presa": 0.35, "lungo": 1.7}],
+	"Mago__1H_Wand": ["bacchetta", "arma", {"punta": "+z", "presa": 0.2, "lungo": 0.4}],
+	"Sepolto__Lama": ["spada_bronzo", "arma", {"punta": "+y", "presa": 0.09, "lungo": 0.9}],
+	"Sepolto__Ascia": ["ascia_bronzo", "arma", {"punta": "+y", "presa": 0.15, "lungo": 0.75}],
+	"Sepolto__Bastone": ["bastone_sepolti", "arma", {"punta": "+y", "presa": 0.35, "lungo": 1.6, "colore": "#a89c88"}],
 	"Viandante__1H_Crossbow": ["balestra", "centro", {"faccia": true, "grande": 1.0}],
 	"Ladro__1H_Crossbow": ["balestra", "centro", {"faccia": true, "grande": 1.0}],
 	"Mago__Spellbook": ["grimorio", "centro", {"faccia": true, "grande": 0.9}],
@@ -101,7 +101,7 @@ const SOSTITUZIONI := {
 	"Cavaliere__Spike_Shield": ["scudo_chiodato", "centro", {"faccia": true, "grande": 1.0, "colore": "#5c5a62"}],
 	"Barbaro__Barbarian_Round_Shield": ["scudo_legno", "centro", {"faccia": true, "grande": 1.0}],
 	"Cavaliere__Knight_Helmet": ["elmo_chiuso", "centro", {"grande": 1.0}],
-	"Barbaro__Barbarian_Hat": ["elmo_corna", "centro", {"grande": 1.0}],
+	"Barbaro__Barbarian_Hat": ["elmo_corna", "centro", {"grande": 1.0, "colore": {"metal": "#5e5a5c", "horn": "#b8a888"}}],
 	"Mago__Mage_Hat": ["cappello_tesa", "centro", {"grande": 1.0, "colore": "#4a3c32"}],
 	"Sepolto__Skeleton_Warrior_Helmet": ["elmo_tondo", "centro", {"grande": 1.0}],
 	"SepoltoLadro__Skeleton_Rogue_Hood": ["maschera_teschio", "centro", {"grande": 0.8, "colore": "#c8c0b0"}],
@@ -299,15 +299,25 @@ func _avvia() -> void:
 		vecchio.transform = _posa_sostituto(vecchio.transform, vecchio.mesh.get_aabb(), nuovo, String(regola[1]), regola[2])
 		vecchio.mesh = _ricolora(nuovo, cache_tex)
 		vecchio.set_meta("fonte", String(regola[0]))   # per la prova: pezzo rifatto nello stile nuovo
+		if regola[1] == "arma":
+			vecchio.set_meta("punta", asse_punta(String(regola[2]["punta"])))   # la prova controlla il verso in mano
 		if regola[2].has("colore"):
 			# Modelli senza texture: una texture piccola del colore scelto (la leggono figura_viva e render_sprite).
-			var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
-			img.fill(Color(String(regola[2]["colore"])))
-			var tinta := ImageTexture.create_from_image(img)
+			# "colore" = un colore per tutto, oppure {nome del materiale: colore} (elmo con le corna: metallo e corno).
+			var colori: Variant = regola[2]["colore"]
 			for sup in vecchio.mesh.get_surface_count():
 				var m := vecchio.mesh.surface_get_material(sup) as StandardMaterial3D
-				if m != null and m.albedo_texture == null:
-					m.albedo_texture = tinta
+				if m == null or m.albedo_texture != null:
+					continue
+				var orig := nuovo.surface_get_material(sup) if sup < nuovo.get_surface_count() else null
+				var nome_mat := String(orig.resource_name) if orig != null else ""   # _ricolora non tiene i nomi
+				var c: String = String(colori) if colori is String else String(colori.get(nome_mat, ""))
+				if c == "":
+					printerr("Materiale senza colore: ", nome, " ", nome_mat)
+					continue
+				var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+				img.fill(Color(c))
+				m.albedo_texture = ImageTexture.create_from_image(img)
 
 	# Mantelli.
 	for nome: String in MANTELLI:
@@ -485,19 +495,31 @@ func _assi(aabb: AABB) -> Array:
 	return ordine
 
 
-func _verso_largo(mesh: Mesh, asse: int, centro: float) -> float:
-	# +1 se la metà più larga (lama, testa) sta dalla parte positiva dell'asse, -1 altrimenti.
-	var somma := [0.0, 0.0]
-	var conta := [0, 0]
+const FETTE_ARMA := 12
+
+
+static func profilo_arma(mesh: Mesh, asse: int) -> Array:
+	# Larghezza massima (distanza dall'asse) in FETTE_ARMA fette lungo l'asse, dal lato negativo al positivo.
+	var aabb := mesh.get_aabb()
+	var lo: float = aabb.position[asse]
+	var lungo: float = maxf(1e-6, aabb.size[asse])
+	var c := aabb.get_center()
+	var larg := []
+	larg.resize(FETTE_ARMA)
+	larg.fill(0.0)
 	for s in mesh.get_surface_count():
-		var v: PackedVector3Array = mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]
-		for p in v:
-			var lato := 1 if p[asse] > centro else 0
-			var w := Vector2(p[(asse + 1) % 3], p[(asse + 2) % 3])
-			somma[lato] += w.length()
-			conta[lato] += 1
-	var media := [somma[0] / maxf(1.0, conta[0]), somma[1] / maxf(1.0, conta[1])]
-	return 1.0 if media[1] >= media[0] else -1.0
+		for p: Vector3 in mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]:
+			var k := clampi(int((p[asse] - lo) / lungo * FETTE_ARMA), 0, FETTE_ARMA - 1)
+			var w := Vector2(p[(asse + 1) % 3] - c[(asse + 1) % 3], p[(asse + 2) % 3] - c[(asse + 2) % 3])
+			larg[k] = maxf(larg[k], w.length())
+	return larg
+
+
+static func asse_punta(testo: String) -> Vector3:
+	# "+z", "-x"...: dove sta la punta nello spazio del modello (deciso guardando il modello disteso, mai indovinato).
+	var v := Vector3.ZERO
+	v["xyz".find(testo[1])] = -1.0 if testo[0] == "-" else 1.0
+	return v
 
 
 func _posa_sostituto(vecchia: Transform3D, aabb_v: AABB, nuovo: Mesh, modo: String, opz: Dictionary) -> Transform3D:
@@ -519,10 +541,10 @@ func _posa_sostituto(vecchia: Transform3D, aabb_v: AABB, nuovo: Mesh, modo: Stri
 		if a.length() > b.length():
 			dir_v = -dir_v
 		var presa_v := centro_v - dir_v * dir_v.dot(centro_v)   # il punto dell'asse più vicino alla mano
-		var segno := _verso_largo(nuovo, an[0], aabb_n.get_center()[an[0]])
-		if opz.get("rovescia", false):
-			segno = -segno
-		var punta_n := u_n * segno
+		# Fino alla 0.1.41 il verso si indovinava ("il lato più largo è la punta"): spade e bacchetta finivano al contrario.
+		var punta_n := asse_punta(String(opz["punta"]))
+		if absf(punta_n[an[0]]) < 0.5:
+			printerr("Punta lungo un asse che non è il più lungo del modello: ", opz["punta"], " ", aabb_n)
 		var lungo_n: float = aabb_n.size[an[0]]
 		var manico_n := aabb_n.get_center() - punta_n * lungo_n * 0.5
 		var presa_n := manico_n + punta_n * lungo_n * float(opz.get("presa", 0.1))

@@ -1,5 +1,11 @@
 # Novità di NonNarrato
 
+## 0.1 — Armi impugnate dal manico
+
+- **Spade, spadone, pugnali e lama dei sepolti** ora si tengono per l'elsa, con la lama verso fuori: prima erano capovolte in mano (anche quelle dei nemici). Corretta anche la bacchetta, che si teneva dalla punta.
+- **Elmo con le corna**: metallo scuro e corna color osso, prima usciva tutto bianco.
+- Ogni arma e ogni armatura sono state controllate in tutte le animazioni (corsa, salto, attacchi, arrampicata, nuoto, issata, rotolata).
+
 ## 0.1 — Muri, pavimenti, oggetti e arredi nello stesso stile (grafica, quinta tappa)
 
 - **Muri e pavimenti nuovi**: pietre irregolari sul muro di fondo, mattoni squadrati nei blocchi e nelle lastre su cui si cammina, colonne di pietra. Archi bui, finestre con le sbarre, porte di legno, cancelli, muri sfondati ed edera, tutti con la stessa pietra.

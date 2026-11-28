@@ -44,6 +44,15 @@ lì non c'è. (Errore da non ripetere: per i coni neri delle torce erano state t
 - Regola di Vincenzo (28/11/2026), per ogni fase della roadmap: prima di partire Claude fa la Ricerca 10 volte (dieci giri
   di ricerca diversi: fonti, licenze, download veri, prove nel gioco) e va avanti solo se è sicuro al 100% che le fonti
   scelte funzionano. Se non lo è, cerca ancora o lo dice a Vincenzo, invece di partire.
+- Regola di Vincenzo (28/11/2026, issue #1): alla fine di ogni versione Claude controlla le issue aperte su GitHub e
+  segue quelle di Vincenzo (sono i comandi della chat di dialogo con la parola "riferisci"). Quando un'issue è messa in
+  roadmap o fatta, lo scrive nell'issue con un commento e la chiude.
+- Regola di Vincenzo (28/11/2026, issue #1): Vincenzo non cambia più a mano modello e impegno della sessione (li imposta
+  una volta al massimo dalla pagina). Claude divide il lavoro e affida i pezzi ad aiutanti interni (subagenti), scegliendo
+  per ognuno modello e impegno col criterio "miglior resa, minimo costo": lavori difficili (architettura, intelligenza dei
+  nemici, correzioni delicate) modello forte e impegno alto; lavori semplici (controlli, foto, ricerche nei file, prove
+  ripetitive) modello leggero e impegno basso o medio; se un pezzo fallisce o il risultato è dubbio si ripete più in alto.
+  Nel resoconto di fine versione Claude scrive quali modelli e impegni ha usato e per cosa.
 
 ## Procedura
 
@@ -239,7 +248,7 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
 - Barili (`Rompibile`): `StaticBody2D` su `S_OGGETTI` (tolto quando si rompono); i nemici li sfondano (`_sfonda_barili` dalle collisioni di `move_and_slide`); il bot li rompe con un colpo (`_barile_davanti`). Mai un barile davanti all'uscita di una parete da scalare o di un cunicolo (`_appiglio` fallisce e la stamina si esaurisce).
 - Arrampicata: `sprite.position.x = -lato * SCOSTA_DAL_MURO` (5 px), azzerato appena non si è più in ARRAMPICATA.
 - Armi sopra al corpo: in `FiguraViva` i pezzi del posto "arma" e di `Giocatore.IN_MANO` usano shader con `depth_test_disabled, cull_back` e `render_priority` `PRIORITA_SOPRA` (colore e normali); in `render_sprite.gd` lo stesso per i pezzi "attacca" (voce `armi_sopra: false` per escluderli). Fogli dei nemici rigenerati.
-- Strumento di controllo fuori dal repository: `/home/claude/strumenti/controllo/foglio_armi.gd` (tutte le armi in tutti gli attacchi, fotogramma per fotogramma).
+- Strumento di controllo: `strumenti/foglio_armi.gd` (dalla 0.1.42 nel repository): `DISPLAY=:77 godot --rendering-driver opengl3 --path . -s res://strumenti/foglio_armi.gd -- --cartella=DIR [--voci=armi|armature|arma:id,...] [--anim=a,b] [--ogni=2]`, un foglio per oggetto a doppia definizione.
 
 ## Controllo da giocatore prima di ogni versione (regola di Vincenzo, 26/11/2026)
 
@@ -252,7 +261,9 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
   - cose illeggibili al buio, sott'acqua o nella nebbia; telecamera che taglia o salta;
   - testi tagliati o sovrapposti in HUD e menu, tasti a schermo sopra cose importanti;
   - suoni mancanti o fuori posto; scatti e cali di FPS;
-  - stato lasciato sporco dal bot o da una prova.
+  - stato lasciato sporco dal bot o da una prova;
+  - armi impugnate al contrario, armature fuori posto o girate (foto ingrandite fisse di ogni arma in mano e di ogni
+    pezzo d'armatura indossato, fotogramma per fotogramma, guardate una per una).
 - Quello che si trova va corretto nella stessa versione o, se è grosso, proposto subito a Vincenzo.
 
 ## Controllo da giocatore (0.1.23)
@@ -438,7 +449,7 @@ Tutte CC0 (licenza letta nel file o nella pagina), scaricate davvero, convertite
   prima di esportare (`TMPDIR`).
 - `crea_manichino.gd`, `SOSTITUZIONI`: i pezzi KayKit di armi, scudi ed elmi cambiano forma ma tengono il nome (salvataggi,
   `Equipaggiamento`, voci dei nemici restano validi). `_posa_sostituto`: modo "arma" = la mano stringe l'arma a `presa`
-  (frazione dal manico), lunghezza vera `lungo`, la punta è il lato più largo (`_verso_largo`; `rovescia` per il contrario),
+  (frazione dal manico), lunghezza vera `lungo`, la punta è scritta per ogni arma (`"punta": "+z"`...; vedi 0.1.42),
   direzione e presa ricavate dal pezzo KayKit (l'estremo lontano dall'osso è la punta); modo "centro" = stesso centro e stessa
   grandezza (`grande`), `faccia` per scudi, libri e balestre (il lato sottile guarda dove guardava quello di prima), altrimenti
   l'alto resta l'alto (`giro` in gradi). `colore` = texture di un colore per i modelli senza texture. Meta `fonte` sui pezzi
@@ -475,3 +486,19 @@ Tutte CC0 (licenza letta nel file o nella pagina), scaricate davvero, convertite
   e braciere (calderone su mattoni) usano pezzi dei pacchi.
 - Key_Metal e Key_Gold non si vedono (colori nei vertici): niente chiavi.
 - Prova: `_prova_quaternius` controlla che le voci d'ambiente usino `sorgenti3d/ambienti/` e che ogni arredo abbia il foglio.
+
+## Armi impugnate dal manico (0.1.42, issue #1)
+
+- Difetto della 0.1.40 visto da Vincenzo sul Pixel: spada tenuta dalla punta. Causa: `crea_manichino.gd` indovinava il verso
+  ("il lato più largo è la punta"); nelle spade il lato più largo è la guardia, nella bacchetta il manico decorato. Nessuna
+  regola sulla forma va bene per tutte (provata: sbagliava bacchetta e bastone dei sepolti), quindi il verso si scrive:
+  `"punta": "+z"` in ogni voce "arma" di `SOSTITUZIONI`, deciso guardando il modello disteso con `strumenti/vedi_arma.gd`
+  (`-- --nomi=a,b --file=PATH`, il lato + dell'asse lungo a destra). Se l'asse scritto non è il più lungo del modello unito,
+  `crea_manichino` stampa "Punta lungo un asse che non è il più lungo" (stocco e ascia di bronzo: +y dopo l'unione).
+- Meta `punta` sui pezzi delle armi. Prova `_prova_impugnature` in `test/prova.gd`: punta più lontana dalla mano del manico,
+  punto più vicino dell'arma entro un palmo dal polso e nel primo 40% dal manico, forma (guardia delle lame dal lato della
+  mano, testa di asce e bastone dalla parte della punta: `profilo_arma`); elmi sull'osso Head e dritti, vestiti legati allo
+  scheletro. Provata girando apposta la spada: fallisce.
+- `"colore"` nelle `SOSTITUZIONI` può essere {nome del materiale: colore} (elmo con le corna: "metal" e "horn", senza texture).
+- Prima di ogni push con armi o armature toccate: `strumenti/foglio_armi.gd` (armi e armature, tutte le animazioni) e foto
+  ingrandite guardate una per una.

@@ -1462,6 +1462,70 @@ func _prova_figure() -> void:
 	await _fotogrammi(6)
 
 
+func _prova_impugnature(sk: Skeleton3D) -> void:
+	# Issue #1 (Vincenzo, 0.1.40 sul Pixel): la spada era tenuta dalla punta. Ogni arma: manico in mano, punta verso
+	# fuori; la forma lo conferma (guardia delle lame vicino alla mano, testa di asce e bastoni dalla parte della punta).
+	var crea: GDScript = load("res://strumenti/crea_manichino.gd")
+	var lame := ["spada", "stocco", "spadone", "spada_bronzo", "pugnale"]
+	var teste := ["ascia", "ascia_bronzo", "bipenne", "bastone"]
+	var armi := 0
+	var storte: Array = []
+	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
+		if not mi.has_meta("punta"):
+			continue
+		armi += 1
+		var punta: Vector3 = mi.get_meta("punta")
+		var asse := 0 if absf(punta.x) > 0.5 else (1 if absf(punta.y) > 0.5 else 2)
+		var aabb := mi.mesh.get_aabb()
+		var mezzo := punta * aabb.size[asse] * 0.5
+		var cima := mi.transform * (aabb.get_center() + mezzo)     # nello spazio dell'osso della mano
+		var fondo := mi.transform * (aabb.get_center() - mezzo)
+		var lungo := cima.distance_to(fondo)
+		# La mano (origine dell'osso, al polso) stringe l'impugnatura: il punto dell'arma più vicino sta entro un palmo,
+		# nel primo 40% dal manico (non l'asse della scatola: nelle asce la testa lo sposta di lato).
+		var t := 1.0
+		var dall_asse := 9.0
+		for sup in mi.mesh.get_surface_count():
+			for p: Vector3 in mi.mesh.surface_get_arrays(sup)[Mesh.ARRAY_VERTEX]:
+				var q := mi.transform * p
+				if q.length() < dall_asse:
+					dall_asse = q.length()
+					t = clampf((q - fondo).dot(cima - fondo) / (lungo * lungo), 0.0, 1.0)
+		var ok := cima.length() > fondo.length() and t < 0.4 and dall_asse < 0.18   # dal polso al palmo
+		var fonte := String(mi.get_meta("fonte"))
+		if fonte in lame or fonte in teste:
+			var prof: Array = crea.profilo_arma(mi.mesh, asse)
+			var k := 0
+			for i in prof.size():
+				if prof[i] > prof[k]:
+					k = i
+			var verso_punta := k * 2 >= prof.size() if punta[asse] > 0 else k * 2 < prof.size()
+			ok = ok and (verso_punta if fonte in teste else not verso_punta)
+		if not ok:
+			storte.append("%s (%s) t %.2f asse %.2f" % [mi.name, fonte, t, dall_asse])
+	_verifica("armi impugnate dal manico con la punta verso fuori", armi >= 16 and storte.is_empty(), "%d armi, storte %s" % [armi, storte])
+	# Elmi e cappelli sull'osso della testa e dritti (l'alto del modello verso l'alto a riposo); vestiti legati allo scheletro.
+	var fuori_posto: Array = []
+	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
+		var attacco := mi.get_parent() as BoneAttachment3D
+		if attacco == null:
+			if mi.get_parent() == sk and (mi.skin == null or mi.skin.get_bind_count() == 0):
+				fuori_posto.append(String(mi.name) + ": non segue il corpo")
+			continue
+		if not mi.has_meta("fonte") or mi.has_meta("punta"):
+			continue
+		var osso := sk.find_bone(attacco.bone_name)
+		var a_riposo := sk.get_bone_global_rest(osso) * mi.transform
+		var testa := String(attacco.bone_name) == "Head"
+		if testa and a_riposo.basis.y.normalized().dot(Vector3.UP) < 0.7:
+			fuori_posto.append(String(mi.name) + ": girato")
+		if testa and a_riposo.origin.distance_to(sk.get_bone_global_rest(osso).origin) > 0.25:
+			fuori_posto.append(String(mi.name) + ": lontano dalla testa")
+		if not testa and not String(attacco.bone_name).begins_with("hand"):
+			fuori_posto.append(String(mi.name) + ": sull'osso " + attacco.bone_name)
+	_verifica("armature al loro posto e nel verso giusto", fuori_posto.is_empty(), str(fuori_posto))
+
+
 func _prova_quaternius() -> void:
 	# Grafica, tappa 2 seconda parte (0.1.38): il Non Narrato col corpo Quaternius (proporzioni vere).
 	var m := (load(FiguraViva.MANICHINO) as PackedScene).instantiate()
@@ -1550,6 +1614,7 @@ func _prova_quaternius() -> void:
 			arredi_mancanti.append(a[0])
 	_verifica("ambienti e arredi nello stile nuovo", vecchi.is_empty() and arredi_mancanti.is_empty() and Stanza.ARREDI.size() >= 15,
 			"vecchi %s, arredi mancanti %s" % [vecchi, arredi_mancanti])
+	_prova_impugnature(sk)
 	m.free()
 	# Nel gioco: un materiale per superficie, con rilievo (normali) e pieghe (occlusione) sulla giubba.
 	var fv := _g().sprite as FiguraViva
