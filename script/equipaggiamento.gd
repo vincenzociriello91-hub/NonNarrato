@@ -29,7 +29,7 @@ const OGGETTI := {
 	"elmo_cornuto": ["copricapo", "Elmo cornuto", ["Barbaro__Barbarian_Hat"]],
 	"cappello_eremita": ["copricapo", "Cappello dell'eremita", ["Mago__Mage_Hat"]],
 	"elmo_sepolti": ["copricapo", "Elmo dei sepolti", ["Sepolto__Skeleton_Warrior_Helmet"]],
-	"cappuccio_sepolti": ["copricapo", "Cappuccio dei sepolti", ["SepoltoLadro__Skeleton_Rogue_Hood"]],
+	"cappuccio_sepolti": ["copricapo", "Maschera dei sepolti", ["SepoltoLadro__Skeleton_Rogue_Hood"]],
 	"cappello_negromante": ["copricapo", "Cappello del negromante", ["SepoltoMago__Skeleton_Mage_Hat"]],
 
 	"giubba_viandante": ["busto", "Giubba del viandante", ["Viandante__Giubba", "Viandante__Cinta"]],

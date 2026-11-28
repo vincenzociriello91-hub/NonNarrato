@@ -1,5 +1,14 @@
 # Novità di NonNarrato
 
+## 0.1 — Armi, scudi, elmi e pozioni nello stesso stile (grafica, quarta tappa)
+
+- **Armi nuove, con forme vere**: spade, spadone, pugnali, asce, ascia bipenne, bastone, bacchetta, balestra e libro di magia sono rifatti da un'unica raccolta di armi medievali, con legno, ferro e cuoio. Nessuna arma da cartone animato.
+- **Scudi ed elmi nuovi**: scudo di legno, scudo a goccia con lo stemma, scudo lungo, scudo tondo e scudo chiodato; elmo chiuso da cavaliere, elmo tondo, elmo con le corna, maschera a teschio dei sepolti, cappello a tesa larga dell'eremita e cappello a punta del negromante.
+- **Anche i nemici** impugnano le armi nuove: lama di bronzo per il sepolto, bastone con la gemma verde per il mago, balestra vera per il balestriere, ascia e scudo chiodato per il boia.
+- **Pozioni**: tre bottiglie diverse per piccola, media e grande, ognuna del colore del suo effetto.
+- **Pipistrello nuovo**, scolpito: ali vere che battono, si richiudono quando dorme appeso a testa in giù.
+- Coltelli da lancio, faretre e mazzetti di coltelli a terra rifatti con gli stessi modelli delle armi.
+
 ## 0.1 — Nemici nello stesso stile del protagonista (grafica, terza tappa)
 
 - **Nemici nuovi, con proporzioni vere**: sono fatti con gli stessi corpi, vestiti e mosse del Non Narrato, così tutto ciò che si muove nella cripta ha lo stesso stile.

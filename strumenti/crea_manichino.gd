@@ -68,6 +68,46 @@ const ATTACCHI := {
 	"handslot.l": ["hand_l", 0.6, Vector3(0.765, 1.43, -0.06)],
 }
 
+# Armi, scudi ed elmi CC0 nello stile nuovo (0.1.40, sorgenti3d/armi): prendono il posto dei pezzi KayKit con lo stesso
+# nome (i salvataggi e i nemici restano validi). Il pezzo KayKit dice solo dove sta (impugnatura, centro, direzione).
+# "arma": il lato più largo è la punta (lama, testa dell'ascia); la mano stringe a "presa" (frazione dal manico);
+#   "lungo" = lunghezza vera in metri; "rovescia" se il lato largo è il manico.
+# "centro": scudi, libri, elmi: stesso centro e stessa grandezza del pezzo di prima ("grande" = quanto più grande),
+#   "faccia" = scudi e libri (il lato più sottile guarda dove guardava quello di prima), "giro" in gradi attorno all'alto.
+const ARMI_NUOVE := "res://sorgenti3d/armi/"
+const SOSTITUZIONI := {
+	"Viandante__Spada": ["spada", "arma", {"presa": 0.09, "lungo": 0.95}],
+	"Cavaliere__1H_Sword": ["stocco", "arma", {"presa": 0.08, "lungo": 1.0}],
+	"Cavaliere__1H_Sword_Offhand": ["spada_bronzo", "arma", {"presa": 0.09, "lungo": 0.9}],
+	"Cavaliere__2H_Sword": ["spadone", "arma", {"presa": 0.1, "lungo": 1.35}],
+	"Barbaro__1H_Axe": ["ascia", "arma", {"presa": 0.15, "lungo": 0.7}],
+	"Barbaro__1H_Axe_Offhand": ["ascia_bronzo", "arma", {"presa": 0.15, "lungo": 0.65}],
+	"Barbaro__2H_Axe": ["bipenne", "arma", {"presa": 0.12, "lungo": 1.2}],
+	"Viandante__Knife": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
+	"Viandante__Knife_Offhand": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
+	"Ladro__Knife": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
+	"Ladro__Knife_Offhand": ["pugnale", "arma", {"presa": 0.15, "lungo": 0.4}],
+	"Mago__2H_Staff": ["bastone", "arma", {"presa": 0.35, "lungo": 1.7}],
+	"Mago__1H_Wand": ["bacchetta", "arma", {"presa": 0.2, "lungo": 0.4}],
+	"Sepolto__Lama": ["spada_bronzo", "arma", {"presa": 0.09, "lungo": 0.9}],
+	"Sepolto__Ascia": ["ascia_bronzo", "arma", {"presa": 0.15, "lungo": 0.75}],
+	"Sepolto__Bastone": ["bastone_sepolti", "arma", {"presa": 0.35, "lungo": 1.6, "colore": "#a89c88"}],
+	"Viandante__1H_Crossbow": ["balestra", "centro", {"faccia": true, "grande": 1.0}],
+	"Ladro__1H_Crossbow": ["balestra", "centro", {"faccia": true, "grande": 1.0}],
+	"Mago__Spellbook": ["grimorio", "centro", {"faccia": true, "grande": 0.9}],
+	"Cavaliere__Round_Shield": ["scudo_tondo", "centro", {"faccia": true, "grande": 1.0, "colore": "#6c6a70"}],
+	"Cavaliere__Badge_Shield": ["scudo_goccia", "centro", {"faccia": true, "grande": 1.15}],
+	"Cavaliere__Rectangle_Shield": ["scudo_torre", "centro", {"faccia": true, "grande": 1.1}],
+	"Cavaliere__Spike_Shield": ["scudo_chiodato", "centro", {"faccia": true, "grande": 1.0, "colore": "#5c5a62"}],
+	"Barbaro__Barbarian_Round_Shield": ["scudo_legno", "centro", {"faccia": true, "grande": 1.0}],
+	"Cavaliere__Knight_Helmet": ["elmo_chiuso", "centro", {"grande": 1.0}],
+	"Barbaro__Barbarian_Hat": ["elmo_corna", "centro", {"grande": 1.0}],
+	"Mago__Mage_Hat": ["cappello_tesa", "centro", {"grande": 1.0, "colore": "#4a3c32"}],
+	"Sepolto__Skeleton_Warrior_Helmet": ["elmo_tondo", "centro", {"grande": 1.0}],
+	"SepoltoLadro__Skeleton_Rogue_Hood": ["maschera_teschio", "centro", {"grande": 0.8, "colore": "#c8c0b0"}],
+	"SepoltoMago__Skeleton_Mage_Hat": ["cappello_punta", "centro", {"grande": 1.0, "colore": "#3c3048"}],
+}
+
 # Mantelli generati: nome -> [texture, lunghezza (0-1, 1 = fino ai polpacci), larghezza in basso]
 const MANTELLI := {
 	"Viandante": ["mantello_viandante", 0.82, 0.30],
@@ -248,6 +288,27 @@ func _avvia() -> void:
 			parti.append(nome)
 		scena.free()
 
+	# Armi, scudi ed elmi nuovi al posto dei KayKit (stesso nome, stesso posto).
+	for nome: String in SOSTITUZIONI:
+		var vecchio := scheletro.find_child(nome, true, false) as MeshInstance3D
+		if vecchio == null:
+			printerr("Pezzo da sostituire mancante: ", nome)
+			continue
+		var regola: Array = SOSTITUZIONI[nome]
+		var nuovo := _unisci(_carica(ARMI_NUOVE + String(regola[0]) + ".glb"))
+		vecchio.transform = _posa_sostituto(vecchio.transform, vecchio.mesh.get_aabb(), nuovo, String(regola[1]), regola[2])
+		vecchio.mesh = _ricolora(nuovo, cache_tex)
+		vecchio.set_meta("fonte", String(regola[0]))   # per la prova: pezzo rifatto nello stile nuovo
+		if regola[2].has("colore"):
+			# Modelli senza texture: una texture piccola del colore scelto (la leggono figura_viva e render_sprite).
+			var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+			img.fill(Color(String(regola[2]["colore"])))
+			var tinta := ImageTexture.create_from_image(img)
+			for sup in vecchio.mesh.get_surface_count():
+				var m := vecchio.mesh.surface_get_material(sup) as StandardMaterial3D
+				if m != null and m.albedo_texture == null:
+					m.albedo_texture = tinta
+
 	# Mantelli.
 	for nome: String in MANTELLI:
 		var m: Array = MANTELLI[nome]
@@ -371,6 +432,124 @@ func _ricolora(mesh: Mesh, cache: Dictionary, tex: Texture2D = null) -> Mesh:
 		# e con "unshaded" normali e occlusione non verrebbero salvati.
 		copia.surface_set_material(s, mat)
 	return copia
+
+
+func _unisci(scena: Node3D) -> ArrayMesh:
+	# Tutte le mesh di un file in una sola (scudi in più pezzi), con le loro trasformazioni.
+	var unita := ArrayMesh.new()
+	for mi: MeshInstance3D in scena.find_children("*", "MeshInstance3D", true, false):
+		var t := Transform3D.IDENTITY
+		var n: Node = mi
+		while n != null and n != scena:
+			if n is Node3D:
+				t = (n as Node3D).transform * t
+			n = n.get_parent()
+		for s in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(s)
+			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			for i in v.size():
+				v[i] = t * v[i]
+			arr[Mesh.ARRAY_VERTEX] = v
+			if arr[Mesh.ARRAY_NORMAL] != null:
+				var nn: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+				for i in nn.size():
+					nn[i] = (t.basis * nn[i]).normalized()
+				arr[Mesh.ARRAY_NORMAL] = nn
+			if arr[Mesh.ARRAY_TANGENT] != null:
+				var tg: PackedFloat32Array = arr[Mesh.ARRAY_TANGENT]
+				for i in range(0, tg.size(), 4):
+					var d := (t.basis * Vector3(tg[i], tg[i + 1], tg[i + 2])).normalized()
+					tg[i] = d.x
+					tg[i + 1] = d.y
+					tg[i + 2] = d.z
+				arr[Mesh.ARRAY_TANGENT] = tg
+			for k in [Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
+				arr[k] = null
+			unita.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+			unita.surface_set_material(unita.get_surface_count() - 1, mi.get_active_material(s))
+	scena.free()
+	return unita
+
+
+func _unita(i: int) -> Vector3:
+	var v := Vector3.ZERO
+	v[i] = 1.0
+	return v
+
+
+func _assi(aabb: AABB) -> Array:
+	# Indici degli assi dal più lungo al più corto.
+	var d := aabb.size
+	var ordine := [0, 1, 2]
+	ordine.sort_custom(func(a: int, b: int) -> bool: return d[a] > d[b])
+	return ordine
+
+
+func _verso_largo(mesh: Mesh, asse: int, centro: float) -> float:
+	# +1 se la metà più larga (lama, testa) sta dalla parte positiva dell'asse, -1 altrimenti.
+	var somma := [0.0, 0.0]
+	var conta := [0, 0]
+	for s in mesh.get_surface_count():
+		var v: PackedVector3Array = mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]
+		for p in v:
+			var lato := 1 if p[asse] > centro else 0
+			var w := Vector2(p[(asse + 1) % 3], p[(asse + 2) % 3])
+			somma[lato] += w.length()
+			conta[lato] += 1
+	var media := [somma[0] / maxf(1.0, conta[0]), somma[1] / maxf(1.0, conta[1])]
+	return 1.0 if media[1] >= media[0] else -1.0
+
+
+func _posa_sostituto(vecchia: Transform3D, aabb_v: AABB, nuovo: Mesh, modo: String, opz: Dictionary) -> Transform3D:
+	# Trasformazione (nello spazio dell'osso) del pezzo nuovo, ricavata da dove stava quello di prima.
+	var aabb_n := nuovo.get_aabb()
+	var av := _assi(aabb_v)
+	var an := _assi(aabb_n)
+	var asse_v := vecchia.basis * _unita(av[0])
+	var largo_v := vecchia.basis * _unita(av[1])
+	var sottile_v := vecchia.basis * _unita(av[2])
+	var centro_v := vecchia * aabb_v.get_center()
+	var u_n := _unita(an[0])
+	var w_n := _unita(an[1])
+	if modo == "arma":
+		# Prima: la punta è l'estremo lontano dalla mano (l'origine dell'osso).
+		var dir_v := asse_v.normalized()
+		var a := centro_v - dir_v * asse_v.length() * aabb_v.size[av[0]] * 0.5
+		var b := centro_v + dir_v * asse_v.length() * aabb_v.size[av[0]] * 0.5
+		if a.length() > b.length():
+			dir_v = -dir_v
+		var presa_v := centro_v - dir_v * dir_v.dot(centro_v)   # il punto dell'asse più vicino alla mano
+		var segno := _verso_largo(nuovo, an[0], aabb_n.get_center()[an[0]])
+		if opz.get("rovescia", false):
+			segno = -segno
+		var punta_n := u_n * segno
+		var lungo_n: float = aabb_n.size[an[0]]
+		var manico_n := aabb_n.get_center() - punta_n * lungo_n * 0.5
+		var presa_n := manico_n + punta_n * lungo_n * float(opz.get("presa", 0.1))
+		var x := dir_v
+		var y := (largo_v - x * x.dot(largo_v)).normalized()
+		var base_v := Basis(x, y, x.cross(y))
+		var yn := w_n
+		var base_n := Basis(punta_n, yn, punta_n.cross(yn))
+		var k: float = float(opz.get("lungo", lungo_n)) / lungo_n
+		var r := base_v * base_n.inverse() * Basis.from_scale(Vector3.ONE * k)
+		return Transform3D(r, presa_v - r * presa_n)
+	# "centro": stessa posizione, stessa grandezza.
+	var base := Basis.IDENTITY
+	if opz.get("faccia", false):
+		var f_n := _unita(an[2])
+		var x := asse_v.normalized()
+		var z := (sottile_v - x * x.dot(sottile_v)).normalized()
+		base = Basis(x, z.cross(x), z) * Basis(u_n, f_n.cross(u_n), f_n).inverse()
+	else:
+		# Elmi, cappelli, balestra: l'alto del modello (+Y) resta l'alto del pezzo di prima, girato di "giro" gradi.
+		var su := (vecchia.basis * Vector3.UP).normalized()
+		var avanti := (vecchia.basis * Vector3.BACK).normalized()
+		base = Basis(su.cross(avanti).normalized(), su, avanti.normalized()).orthonormalized()
+		base = base * Basis(Vector3.UP, deg_to_rad(float(opz.get("giro", 0.0))))
+	var k := (aabb_v.size * vecchia.basis.get_scale()).length() / maxf(0.0001, aabb_n.size.length()) * float(opz.get("grande", 1.0))
+	var r2 := base * Basis.from_scale(Vector3.ONE * k)
+	return Transform3D(r2, centro_v - r2 * aabb_n.get_center())
 
 
 func _solo_ossa(mesh: Mesh, skin: Skin, scheletro: Skeleton3D, ossa: Array) -> Mesh:

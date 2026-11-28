@@ -22,11 +22,12 @@ uniform sampler2D ntex : hint_normal, filter_nearest;
 uniform float usa_n = 0.0;
 uniform sampler2D otex : filter_nearest;
 uniform float usa_o = 0.0;
+uniform float usa_alfa = 0.0;
 void fragment() {
 	vec3 c = tinta.rgb;
 	if (usa_tex > 0.5) {
 		vec4 t = texture(tex, UV);
-		if (t.a < 0.5) {
+		if (usa_alfa > 0.5 && t.a < 0.5) {
 			discard;   // capelli e orli stracciati (pezzi Quaternius, 0.1.39)
 		}
 		c *= t.rgb;
@@ -236,7 +237,9 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 					k = float(i) / float(n)
 				if p.get("andata_ritorno", false) and n > 1:
 					k = 1.0 - absf(1.0 - 2.0 * float(i) / float(n))   # 0 -> 1 -> 0 (ali che battono)
-				scatti.append({"clip": "", "t": 0.0, "giro": 0.0, "giu": 0.0, "nodi": p.get("nodi", []), "k": k})
+				# "giro" (gradi) attorno al "centro": il pipistrello appeso a testa in giù o caduto su un fianco.
+				scatti.append({"clip": "", "t": 0.0, "giro": deg_to_rad(float(p.get("giro", 0.0))), "giu": 0.0,
+						"centro": p.get("centro", 0.0), "nodi": p.get("nodi", []), "k": k})
 			animazioni[p["nome"]] = {"fps": fps_p, "ciclo": p.get("ciclo", false), "frame": indici}
 	elif lista.is_empty() or lettore == null:
 		scatti.append({"clip": "", "t": 0.0, "giro": 0.0, "giu": 0.0})
@@ -279,7 +282,9 @@ func _render_voce(voce: Dictionary, uscita: String) -> bool:
 						t = da + fino - t
 					# "gira": il corpo ruota da di profilo a di fronte (mezzo giro dei nemici, 0.1.35).
 					var ruota := float(voce.get("rotazione_y", 90.0)) * float(i) / float(maxi(1, n - 1)) if a.get("gira", false) else 0.0
-					scatti.append({"clip": clip, "t": t, "giro": 0.0, "giu": 0.0, "ruota_y": ruota})
+					# "capovolto": a testa in giù attorno al centro (pipistrello appeso che dorme, 0.1.40).
+					var capo := PI if a.get("capovolto", false) else 0.0
+					scatti.append({"clip": clip, "t": t, "giro": capo, "giu": 0.0, "ruota_y": ruota, "centro": a.get("centro", 0.0)})
 			animazioni[a["nome"]] = {"fps": fps_a, "ciclo": a.get("ciclo", false), "frame": indici}
 
 	var colonne := mini(COLONNE_MAX, scatti.size())
@@ -473,23 +478,32 @@ func _componi(modello: Node3D, pezzi: Array) -> bool:
 				mesh = t
 			"vuoto":
 				pass
+			"modello":
+				pass   # un file glb intero (pozioni, frecce: 0.1.40), sotto
 			_:
 				printerr("Forma sconosciuta: ", forma)
 				return false
-		if mesh != null:
+		if forma == "modello":
+			nodo = _carica(p["glb"])
+			if nodo == null:
+				printerr("Non riesco a caricare ", p["glb"])
+				return false
+		elif mesh != null:
 			var materiale := StandardMaterial3D.new()
 			materiale.albedo_color = Color(String(p.get("colore", "#808080")))
 			mesh.material = materiale
 			var mi := MeshInstance3D.new()
 			mi.mesh = mesh
 			nodo = mi
-		else:
+		elif forma != "modello":
 			nodo = Node3D.new()
 		nodo.name = p.get("nome", forma)
 		var pos: Array = p.get("pos", [0.0, 0.0, 0.0])
 		var rot: Array = p.get("rot", [0.0, 0.0, 0.0])
 		nodo.position = Vector3(pos[0], pos[1], pos[2])
 		nodo.rotation_degrees = Vector3(rot[0], rot[1], rot[2])
+		if forma == "modello":
+			nodo.scale = Vector3.ONE * float(p.get("scala", 1.0))   # dopo la rotazione, che la azzerava
 		var genitore: Node = modello
 		if p.has("genitore"):
 			genitore = modello.find_child(p["genitore"], true, false)
@@ -503,6 +517,17 @@ func _componi(modello: Node3D, pezzi: Array) -> bool:
 func _metti_in_posa(modello: Node3D, nodi: Array, k: float) -> void:
 	# Ogni voce: {"nodo", "da": {"pos", "rot", "scala"}, "a": {...}}; k va da 0 (da) a 1 (a).
 	for v: Dictionary in nodi:
+		if v.has("osso"):
+			# Ossa di uno scheletro (pipistrello CC0 con le animazioni rovinate nel file, 0.1.40): rotazione dal riposo.
+			for sk: Skeleton3D in modello.find_children("*", "Skeleton3D", true, false):
+				var i := sk.find_bone(v["osso"])
+				if i < 0:
+					continue
+				var d0: Array = (v.get("da", {}) as Dictionary).get("rot", [0.0, 0.0, 0.0])
+				var d1: Array = (v.get("a", v.get("da", {})) as Dictionary).get("rot", d0)
+				var e := Vector3(d0[0], d0[1], d0[2]).lerp(Vector3(d1[0], d1[1], d1[2]), k) * PI / 180.0
+				sk.set_bone_pose_rotation(i, sk.get_bone_rest(i).basis.get_rotation_quaternion() * Quaternion.from_euler(e))
+			continue
 		var nodo := modello.find_child(v["nodo"], true, false) as Node3D
 		if nodo == null:
 			printerr("Nodo da mettere in posa non trovato: ", v["nodo"])
@@ -659,6 +684,8 @@ func _materiali(modello: Node3D, voce: Dictionary, normali: bool) -> void:
 			else:
 				mat.shader = _shader_colore_sopra if sopra else _shader_colore
 				var originale := mi.mesh.surface_get_material(s) as BaseMaterial3D
+				if originale != null and originale.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+					mat.set_shader_parameter("usa_alfa", 1.0)   # solo i materiali con trasparenza vera (capelli, orli)
 				if originale != null and originale.albedo_texture != null:
 					var tex: Texture2D = originale.albedo_texture
 					if texture_nuova != null and not attaccato:

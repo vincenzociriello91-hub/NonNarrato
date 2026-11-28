@@ -58,5 +58,6 @@ gioco, coerente e omogeneo, con la libreria più ampia possibile (siti CC0 apert
 Tappa 2, seconda parte, fatta nella 0.1.38: il Non Narrato col corpo Quaternius, vestiti modulari, mantelli generati,
 animazioni UAL e KayKit adattate. Tappa 2, terza parte, fatta nella 0.1.39: i nemici con gli stessi pezzi e le stesse
 animazioni del protagonista (sepolto risorto, mago, balestriere, bestione incappucciato, ghoul). Pipistrello e mimic
-restano: il mimic nasce dal forziere e cambierà con gli ambienti. Prossima: gli ambienti rifatti con lo stesso metodo e
-materiali comuni.
+restano: il mimic nasce dal forziere e cambierà con gli ambienti. Tappa 2, quarta parte, fatta nella 0.1.40: armi, scudi, elmi, pozioni, pipistrello e munizioni dalle fonti CC0 verificate
+(dieci giri di ricerca). Prossima: 0.1.41 gli ambienti (muri, pavimenti, casse, barili, forzieri e mimic, torce, bracieri,
+leve, grate, trappole) e gli arredi (catene, gabbie, stendardi, libri, statua, sarcofago, ossa, rocce).

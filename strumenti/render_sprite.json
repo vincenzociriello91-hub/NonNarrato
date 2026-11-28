@@ -69,10 +69,10 @@
 		{"nome": "arciere", "doppia": true, "fps_minimo": 24, "scena": "res://modelli/manichino.scn", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 20, "rotazione_y": 68, "scala": [1.0, 1.0, 1.0], "mostra": ["Viandante__Cappuccio", "Corpo__Occhi", "Viandante__Giubba", "Viandante__Cinta", "Viandante__Maniche", "Viandante__Bracciale", "Viandante__Brache", "Viandante__Stivali", "Ladro__1H_Crossbow"], "colori": [{"mesh": "Viandante__*", "tinta": "#dcf0dc", "saturazione": 0.5, "luminosita": 2.3}, {"mesh": "Viandante__Cappuccio", "tinta": "#dcf0dc", "saturazione": 0.5, "luminosita": 1.9}, {"mesh": "Corpo__Occhi", "senza_tex": true, "tinta": "#ffc04a"}], "animazioni": [{"nome": "giro", "clip": "Pistol_Idle", "da": 0.0, "a": 0.0, "frame": 5, "gira": true}, {"nome": "fermo", "clip": "Pistol_Idle", "ciclo": true, "fps": 8}, {"nome": "cammina", "clip": "Walk", "ciclo": true, "frame": 10, "fps": 10}, {"nome": "lancia", "clip": "Pistol_Shoot", "frame": 10, "fps": 12}, {"nome": "colpito", "clip": "Hit_Chest", "da": 0.0, "a": 0.33, "frame": 4, "fps": 12}, {"nome": "morte", "clip": "Death01", "a": 1.9, "frame": 12, "fps": 12}]},
 		{"nome": "bestione", "doppia": true, "fps_minimo": 24, "scena": "res://modelli/manichino.scn", "cella": [140, 140], "px_per_unita": 24, "piedi_da_sotto": 20, "rotazione_y": 68, "scala": [1.3, 1.3, 1.3], "mostra": ["Viandante__Cappuccio", "Corpo__Occhi", "Viandante__Giubba", "Viandante__Cinta", "Viandante__Cinta2", "Viandante__Spallaccio", "Viandante__Maniche", "Viandante__Bracciale", "Viandante__Brache", "Viandante__Stivali", "Sepolto__Ascia", "Cavaliere__Spike_Shield"], "colori": [{"mesh": "Viandante__*", "tinta": "#e0a8a0", "saturazione": 0.45, "luminosita": 1.6}, {"mesh": "Viandante__Cappuccio", "tinta": "#a06058", "saturazione": 0.6, "luminosita": 1.3}, {"mesh": "Corpo__Occhi", "senza_tex": true, "tinta": "#ff3020"}], "animazioni": [{"nome": "giro", "clip": "Idle_Shield", "da": 0.0, "a": 0.0, "frame": 5, "gira": true}, {"nome": "fermo", "clip": "Idle_Shield", "ciclo": true, "fps": 8}, {"nome": "cammina", "clip": "Walk", "ciclo": true, "frame": 12, "fps": 9}, {"nome": "attacco", "clip": "Sword_Attack", "da": 0.0, "a": 1.3, "frame": 16, "fps": 14}, {"nome": "parata", "clip": "Shield_OneShot", "da": 0.0, "a": 0.4, "frame": 3, "fps": 12}, {"nome": "colpito", "clip": "Hit_Knockback", "da": 0.0, "a": 0.45, "frame": 4, "fps": 12}, {"nome": "morte", "clip": "Death01", "a": 1.9, "frame": 12, "fps": 12}]},
 		{"nome": "saltatore", "doppia": true, "fps_minimo": 24, "scena": "res://modelli/manichino.scn", "cella": [96, 96], "px_per_unita": 24, "piedi_da_sotto": 20, "rotazione_y": 68, "scala": [0.95, 0.95, 0.95], "mostra": ["Corpo__Intero", "Corpo__Occhi", "Contadino__Brache"], "colori": [{"mesh": "Corpo__Intero", "texture": "res://sorgenti3d/quaternius/T_Superhero_Male_Light.png", "tinta": "#d4dcc8", "saturazione": 0.2, "luminosita": 1.15}, {"mesh": "Contadino__*", "tinta": "#a08670", "saturazione": 0.4, "luminosita": 1.1}, {"mesh": "Corpo__Occhi", "senza_tex": true, "tinta": "#b6ff4a"}], "animazioni": [{"nome": "giro", "clip": "Crouch_Idle", "da": 0.0, "a": 0.0, "frame": 5, "gira": true}, {"nome": "fermo", "clip": "Crouch_Idle", "ciclo": true, "fps": 8}, {"nome": "cammina", "clip": "Sprint", "ciclo": true, "frame": 8, "fps": 14}, {"nome": "balzo", "clip": "NinjaJump_Start", "frame": 12, "fps": 14}, {"nome": "salto", "clip": "NinjaJump_Idle", "ciclo": true, "frame": 2, "fps": 6}, {"nome": "colpito", "clip": "Hit_Chest", "da": 0.0, "a": 0.33, "frame": 4, "fps": 12}, {"nome": "morte", "clip": "Death01", "a": 1.9, "frame": 12, "fps": 12}]},
-		{"nome": "pipistrello", "doppia": true, "fps_minimo": 24, "pezzi": [{"nome": "corpo", "forma": "sfera", "misura": [0.26, 0.6], "pos": [0, 0, 0], "colore": "#3a3048"}, {"nome": "testa", "forma": "sfera", "misura": [0.2], "pos": [0, 0.34, 0.04], "colore": "#3a3048"}, {"nome": "orecchio_s", "forma": "cono", "misura": [0.07, 0.07, 0.22], "pos": [-0.11, 0.56, 0], "rot": [0, 0, 18], "colore": "#2a2232", "lati": 4}, {"nome": "orecchio_d", "forma": "cono", "misura": [0.07, 0.07, 0.22], "pos": [0.11, 0.56, 0], "rot": [0, 0, -18], "colore": "#2a2232", "lati": 4}, {"nome": "occhio_s", "forma": "sfera", "misura": [0.045], "pos": [-0.07, 0.38, 0.19], "colore": "#ff3a2a"}, {"nome": "occhio_d", "forma": "sfera", "misura": [0.045], "pos": [0.07, 0.38, 0.19], "colore": "#ff3a2a"}, {"nome": "ala_s", "forma": "vuoto", "pos": [-0.16, 0.12, 0]}, {"nome": "osso_s", "genitore": "ala_s", "forma": "box", "misura": [0.62, 0.05, 0.05], "pos": [-0.3, 0.08, 0], "rot": [0, 0, -10], "colore": "#2a2232"}, {"nome": "membrana1_s", "genitore": "ala_s", "forma": "box", "misura": [0.34, 0.34, 0.02], "pos": [-0.2, -0.08, 0], "colore": "#4d3c5c"}, {"nome": "membrana2_s", "genitore": "ala_s", "forma": "box", "misura": [0.3, 0.26, 0.02], "pos": [-0.48, -0.02, 0], "rot": [0, 0, 14], "colore": "#4d3c5c"}, {"nome": "ala_d", "forma": "vuoto", "pos": [0.16, 0.12, 0]}, {"nome": "osso_d", "genitore": "ala_d", "forma": "box", "misura": [0.62, 0.05, 0.05], "pos": [0.3, 0.08, 0], "rot": [0, 0, 10], "colore": "#2a2232"}, {"nome": "membrana1_d", "genitore": "ala_d", "forma": "box", "misura": [0.34, 0.34, 0.02], "pos": [0.2, -0.08, 0], "colore": "#4d3c5c"}, {"nome": "membrana2_d", "genitore": "ala_d", "forma": "box", "misura": [0.3, 0.26, 0.02], "pos": [0.48, -0.02, 0], "rot": [0, 0, -14], "colore": "#4d3c5c"}], "cella": [100, 100], "px_per_unita": 24, "piedi_da_sotto": 50, "rotazione_y": 0, "rotazione_x": 0, "ritaglia": true, "pose": [{"nome": "vola", "frame": 6, "fps": 14, "ciclo": true, "andata_ritorno": true, "nodi": [{"nodo": "ala_s", "da": {"rot": [0, 0, -38]}, "a": {"rot": [0, 0, 32]}}, {"nodo": "ala_d", "da": {"rot": [0, 0, 38]}, "a": {"rot": [0, 0, -32]}}]}, {"nome": "picchiata", "frame": 1, "nodi": [{"nodo": "ala_s", "da": {"rot": [0, 0, 62]}}, {"nodo": "ala_d", "da": {"rot": [0, 0, -62]}}]}, {"nome": "dorme", "frame": 1, "nodi": [{"nodo": "ala_s", "da": {"rot": [0, 0, 78]}}, {"nodo": "ala_d", "da": {"rot": [0, 0, -78]}}, {"nodo": "corpo", "da": {"rot": [0, 0, 180]}}, {"nodo": "testa", "da": {"pos": [0, -0.68, 0]}}, {"nodo": "orecchio_s", "da": {"pos": [0, -1.06, 0], "rot": [0, 0, 180]}}, {"nodo": "orecchio_d", "da": {"pos": [0, -1.06, 0], "rot": [0, 0, 180]}}, {"nodo": "occhio_s", "da": {"pos": [0, -0.76, 0]}}, {"nodo": "occhio_d", "da": {"pos": [0, -0.76, 0]}}]}, {"nome": "colpito", "frame": 1, "nodi": [{"nodo": "ala_s", "da": {"rot": [0, 0, -60]}}, {"nodo": "ala_d", "da": {"rot": [0, 0, 20]}}]}, {"nome": "morte", "frame": 1, "nodi": [{"nodo": "ala_s", "da": {"rot": [0, 0, 85]}}, {"nodo": "ala_d", "da": {"rot": [0, 0, -85]}}, {"nodo": "corpo", "da": {"rot": [0, 0, 90]}}]}], "scala": [1.35, 1.35, 1.35]},
-		{"nome": "dardo", "cella": [160, 160], "px_per_unita": 24, "piedi_da_sotto": 80, "rotazione_y": 0, "rotazione_x": 0, "ritaglia": true, "pezzi": [{"nome": "lama", "forma": "cono", "misura": [0.07, 0.07, 0.42], "pos": [-0.26, 0, 0], "rot": [0, 0, 90], "colore": "#c4c6d0", "lati": 4}, {"nome": "guardia", "forma": "box", "misura": [0.04, 0.16, 0.06], "pos": [-0.04, 0, 0], "colore": "#5a5664"}, {"nome": "manico", "forma": "cilindro", "misura": [0.04, 0.26], "pos": [0.12, 0, 0], "rot": [0, 0, 90], "colore": "#5a3c28", "lati": 6}, {"nome": "anello", "forma": "anello", "misura": [0.03, 0.07], "pos": [0.29, 0, 0], "rot": [90, 0, 0], "colore": "#5a5664"}]},
-		{"nome": "munizioni_frecce", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "faretra", "forma": "cilindro", "misura": [0.16, 0.2, 0.62], "pos": [0, 0.31, 0], "rot": [0, 0, -18], "colore": "#6b4a30", "lati": 8}, {"nome": "fascia", "forma": "cilindro", "misura": [0.21, 0.21, 0.08], "pos": [-0.03, 0.42, 0], "rot": [0, 0, -18], "colore": "#3a3c46", "lati": 8}, {"nome": "f1", "forma": "cilindro", "misura": [0.025, 0.5], "pos": [0.08, 0.75, 0.04], "rot": [0, 0, -18], "colore": "#8a6a48", "lati": 4}, {"nome": "f2", "forma": "cilindro", "misura": [0.025, 0.5], "pos": [0.16, 0.72, -0.04], "rot": [0, 0, -24], "colore": "#8a6a48", "lati": 4}, {"nome": "p1", "forma": "box", "misura": [0.12, 0.14, 0.02], "pos": [0.15, 0.98, 0.04], "rot": [0, 0, -18], "colore": "#d8d0bc"}, {"nome": "p2", "forma": "box", "misura": [0.12, 0.14, 0.02], "pos": [0.27, 0.94, -0.04], "rot": [0, 0, -24], "colore": "#c4b9a0"}]},
-		{"nome": "munizioni_dardi", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "rotolo", "forma": "box", "misura": [0.56, 0.12, 0.28], "pos": [0, 0.06, 0], "colore": "#5a3c28"}, {"nome": "d1", "forma": "cono", "misura": [0.05, 0.05, 0.34], "pos": [-0.1, 0.3, 0], "rot": [0, 0, 20], "colore": "#c4c6d0", "lati": 4}, {"nome": "d2", "forma": "cono", "misura": [0.05, 0.05, 0.34], "pos": [0.04, 0.3, 0.05], "rot": [0, 0, 5], "colore": "#c4c6d0", "lati": 4}, {"nome": "d3", "forma": "cono", "misura": [0.05, 0.05, 0.34], "pos": [0.17, 0.3, 0], "rot": [0, 0, -12], "colore": "#c4c6d0", "lati": 4}]},
+		{"nome": "pipistrello", "doppia": true, "fps_minimo": 24, "glb": "res://sorgenti3d/armi/pipistrello.glb", "nascondi": ["Icosphere*"], "colori": [{"mesh": "*", "saturazione": 0.8, "luminosita": 1.6}], "cella": [100, 100], "px_per_unita": 24, "piedi_da_sotto": 50, "rotazione_y": 0, "rotazione_x": 60, "ritaglia": true, "scala": [0.2, 0.2, 0.2], "pose": [{"nome": "vola", "frame": 6, "fps": 14, "ciclo": true, "andata_ritorno": true, "nodi": [{"osso": "W_01.R", "da": {"rot": [0, -35, 0.0]}, "a": {"rot": [0, 35, 0.0]}}, {"osso": "W_01.L", "da": {"rot": [0, 35, -0.0]}, "a": {"rot": [0, -35, -0.0]}}]}, {"nome": "picchiata", "frame": 1, "nodi": [{"osso": "W_01.R", "da": {"rot": [0, 20, 55]}, "a": {"rot": [0, 20, 55]}}, {"osso": "W_01.L", "da": {"rot": [0, -20, -55]}, "a": {"rot": [0, -20, -55]}}]}, {"nome": "dorme", "frame": 1, "giro": 180, "centro": 0.4, "nodi": [{"osso": "W_01.R", "da": {"rot": [0, 10, 75]}, "a": {"rot": [0, 10, 75]}}, {"osso": "W_01.L", "da": {"rot": [0, -10, -75]}, "a": {"rot": [0, -10, -75]}}]}, {"nome": "colpito", "frame": 1, "nodi": [{"osso": "W_01.R", "da": {"rot": [0, -50, 0]}}, {"osso": "W_01.L", "da": {"rot": [0, -20, 0]}}]}, {"nome": "morte", "frame": 1, "giro": 90, "centro": 0.4, "nodi": [{"osso": "W_01.R", "da": {"rot": [0, 15, 65]}, "a": {"rot": [0, 15, 65]}}, {"osso": "W_01.L", "da": {"rot": [0, -15, -65]}, "a": {"rot": [0, -15, -65]}}]}]},
+		{"nome": "dardo", "cella": [160, 160], "px_per_unita": 24, "piedi_da_sotto": 80, "rotazione_y": 0, "rotazione_x": 0, "ritaglia": true, "pezzi": [{"nome": "pugnale", "forma": "modello", "glb": "res://sorgenti3d/armi/pugnale.glb", "scala": 1.2, "rot": [0, 90, 0]}], "colori": [{"mesh": "*", "luminosita": 1.6}]},
+		{"nome": "munizioni_frecce", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 20, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "faretra", "forma": "modello", "glb": "res://sorgenti3d/armi/faretra.glb", "scala": 0.9, "rot": [-65, 90, 0]}], "colori": [{"mesh": "*", "luminosita": 1.3}]},
+		{"nome": "munizioni_dardi", "cella": [120, 120], "px_per_unita": 24, "piedi_da_sotto": 30, "rotazione_y": 0, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "p0", "forma": "modello", "glb": "res://sorgenti3d/armi/pugnale.glb", "scala": 1.0, "pos": [-0.08, 0, 0], "rot": [-50, 90, 0]}, {"nome": "p1", "forma": "modello", "glb": "res://sorgenti3d/armi/pugnale.glb", "scala": 1.0, "pos": [0.0, 0, 0], "rot": [-80, 90, 0]}, {"nome": "p2", "forma": "modello", "glb": "res://sorgenti3d/armi/pugnale.glb", "scala": 1.0, "pos": [0.08, 0, 0], "rot": [-110, 90, 0]}], "colori": [{"mesh": "*", "luminosita": 1.6}]},
 		{
 			"nome": "mimic",
 			"doppia": true,
@@ -111,89 +111,9 @@
 				{"nome": "morte", "frame": 12, "nodi": [{"nodo": "chest", "da": {"pos": [0, 0, 0], "rot": [0, 0, 0]}, "a": {"pos": [0, 0, 0], "rot": [0, 0, 95]}}, {"nodo": "chest_lid", "da": {"rot": [-20, 0, 0]}, "a": {"rot": [-120, 0, 0]}}], "fps": 12}
 			]
 		},
-		{
-			"nome": "pozione_salute",
-			"cella": [64, 64],
-			"px_per_unita": 24,
-			"piedi_da_sotto": 14,
-			"rotazione_y": 0,
-			"rotazione_x": 10,
-			"ritaglia": true,
-			"pezzi": [
-				{"nome": "bottiglia", "forma": "vuoto"},
-				{"nome": "corpo", "forma": "sfera", "misura": [0.16, 0.3], "pos": [0, 0.15, 0], "colore": "#b0302c", "genitore": "bottiglia"},
-				{"nome": "collo", "forma": "cilindro", "misura": [0.05, 0.12], "pos": [0, 0.34, 0], "colore": "#9aa4b0", "genitore": "bottiglia"},
-				{"nome": "tappo", "forma": "cilindro", "misura": [0.06, 0.06], "pos": [0, 0.43, 0], "colore": "#6b4a2e", "genitore": "bottiglia"},
-				{"nome": "riflesso", "forma": "sfera", "misura": [0.04], "pos": [-0.07, 0.21, 0.12], "colore": "#eef2f6", "genitore": "bottiglia"}
-			],
-			"pose": [
-				{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [0.8, 0.8, 0.8]}}]},
-				{"nome": "media", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.05, 1.05, 1.05]}}]},
-				{"nome": "grande", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.35, 1.35, 1.35]}}]}
-			]
-		},
-		{
-			"nome": "pozione_stamina",
-			"cella": [64, 64],
-			"px_per_unita": 24,
-			"piedi_da_sotto": 14,
-			"rotazione_y": 0,
-			"rotazione_x": 10,
-			"ritaglia": true,
-			"pezzi": [
-				{"nome": "bottiglia", "forma": "vuoto"},
-				{"nome": "corpo", "forma": "sfera", "misura": [0.16, 0.3], "pos": [0, 0.15, 0], "colore": "#5f9e3c", "genitore": "bottiglia"},
-				{"nome": "collo", "forma": "cilindro", "misura": [0.05, 0.12], "pos": [0, 0.34, 0], "colore": "#9aa4b0", "genitore": "bottiglia"},
-				{"nome": "tappo", "forma": "cilindro", "misura": [0.06, 0.06], "pos": [0, 0.43, 0], "colore": "#6b4a2e", "genitore": "bottiglia"},
-				{"nome": "riflesso", "forma": "sfera", "misura": [0.04], "pos": [-0.07, 0.21, 0.12], "colore": "#eef2f6", "genitore": "bottiglia"}
-			],
-			"pose": [
-				{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [0.8, 0.8, 0.8]}}]},
-				{"nome": "media", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.05, 1.05, 1.05]}}]},
-				{"nome": "grande", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.35, 1.35, 1.35]}}]}
-			]
-		},
-		{
-			"nome": "pozione_mana",
-			"cella": [64, 64],
-			"px_per_unita": 24,
-			"piedi_da_sotto": 14,
-			"rotazione_y": 0,
-			"rotazione_x": 10,
-			"ritaglia": true,
-			"pezzi": [
-				{"nome": "bottiglia", "forma": "vuoto"},
-				{"nome": "corpo", "forma": "sfera", "misura": [0.16, 0.3], "pos": [0, 0.15, 0], "colore": "#2f5fc0", "genitore": "bottiglia"},
-				{"nome": "collo", "forma": "cilindro", "misura": [0.05, 0.12], "pos": [0, 0.34, 0], "colore": "#9aa4b0", "genitore": "bottiglia"},
-				{"nome": "tappo", "forma": "cilindro", "misura": [0.06, 0.06], "pos": [0, 0.43, 0], "colore": "#6b4a2e", "genitore": "bottiglia"},
-				{"nome": "riflesso", "forma": "sfera", "misura": [0.04], "pos": [-0.07, 0.21, 0.12], "colore": "#eef2f6", "genitore": "bottiglia"}
-			],
-			"pose": [
-				{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [0.8, 0.8, 0.8]}}]},
-				{"nome": "media", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.05, 1.05, 1.05]}}]},
-				{"nome": "grande", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.35, 1.35, 1.35]}}]}
-			]
-		},
-		{
-			"nome": "pozione_velocita",
-			"cella": [64, 64],
-			"px_per_unita": 24,
-			"piedi_da_sotto": 14,
-			"rotazione_y": 0,
-			"rotazione_x": 10,
-			"ritaglia": true,
-			"pezzi": [
-				{"nome": "bottiglia", "forma": "vuoto"},
-				{"nome": "corpo", "forma": "sfera", "misura": [0.16, 0.3], "pos": [0, 0.15, 0], "colore": "#d0b040", "genitore": "bottiglia"},
-				{"nome": "collo", "forma": "cilindro", "misura": [0.05, 0.12], "pos": [0, 0.34, 0], "colore": "#9aa4b0", "genitore": "bottiglia"},
-				{"nome": "tappo", "forma": "cilindro", "misura": [0.06, 0.06], "pos": [0, 0.43, 0], "colore": "#6b4a2e", "genitore": "bottiglia"},
-				{"nome": "riflesso", "forma": "sfera", "misura": [0.04], "pos": [-0.07, 0.21, 0.12], "colore": "#eef2f6", "genitore": "bottiglia"}
-			],
-			"pose": [
-				{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [0.8, 0.8, 0.8]}}]},
-				{"nome": "media", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.05, 1.05, 1.05]}}]},
-				{"nome": "grande", "frame": 1, "nodi": [{"nodo": "bottiglia", "da": {"scala": [1.35, 1.35, 1.35]}}]}
-			]
-		}
+		{"nome": "pozione_salute", "cella": [64, 64], "px_per_unita": 24, "piedi_da_sotto": 14, "rotazione_y": 20, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "piccola", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_piccola.glb", "scala": 2.4}, {"nome": "media", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_media.glb", "scala": 2.4}, {"nome": "grande", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_grande.glb", "scala": 3.6}], "pose": [{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, 0, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "media", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, 0, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "grande", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, 0, 0]}}]}], "colori": [{"mesh": "*", "tinta": "#ff6a5c", "saturazione": 1.2, "luminosita": 1.5}]},
+		{"nome": "pozione_stamina", "cella": [64, 64], "px_per_unita": 24, "piedi_da_sotto": 14, "rotazione_y": 20, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "piccola", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_piccola.glb", "scala": 2.4}, {"nome": "media", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_media.glb", "scala": 2.4}, {"nome": "grande", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_grande.glb", "scala": 3.6}], "pose": [{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, 0, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "media", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, 0, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "grande", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, 0, 0]}}]}], "colori": [{"mesh": "*", "tinta": "#8cd860", "saturazione": 1.2, "luminosita": 1.5}]},
+		{"nome": "pozione_mana", "cella": [64, 64], "px_per_unita": 24, "piedi_da_sotto": 14, "rotazione_y": 20, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "piccola", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_piccola.glb", "scala": 2.4}, {"nome": "media", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_media.glb", "scala": 2.4}, {"nome": "grande", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_grande.glb", "scala": 3.6}], "pose": [{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, 0, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "media", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, 0, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "grande", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, 0, 0]}}]}], "colori": [{"mesh": "*", "tinta": "#6c9cff", "saturazione": 1.2, "luminosita": 1.5}]},
+		{"nome": "pozione_velocita", "cella": [64, 64], "px_per_unita": 24, "piedi_da_sotto": 14, "rotazione_y": 20, "rotazione_x": 10, "ritaglia": true, "pezzi": [{"nome": "piccola", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_piccola.glb", "scala": 2.4}, {"nome": "media", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_media.glb", "scala": 2.4}, {"nome": "grande", "forma": "modello", "glb": "res://sorgenti3d/armi/pozione_grande.glb", "scala": 3.6}], "pose": [{"nome": "piccola", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, 0, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "media", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, 0, 0]}}, {"nodo": "grande", "da": {"pos": [0, -50, 0]}}]}, {"nome": "grande", "frame": 1, "nodi": [{"nodo": "piccola", "da": {"pos": [0, -50, 0]}}, {"nodo": "media", "da": {"pos": [0, -50, 0]}}, {"nodo": "grande", "da": {"pos": [0, 0, 0]}}]}], "colori": [{"mesh": "*", "tinta": "#ffd860", "saturazione": 1.2, "luminosita": 1.5}]}
 	]
 }

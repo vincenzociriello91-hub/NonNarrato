@@ -1,0 +1,21 @@
+Armi, scudi, elmi, pozioni, frecce e pipistrello di NonNarrato (dalla 0.1.40). Tutti CC0 1.0 (pubblico dominio):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Convertiti in .glb con strumenti/converti_modelli.py (Blender 4.2), texture ridotte a 512 pixel.
+
+- spada, spadone, ascia, bipenne, pugnale, bastone, bacchetta, balestra, grimorio, scudo_torre:
+  "Medieval Weapon Pack", OpenGameArt, https://opengameart.org/content/medieval-weapon-pack (CC0)
+- faretra: "Medieval Weapon Pack" (stesso pacchetto delle armi)
+- freccia: "Archery Set", https://opengameart.org/content/archery-set (CC0)
+- spada_bronzo, ascia_bronzo, scudo_legno, pozione_piccola, pozione_media, pozione_grande:
+  Quaternius, "Fantasy Props MegaKit [Standard]", https://quaternius.itch.io/fantasy-props-megakit (CC0)
+- stocco (antique_estoc), scudo_goccia (kite_shield): Poly Haven, https://polyhaven.com (CC0)
+- scudo_tondo: "Round Shield 1", https://opengameart.org/content/round-shield-1 (CC0)
+- scudo_chiodato: "Spiked shield", https://opengameart.org/content/spiked-shield (CC0)
+- bastone_sepolti: "Magic Staff Set", https://opengameart.org/content/magic-staff-set (CC0)
+- elmo_chiuso: "Bucket Helmet", https://opengameart.org/content/bucket-helmet (CC0)
+- elmo_tondo: "Viking Helmet", https://opengameart.org/content/viking-helmet-0 (CC0)
+- elmo_corna: "Viking helm", https://opengameart.org/content/viking-helm (CC0)
+- maschera_teschio: "Skull Mask", https://opengameart.org/content/skull-mask (CC0)
+- cappello_tesa, cappello_punta: "Hats", https://opengameart.org/content/hats (CC0)
+- pipistrello: "Vampire Bat (Animated)", https://opengameart.org/content/vampire-bat-animated (CC0)

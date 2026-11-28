@@ -1522,6 +1522,21 @@ func _prova_quaternius() -> void:
 		if not SpriteAnimato.ha_doppia(voce["nome"]):
 			problemi.append(voce["nome"] + ": manca il foglio doppio")
 	_verifica("quaternius: nemici fatti coi pezzi e le animazioni del protagonista", visti == 5 and problemi.is_empty(), str(problemi))
+	# Armi, scudi ed elmi nello stile nuovo (0.1.40): ogni pezzo KayKit di armi ed elmi è stato rifatto, con una forma vera.
+	var rifatti := 0
+	var vuoti: Array = []
+	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
+		if mi.has_meta("fonte"):
+			rifatti += 1
+			if mi.mesh == null or mi.mesh.get_surface_count() == 0 or mi.mesh.get_aabb().size.length() < 0.05:
+				vuoti.append(String(mi.name))
+	var fogli_nuovi := true
+	for n: String in ["pipistrello", "pozione_salute", "dardo", "munizioni_frecce"]:
+		var dati: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://arte/sprite/%s.json" % n))
+		fogli_nuovi = fogli_nuovi and typeof(dati) == TYPE_DICTIONARY
+	var pozione: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://arte/sprite/pozione_salute.json"))
+	_verifica("armi, scudi ed elmi rifatti nello stile nuovo; pozioni, pipistrello e munizioni nuovi", rifatti >= 30 and vuoti.is_empty()
+			and fogli_nuovi and (pozione["animazioni"] as Dictionary).has("grande"), "%d rifatti, vuoti %s" % [rifatti, vuoti])
 	m.free()
 	# Nel gioco: un materiale per superficie, con rilievo (normali) e pieghe (occlusione) sulla giubba.
 	var fv := _g().sprite as FiguraViva

@@ -429,3 +429,26 @@ Tutte CC0 (licenza letta nel file o nella pagina), scaricate davvero, convertite
 - Conversione: Blender 4.2 LTS da download.blender.org in `/opt/blender` (fuori dal repository). Script nello scratchpad (`script/converti.py`, `separa.py`, `separa_blend.py`, `separa_tex.py`, `misura.py`): i file vecchi hanno oggetti su layer nascosti (renderli visibili prima di esportare), materiali Blender Internal (collegare a mano la texture di colore), texture già impacchettate (non scartarle). Le unità cambiano da file a file (cm, m, pollici): misurare e scalare.
 - Senza un modello pronto: leva, spuntoni, pendolo, piastra, balestra murata. Si costruiscono con pezzi verificati (catene, legno, metallo, lame) e le texture trim Quaternius.
 - Non usati: poly.pizza (rifiuta gli accessi automatici), le liste di itch.io (403 alle ricerche; i download dei pacchetti funzionano), claymore (archivio rar senza programma per aprirlo).
+
+## Armi, scudi, elmi, pozioni, pipistrello (0.1.40, punto 4 tappa 2 quarta parte)
+
+- Modelli in `sorgenti3d/armi/` (glb con texture a 512, `LICENZA.txt` con le fonti), fatti con `strumenti/converti_modelli.py`
+  (Blender 4.2: `blender -b -P strumenti/converti_modelli.py -- elenco.json sorgenti3d/armi`; elenco = {nome: {file, oggetto?,
+  texture?}}). Con le immagini impacchettate da un .glb l'esportatore di Blender crea copie vuote: lo script le salva su file
+  prima di esportare (`TMPDIR`).
+- `crea_manichino.gd`, `SOSTITUZIONI`: i pezzi KayKit di armi, scudi ed elmi cambiano forma ma tengono il nome (salvataggi,
+  `Equipaggiamento`, voci dei nemici restano validi). `_posa_sostituto`: modo "arma" = la mano stringe l'arma a `presa`
+  (frazione dal manico), lunghezza vera `lungo`, la punta è il lato più largo (`_verso_largo`; `rovescia` per il contrario),
+  direzione e presa ricavate dal pezzo KayKit (l'estremo lontano dall'osso è la punta); modo "centro" = stesso centro e stessa
+  grandezza (`grande`), `faccia` per scudi, libri e balestre (il lato sottile guarda dove guardava quello di prima), altrimenti
+  l'alto resta l'alto (`giro` in gradi). `colore` = texture di un colore per i modelli senza texture. Meta `fonte` sui pezzi
+  rifatti (la prova li conta). `_unisci` mette in una sola mesh i file in più pezzi.
+- `render_sprite.gd`: forma `"modello"` nei `pezzi` (un glb intero, `scala` dopo la rotazione), pose sulle ossa (`"osso"` nei
+  `nodi`: rotazione dal riposo), `giro`/`centro` nelle pose e `capovolto` nelle animazioni; la trasparenza delle texture conta
+  solo coi materiali che ce l'hanno (`usa_alfa`). Le pose non si azzerano da sole: ogni posa deve dire dove sta ogni nodo che
+  un'altra posa sposta (pozioni: le tre bottiglie in ogni posa).
+- Pipistrello: le animazioni del file originale non muovono le ossa né in Blender né esportate (provato in tutti i modi): le ali
+  si muovono con le pose sulle ossa `W_01.R`/`W_01.L` (asse Y = battito, asse Z = ali chiuse). Le misure dei modelli scaricati
+  vanno controllate: il pugnale ha una parte invisibile, la freccia di "Archery Set" si vede solo a metà (la freccia in volo
+  resta quella a forme semplici, che a 25 pixel non si distingue).
+- Prova: `_prova_quaternius` controlla i pezzi rifatti (almeno 30, nessuno vuoto) e i fogli nuovi (pozioni con tre taglie).
