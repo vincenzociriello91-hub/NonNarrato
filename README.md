@@ -116,6 +116,8 @@ solo quando cambia il fotogramma o l'aspetto. Gli oggetti indossabili e i colori
 si scelgono dal menu di pausa, sezione Aspetto.
 Dalla 0.1.39 anche i nemici umani (sepolto, mago, balestriere, bestione, ghoul) sono fatti con lo stesso manichino:
 `strumenti/render_sprite.gd` lo carica (voce con `"scena"`), mostra solo i pezzi elencati in `"mostra"` e ne fa i fogli.
+Dalla 0.1.41 muri, pavimenti, oggetti e arredi vengono dai pacchi CC0 Quaternius (Medieval Village e Fantasy Props MegaKit),
+Poly Haven e OpenGameArt, in `sorgenti3d/ambienti/` (servono solo a disegnare i fogli: non vanno nell'APK).
 
 ## Cartelle
 

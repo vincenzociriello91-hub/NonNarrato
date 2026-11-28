@@ -59,5 +59,6 @@ Tappa 2, seconda parte, fatta nella 0.1.38: il Non Narrato col corpo Quaternius,
 animazioni UAL e KayKit adattate. Tappa 2, terza parte, fatta nella 0.1.39: i nemici con gli stessi pezzi e le stesse
 animazioni del protagonista (sepolto risorto, mago, balestriere, bestione incappucciato, ghoul). Pipistrello e mimic
 restano: il mimic nasce dal forziere e cambierà con gli ambienti. Tappa 2, quarta parte, fatta nella 0.1.40: armi, scudi, elmi, pozioni, pipistrello e munizioni dalle fonti CC0 verificate
-(dieci giri di ricerca). Prossima: 0.1.41 gli ambienti (muri, pavimenti, casse, barili, forzieri e mimic, torce, bracieri,
-leve, grate, trappole) e gli arredi (catene, gabbie, stendardi, libri, statua, sarcofago, ossa, rocce).
+(dieci giri di ricerca). Tappa 2, quinta parte, fatta nella 0.1.41: gli ambienti (muri, pavimenti, colonne, casse, barili,
+forzieri e mimic, torce, bracieri, montacarichi, leve e balestre murate) e gli arredi (catene, gabbie, lampadario, stendardi,
+libri, statua, sarcofago, ossa, rocce, monete, edera). Restano a forme semplici le grate, gli spuntoni e la sega del pendolo.

@@ -698,7 +698,8 @@ func _materiali(modello: Node3D, voce: Dictionary, normali: bool) -> void:
 						mat.set_shader_parameter("tinta", originale.albedo_color)
 				mat.set_shader_parameter("forma", voce.get("forma", 0.4))
 				for r: Dictionary in regole:
-					if String(mi.name).matchn(r.get("mesh", "*")):
+					var nome_mat := String(orig.resource_name) if orig != null else ""
+					if String(mi.name).matchn(r.get("mesh", "*")) and nome_mat.matchn(r.get("materiale", "*")):
 						if r.has("tinta"):
 							mat.set_shader_parameter("tinta", Color(String(r["tinta"])))
 						if r.has("saturazione"):

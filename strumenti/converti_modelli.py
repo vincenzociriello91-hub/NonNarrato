@@ -7,7 +7,7 @@
 # senza nodi (si collega la texture di colore col nome più simile), texture già impacchettate (non vanno scartate).
 import bpy, sys, os, re, json, difflib
 
-LATO = 512
+LATO = int(os.environ.get("LATO", "512"))   # i modelli d'ambiente bastano a 256
 TEMP = os.path.join(os.environ.get("TMPDIR", "/tmp"), "converti_modelli")
 os.makedirs(TEMP, exist_ok=True)
 

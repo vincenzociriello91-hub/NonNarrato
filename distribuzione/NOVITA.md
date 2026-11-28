@@ -1,5 +1,12 @@
 # Novità di NonNarrato
 
+## 0.1 — Muri, pavimenti, oggetti e arredi nello stesso stile (grafica, quinta tappa)
+
+- **Muri e pavimenti nuovi**: pietre irregolari sul muro di fondo, mattoni squadrati nei blocchi e nelle lastre su cui si cammina, colonne di pietra. Archi bui, finestre con le sbarre, porte di legno, cancelli, muri sfondati ed edera, tutti con la stessa pietra.
+- **Oggetti della stanza rifatti**: casse, barili, torce di ferro, candelabri, stendardi appesi ai bracci di legno, forziere con le borchie e forziere dorato, bracieri a calderone, montacarichi di assi, leva e balestra murate nella pietra.
+- **Il mimic** è fatto con lo stesso forziere di quelli veri: da fuori non si distingue più.
+- **Arredi nuovi**: statue, sarcofagi, gabbie e un lampadario appesi alle catene, libreria e libri, monete nella stanza del tesoro, ossa, rocce, edera e catene a terra. Solo aspetto: non intralciano.
+
 ## 0.1 — Armi, scudi, elmi e pozioni nello stesso stile (grafica, quarta tappa)
 
 - **Armi nuove, con forme vere**: spade, spadone, pugnali, asce, ascia bipenne, bastone, bacchetta, balestra e libro di magia sono rifatti da un'unica raccolta di armi medievali, con legno, ferro e cuoio. Nessuna arma da cartone animato.

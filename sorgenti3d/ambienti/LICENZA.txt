@@ -1,0 +1,17 @@
+Muri, pavimenti, oggetti e arredi di NonNarrato (dalla 0.1.41). Tutti CC0 1.0 (pubblico dominio):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Convertiti in .glb con strumenti/converti_modelli.py (Blender 4.2), texture ridotte a 256 pixel (LATO=256),
+il forziere a 512. Servono solo a disegnare i fogli (strumenti/render_sprite.gd): l'esportazione li esclude dall'APK.
+
+- pavimento_mattoni, pavimento_pietra, pavimento_legno, cornice_porta, porta_legno, cancellata_semplice, colonna,
+  rampicante1, rampicante2, rampicante4, mattone1, mattone2, mattone3:
+  Quaternius, "Medieval Village MegaKit [Standard]", https://quaternius.itch.io/medieval-village-megakit (CC0)
+- barile, cassa_legno, torcia_ferro, candelabro, lampadario, catena, gabbia, stendardo1, stendardo2, libri, libri2,
+  monete, monete2, cocci, libreria, calderone:
+  Quaternius, "Fantasy Props MegaKit [Standard]", https://quaternius.itch.io/fantasy-props-megakit (CC0)
+- forziere_ricco (treasure_chest, ricomposto come il forziere KayKit: "chest" con figlio "chest_lid", scala 1,6),
+  statua (gothic_statue), rocce (rock_moss_set_01): Poly Haven, https://polyhaven.com (CC0)
+- sarcofago: "Stone coffin", https://opengameart.org/content/stone-coffin (CC0)
+- ossa1, ossa2: "3D Dungeon Debris - Skull and Bones",
+  https://opengameart.org/content/3d-dungeon-debris-skull-and-bones (CC0)

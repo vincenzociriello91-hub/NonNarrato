@@ -452,3 +452,26 @@ Tutte CC0 (licenza letta nel file o nella pagina), scaricate davvero, convertite
   vanno controllate: il pugnale ha una parte invisibile, la freccia di "Archery Set" si vede solo a metà (la freccia in volo
   resta quella a forme semplici, che a 25 pixel non si distingue).
 - Prova: `_prova_quaternius` controlla i pezzi rifatti (almeno 30, nessuno vuoto) e i fogli nuovi (pozioni con tre taglie).
+
+## Muri, pavimenti, oggetti e arredi nello stesso stile (0.1.41, punto 4 tappa 2 quinta parte)
+
+- Modelli in `sorgenti3d/ambienti/` (`LICENZA.txt`), texture a 256 (`LATO=256 blender -b -P strumenti/converti_modelli.py ...`).
+  Esclusi dall'APK (`exclude_filter` in `export_presets.cfg`): servono solo a `render_sprite.gd`.
+- Stessi nomi dei fogli di prima: il codice della stanza non cambia. Le voci d'ambiente in `strumenti/render_sprite.json`
+  sono di una riga ciascuna.
+- Muri da 96 = quattro quadrati `pavimento_mattoni` (Floor_UnevenBrick, 2×2 unità con UV 0-1 = un giro esatto della texture)
+  girati verso la telecamera: si ripetono senza cuciture. Varianti = muro + pezzi davanti (apertura buia ad arco = box +
+  cilindro, `cornice_porta`, `porta_legno`, `cancellata_semplice`, sbarre a cilindri, `colonna`, edera, mattoni a terra).
+  I muri Wall_* del pacco non vanno bene: la texture fa un giro ogni 2,12 unità in altezza e c'è la trave in cima.
+- Fondamenta 48 = un quadrato `pavimento_pietra`; lastra 98×23 = tre quadrati sopra (inclinati di 12°) e tre davanti.
+- Tono freddo: regole `colori` con `"materiale"` (nuova chiave, confronta il nome del materiale: MI_UnevenBrick, MI_Brick,
+  MI_RockTrim, MI_Banner, *Vine*). L'edera del pacco è una maschera bianca: va tinta.
+- Forziere, forziere d'oro e mimic: lo stesso `forziere_ricco.glb` (treasure_chest di Poly Haven ricomposto come il KayKit:
+  vuoto "chest" con figlio "chest_lid", scala 1,6). Il forziere d'oro è lo stesso, più caldo e luminoso. Denti e occhi del
+  mimic rifatti sulla forma nuova. Un mimic diverso dal forziere vero si riconoscerebbe: devono restare uguali.
+- Arredi: `Stanza.ARREDI` [foglio, piedi, maschera, z], messi in `_decorazioni()`; solo sprite, niente corpi; il
+  lampadario ha una luce piccola. Gabbia e lampadario hanno la catena verso l'alto nel foglio.
+- Restano a forme semplici: grate, spuntoni, sega del pendolo. Leva, balestra murata, piastra, tavoletta, montacarichi
+  e braciere (calderone su mattoni) usano pezzi dei pacchi.
+- Key_Metal e Key_Gold non si vedono (colori nei vertici): niente chiavi.
+- Prova: `_prova_quaternius` controlla che le voci d'ambiente usino `sorgenti3d/ambienti/` e che ogni arredo abbia il foglio.

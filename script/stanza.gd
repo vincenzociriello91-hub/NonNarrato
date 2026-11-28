@@ -53,6 +53,20 @@ const TORCE := [
 	Vector2(2560, 300), Vector2(2770, 452), Vector2(2366, 70), Vector2(2730, 84), Vector2(2690, -84),
 	Vector2(290, 990), Vector2(1150, 990), Vector2(116, 650), Vector2(620, 990),
 ]
+# Arredi (0.1.41): [foglio, piedi, maschera della luce, z]. Solo aspetto: nessun corpo, il bot non li vede.
+const ARREDI := [
+	["ossa", Vector2(520, 480), Effetti.L_DAVANTI, -22], ["sarcofago", Vector2(640, 480), Effetti.L_DAVANTI, -24],
+	["statua", Vector2(985, 480), Effetti.L_DAVANTI, -24], ["libri", Vector2(186, 392), Effetti.L_DAVANTI, -22],
+	["gabbia", Vector2(810, 250), Effetti.L_DAVANTI, -30], ["lampadario", Vector2(480, 210), Effetti.L_DAVANTI, -30],
+	["rampicante", Vector2(400, 330), Effetti.L_SFONDO, -44], ["rampicante_corto", Vector2(1150, 250), Effetti.L_SFONDO, -44],
+	["catena", Vector2(1620, 480), Effetti.L_DAVANTI, -22], ["statua", Vector2(1770, 480), Effetti.L_DAVANTI, -24],
+	["rampicante", Vector2(2050, 470), Effetti.L_SFONDO, -44], ["libreria", Vector2(2460, 120), Effetti.L_DAVANTI, -24],
+	["libri_fila", Vector2(2800, 120), Effetti.L_DAVANTI, -22], ["gabbia", Vector2(2290, 40), Effetti.L_DAVANTI, -30],
+	["monete_mucchio", Vector2(2712, 480), Effetti.L_DAVANTI, -22], ["monete", Vector2(2808, 480), Effetti.L_DAVANTI, -22],
+	["rocce", Vector2(470, 1040), Effetti.L_DAVANTI, -22], ["ossa_mucchio", Vector2(380, 1120), Effetti.L_DAVANTI, -22],
+	["sarcofago", Vector2(1170, 1040), Effetti.L_DAVANTI, -24], ["rocce", Vector2(100, 1040), Effetti.L_DAVANTI, -22],
+	["rampicante_corto", Vector2(860, 760), Effetti.L_SFONDO, -44],
+]
 # Galleria: piattaforme attraversabili (x, y, larghezza) e lastre che crollano (nome, x sinistra, y).
 const PIATTAFORME_GALLERIA := [[2016, 312, 64]]
 const FRAGILI := [["crollo1", 1920, 248], ["crollo2", 2024, 184]]
@@ -477,6 +491,15 @@ func _riempi(nome: String, rett: Rect2, maschera: int, z: int) -> void:
 
 
 func _decorazioni() -> void:
+	# Arredi (0.1.41): solo aspetto, niente corpi. Davanti al muro, dietro a personaggi e oggetti.
+	for a: Array in ARREDI:
+		var s := _sprite(a[0], a[1], a[2], a[3])
+		if a[0] == "lampadario":
+			var lume := Effetti.luce(Color(1.0, 0.72, 0.4), 120.0, 1.1, 50.0)
+			lume.position = a[1] + Vector2(0, -14)
+			add_child(Ombra.luce(lume))
+		elif a[2] == Effetti.L_SFONDO:
+			s.modulate = Color(0.8, 0.8, 0.86)
 	for x: float in [236.0, 716.0, 1052.0]:
 		_sprite("pilastro", Vector2(x, PAVIMENTO + 3), Effetti.L_DAVANTI, -20)
 		Effetti.occlusore(self, Rect2(x - 11.0, PAVIMENTO - 98.0, 22.0, 98.0))

@@ -1537,6 +1537,19 @@ func _prova_quaternius() -> void:
 	var pozione: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://arte/sprite/pozione_salute.json"))
 	_verifica("armi, scudi ed elmi rifatti nello stile nuovo; pozioni, pipistrello e munizioni nuovi", rifatti >= 30 and vuoti.is_empty()
 			and fogli_nuovi and (pozione["animazioni"] as Dictionary).has("grande"), "%d rifatti, vuoti %s" % [rifatti, vuoti])
+	# Ambienti e arredi nello stesso stile (0.1.41): muri, pavimenti e oggetti della stanza dai modelli Quaternius e Poly Haven.
+	var vecchi: Array = []
+	for voce: Dictionary in fogli["voci"]:
+		if String(voce["nome"]).begins_with("muro") or voce["nome"] in ["lastra", "fondamenta", "pilastro", "torcia", "cassa", "barile", "forziere", "forziere_oro", "mimic", "braciere", "stendardo"]:
+			if not JSON.stringify(voce).contains("sorgenti3d/ambienti/"):
+				vecchi.append(voce["nome"])
+	var arredi_mancanti: Array = []
+	for a: Array in Stanza.ARREDI:
+		if typeof(JSON.parse_string(FileAccess.get_file_as_string("res://arte/sprite/%s.json" % a[0]))) != TYPE_DICTIONARY \
+				or not ResourceLoader.exists("res://arte/sprite/%s.png" % a[0]):
+			arredi_mancanti.append(a[0])
+	_verifica("ambienti e arredi nello stile nuovo", vecchi.is_empty() and arredi_mancanti.is_empty() and Stanza.ARREDI.size() >= 15,
+			"vecchi %s, arredi mancanti %s" % [vecchi, arredi_mancanti])
 	m.free()
 	# Nel gioco: un materiale per superficie, con rilievo (normali) e pieghe (occlusione) sulla giubba.
 	var fv := _g().sprite as FiguraViva
