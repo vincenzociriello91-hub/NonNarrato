@@ -1,0 +1,1088 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+PROVA ok: avvio: giocatore a terra (250.0, 480.0)
+PROVA ok: avvio: qualità alta, ombre corte di muri e pilastri, niente coni neri alta, torce con ombra 2, luci con le ombre del motore 0
+PROVA ok: corsa sinistra 250 -> 207
+PROVA ok: salto apice 80 px
+PROVA ok: due colpi in fila attacchi 2
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: ambiente (561.0, 480.0) NORMALE
+PROVA traccia: ambiente (720.0, 464.0) SCAVALCO
+PROVA passaggio: ripiano>pavimento caduta ok -> (235.0, 480.0)
+PROVA traccia: ambiente (551.0, 480.0) NORMALE
+PROVA ripeto ambiente: disturbata dai nemici (lasciando il tasto si molla la cassa)
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 49 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: ambiente (477.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro sfera (sfera di mago) a 20 px, stato NORMALE, a terra true
+PROVA traccia: ambiente (727.0, 448.0) NORMALE
+PROVA difesa: salto contro sfera (sfera di mago) a 45 px, stato NORMALE, a terra true
+PROVA passaggio: ripiano>pavimento caduta ok -> (235.0, 480.0)
+PROVA traccia: ambiente (561.0, 480.0) NORMALE
+PROVA ok: rotolo all'indietro: si arretra guardando avanti 596 -> 508 verso 1
+PROVA ok: rotolo in avanti 508 -> 595
+PROVA ok: scatto in avanti a terra 595 -> 638
+PROVA ok: scatto all'indietro con la direzione 638 -> 598 verso 1
+PROVA ok: scatto all'indietro in aria 598 -> 553
+PROVA ok: tirare una cassa presa true, cassa 770 -> 719
+PROVA ok: spingere una cassa afferrata 719 -> 747
+PROVA ok: lasciando il tasto si molla la cassa 
+PROVA ok: scavalcare un ostacolo basso y 448, cassa 480
+PROVA ok: aggrapparsi a un bordo e salire y 392
+PROVA passaggio: pavimento>stanza_segreta passa ok -> (171.0, 480.0)
+PROVA passaggio: stanza_segreta>camera_ovest passa ok -> (111.0, 1040.0)
+PROVA passaggio: camera_ovest>fossa passa ok -> (381.0, 1120.0)
+PROVA traccia: sotterraneo (279.0, 1120.0) ROTOLATA
+PROVA passaggio: fossa>stanzino rotola ok -> (230.0, 1120.0)
+PROVA passaggio: stanzino>fossa rotola ok -> (339.0, 1120.0)
+PROVA passaggio: fossa>camera_ovest_est salto NO -> (423.0, 1040.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: sotterraneo (568.0, 1037.0) SCAVALCO
+PROVA passaggio: camera_ovest_est>camera_est nuota ok -> (1103.0, 1040.0)
+PROVA traccia: sotterraneo (1170.0, 1040.0) NORMALE
+PROVA arrampicata: presa a (1243.0, 981.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 981, stamina 100)
+PROVA arrampicata: fine a (1227.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_est>alcova arrampica ok -> (1227.0, 480.0)
+PROVA traccia: sotterraneo (1267.0, 480.0) NORMALE
+PROVA passaggio: alcova>camera_est attraversa ok -> (1279.0, 1040.0)
+PROVA passaggio: camera_est>camera_ovest_est nuota ok -> (537.0, 1040.0)
+PROVA traccia: sotterraneo (450.0, 1040.0) NORMALE
+PROVA passaggio: camera_ovest_est>camera_ovest salto ok -> (333.0, 1040.0)
+PROVA arrampicata: presa a (141.0, 1010.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 1010, stamina 100)
+PROVA traccia: sotterraneo (141.0, 585.0) ARRAMPICATA
+PROVA arrampicata: fine a (157.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_ovest>stanza_segreta arrampica ok -> (157.0, 480.0)
+PROVA passaggio: stanza_segreta>pavimento passa ok -> (221.0, 480.0)
+PROVA passaggio: p0>pavimento attraversa NO -> (351.0, 448.0)
+PROVA ripeto sotterraneo: disturbata dai nemici (sotterraneo: i dardi del ripiano cadono e si raccolgono)
+PROVA traccia: sotterraneo (250.0, 480.0) NORMALE
+PROVA passaggio: pavimento>stanza_segreta passa ok -> (171.0, 480.0)
+PROVA passaggio: stanza_segreta>camera_ovest passa ok -> (111.0, 1040.0)
+PROVA passaggio: camera_ovest>fossa passa ok -> (381.0, 1120.0)
+PROVA passaggio: fossa>stanzino rotola ok -> (230.0, 1120.0)
+PROVA traccia: sotterraneo (213.0, 1120.0) USA
+PROVA passaggio: stanzino>fossa rotola ok -> (339.0, 1120.0)
+PROVA passaggio: fossa>camera_ovest salto NO -> (337.0, 1040.0)
+PROVA traccia: sotterraneo (421.0, 1120.0) NORMALE
+PROVA passaggio: fossa>camera_ovest_est salto NO -> (422.0, 1040.0)
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 33 px, stato NORMALE, a terra false
+PROVA passaggio: fossa>camera_ovest salto NO -> (337.0, 1040.0)
+PROVA traccia: sotterraneo (420.0, 1120.0) NORMALE
+PROVA passaggio: fossa>camera_ovest_est salto NO -> (420.0, 1120.0)
+PROVA passaggio: fossa>camera_ovest salto NO -> (337.0, 1040.0)
+PROVA passaggio: fossa>camera_ovest_est salto NO -> (396.0, 1120.0)
+PROVA passaggio: fossa>camera_ovest salto NO -> (337.0, 1040.0)
+PROVA passaggio: fossa>camera_ovest_est salto ok -> (430.0, 1040.0)
+PROVA traccia: sotterraneo (560.0, 1040.0) NORMALE
+PROVA passaggio: camera_ovest_est>camera_est nuota ok -> (1103.0, 1040.0)
+PROVA arrampicata: presa a (1243.0, 981.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 981, stamina 100)
+PROVA traccia: sotterraneo (1243.0, 957.0) ARRAMPICATA
+PROVA arrampicata: fine a (1227.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_est>alcova arrampica ok -> (1227.0, 480.0)
+PROVA traccia: sotterraneo (1279.0, 916.0) NORMALE
+PROVA passaggio: alcova>camera_est attraversa ok -> (1279.0, 1040.0)
+PROVA passaggio: camera_est>camera_ovest_est nuota ok -> (537.0, 1040.0)
+PROVA passaggio: camera_ovest_est>camera_ovest salto ok -> (331.0, 1040.0)
+PROVA traccia: sotterraneo (306.0, 1040.0) NORMALE
+PROVA arrampicata: presa a (141.0, 1010.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 1010, stamina 100)
+PROVA traccia: sotterraneo (141.0, 503.0) ARRAMPICATA
+PROVA arrampicata: fine a (157.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_ovest>stanza_segreta arrampica ok -> (157.0, 480.0)
+PROVA passaggio: stanza_segreta>pavimento passa ok -> (221.0, 480.0)
+PROVA passaggio: p0>p1 salto ok -> (456.0, 344.0)
+PROVA passaggio: p1>pavimento attraversa NO -> (476.0, 458.0)
+PROVA ripeto sotterraneo: disturbata dai nemici (sotterraneo: un tiro verso l'alto rompe il ripiano di legno, sotterraneo: i dardi del ripiano cadono e si raccolgono, sotterraneo: sott'acqua il respiro cala, ma basta)
+PROVA traccia: sotterraneo (250.0, 480.0) NORMALE
+PROVA passaggio: pavimento>stanza_segreta passa ok -> (171.0, 480.0)
+PROVA passaggio: stanza_segreta>camera_ovest passa ok -> (111.0, 1040.0)
+PROVA passaggio: camera_ovest>fossa passa ok -> (381.0, 1120.0)
+PROVA passaggio: fossa>stanzino rotola ok -> (230.0, 1120.0)
+PROVA traccia: sotterraneo (213.0, 1120.0) NORMALE
+PROVA passaggio: stanzino>fossa rotola ok -> (339.0, 1120.0)
+PROVA passaggio: fossa>camera_ovest_est salto ok -> (440.0, 1040.0)
+PROVA traccia: sotterraneo (643.0, 1111.0) NUOTO
+PROVA passaggio: camera_ovest_est>camera_est nuota ok -> (1103.0, 1040.0)
+PROVA arrampicata: presa a (1243.0, 981.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 981, stamina 100)
+PROVA traccia: sotterraneo (1243.0, 904.0) ARRAMPICATA
+PROVA arrampicata: fine a (1227.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_est>alcova arrampica ok -> (1227.0, 480.0)
+PROVA passaggio: alcova>camera_est attraversa ok -> (1279.0, 1040.0)
+PROVA traccia: sotterraneo (1210.0, 1040.0) NORMALE
+PROVA passaggio: camera_est>camera_ovest_est nuota ok -> (537.0, 1040.0)
+PROVA passaggio: camera_ovest_est>camera_ovest salto ok -> (333.0, 1040.0)
+PROVA traccia: sotterraneo (206.0, 1040.0) NORMALE
+PROVA arrampicata: presa a (141.0, 1010.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 1010, stamina 100)
+PROVA arrampicata: fine a (157.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_ovest>stanza_segreta arrampica ok -> (157.0, 480.0)
+PROVA traccia: sotterraneo (158.0, 480.0) NORMALE
+PROVA passaggio: stanza_segreta>pavimento passa ok -> (221.0, 480.0)
+PROVA passaggio: p0>p1 salto ok -> (456.0, 344.0)
+PROVA passaggio: p1>p2 salto ok -> (601.0, 290.0)
+PROVA passaggio: p2>pavimento attraversa ok -> (679.0, 480.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 43 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: sotterraneo (648.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 63 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 63 px, stato NORMALE, a terra true
+PROVA ok: sotterraneo: il muro crepato si rompe a colpi 
+PROVA ok: sotterraneo: dietro il muro c'è la stanza segreta (171.0, 480.0)
+PROVA ok: sotterraneo: giù per il pozzo (214.0, 1040.0)
+PROVA ok: sotterraneo: le assi si rompono e scoprono la fossa 
+PROVA ok: sotterraneo: dalla fossa si rotola nel cunicolo fino allo stanzino (213.0, 1120.0)
+PROVA ok: sotterraneo: il forziere dello stanzino si apre { "pozioni": [{ "cosa": "pozione", "tipo": "salute", "taglia": "piccola" }, { "cosa": "pozione", "tipo": "velocita", "taglia": "media" }], "frammento": "«Le torce non scacciano il buio. Gli ricordano 
+PROVA ok: sotterraneo: un tiro verso l'alto rompe il ripiano di legno 
+PROVA ok: sotterraneo: i dardi del ripiano cadono e si raccolgono dardi 2 -> 6
+PROVA ok: sotterraneo: a nuoto sotto l'arco fino alla camera est (1144.0, 1040.0)
+PROVA ok: sotterraneo: sott'acqua il respiro cala, ma basta respiro minimo 53, vita 8 -> 8
+PROVA ok: sotterraneo: si risale il pilastro fino all'alcova (1258.0, 480.0)
+PROVA ok: sotterraneo: a metà salita si riprende fiato sulla mensola soste 1, prese perse 0
+PROVA ok: sotterraneo: dalla botola dell'alcova si torna giù (1186.0, 1040.0)
+PROVA ok: sotterraneo: di nuovo a nuoto e oltre la fossa con un salto (206.0, 1040.0), passaggi { "caduta": 2, "passa": 11, "rotola": 6, "salto": 14, "nuota": 6, "arrampica": 5, "attraversa": 5 }
+PROVA ok: sotterraneo: su per il pozzo fino alla stanza segreta (158.0, 480.0), soste 1
+PROVA ok: sotterraneo: la telecamera torna in superficie (405.0, 480.0)
+PROVA traccia: sotterraneo (250.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 58 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 48 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: salto contro sfera (scheletro) a 72 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato NORMALE, a terra true
+PROVA traccia: cassa_e_barili (485.0, 480.0) ATTACCO
+PROVA ok: cassa spinta 350 -> 397
+PROVA ok: barile rotto rotti 8
+PROVA ok: per passare la cassa la scavalca scavalchi 1
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 42 px, stato ATTACCO, a terra false
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 52 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (453.0, 480.0) ROTOLATA
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 37 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 48 px, stato COLPITO, a terra false
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (795.0, 448.0) NORMALE
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 48 px, stato ATTACCO, a terra true
+PROVA passaggio: p4>pavimento attraversa ok -> (1034.0, 480.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 46 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA traccia: armi_a_distanza (1031.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro sfera (sfera di mago) a 54 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (941.0, 480.0) NORMALE
+PROVA ripeto armi_a_distanza: disturbata dai nemici (con su il dardo parte verso l'alto)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 37 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (493.0, 480.0) ATTACCO
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 37 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 47 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 43 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 59 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 37 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (535.0, 480.0) ROTOLATA
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 37 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 49 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 58 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 40 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 37 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (571.0, 480.0) NORMALE
+PROVA difesa: salto contro sfera (scheletro) a 48 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 42 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 46 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 38 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA traccia: armi_a_distanza (477.0, 480.0) ATTACCO
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 42 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 228 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 68 px, stato SCAVALCO, a terra false
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 75 px, stato SCAVALCO, a terra false
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 68 px, stato SCAVALCO, a terra false
+PROVA traccia: armi_a_distanza (727.0, 449.0) NORMALE
+PROVA traccia: armi_a_distanza (498.0, 480.0) NORMALE
+PROVA ripeto armi_a_distanza: disturbata dai nemici (con su il dardo parte verso l'alto)
+PROVA traccia: armi_a_distanza (324.0, 469.0) SCAVALCO
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 36 px, stato ATTACCO, a terra true
+PROVA traccia: armi_a_distanza (758.0, 447.0) SCAVALCO
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 35 px, stato SCAVALCO, a terra false
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 63 px, stato NORMALE, a terra false
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 62 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 43 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 30 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 62 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 32 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 34 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 36 px, stato COLPITO, a terra false
+PROVA traccia: armi_a_distanza (749.0, 480.0) ATTACCO
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 43 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro sfera (sfera di mago) a 45 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (526.0, 480.0) NORMALE
+PROVA ripeto armi_a_distanza: disturbata dai nemici (tenendo premuto i dardi partono a raffica, la magia caricata costa di più ed esplode)
+PROVA traccia: armi_a_distanza (341.0, 444.0) SCAVALCO
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 63 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 39 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (860.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro sfera (sfera di mago) a 24 px, stato NORMALE, a terra true
+PROVA traccia: armi_a_distanza (528.0, 480.0) NORMALE
+PROVA ok: il tasto Arma scorre le tre armi e l'indicatore mostra quella scelta ["magia", "dardi", "frecce"] — [Magia 2]   Dardi 8   Frecce 5
+PROVA ok: una freccia caricata rompe un barile da lontano frecce 5 -> 4, rotti 1, cariche 1
+PROVA ok: con su il dardo parte verso l'alto dardi 11 -> 10, velocità (-290.0, -213.0)
+PROVA ok: tenendo premuto i dardi partono a raffica dardi 10 -> 6
+PROVA ok: la magia consuma energia, che poi torna energia 100 -> 67 -> 100
+PROVA DISTURBATA: la magia caricata costa di più ed esplode energia 100 -> 100
+PROVA ok: senza frecce il tiro va a vuoto Magia 2   Dardi 6   [Frecce 0] — a vuoto 1, tiri 0, stato NORMALE
+PROVA traccia: armi_a_distanza (250.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 47 px, stato NORMALE, a terra true
+PROVA traccia: mosse (715.0, 480.0) ROTOLATA
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 40 px, stato SCAVALCO, a terra false
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 61 px, stato NORMALE, a terra false
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 54 px, stato NORMALE, a terra true
+PROVA traccia: mosse (633.0, 480.0) ATTACCO
+PROVA difesa: salto contro sfera (sfera di mago) a 47 px, stato NORMALE, a terra true
+PROVA traccia: mosse (566.0, 480.0) NORMALE
+PROVA difesa: colpisci contro sfera (sfera di mago) a 50 px, stato NORMALE, a terra true
+PROVA ok: mosse: scelta automatica dall'arma e dalla mano sinistra []
+PROVA ok: mosse: ogni gruppo si applica in partita []
+PROVA ok: mosse: due colpi con ogni gruppo []
+PROVA ok: mosse: scelta a mano 
+PROVA traccia: armi_da_mischia (445.0, 458.0) NORMALE
+PROVA traccia: armi_da_mischia (648.0, 480.0) ATTACCO
+PROVA ok: ogni arma da mischia ha la sua combinazione { "pugnale": "4/4 colpi, ultimo 1", "ascia": "2/2 colpi, ultimo 2", "bastone": "2/2 colpi, ultimo 1", "lama_sepolti": "4/4 colpi, ultimo 2", "spadone": "2/2 colpi, ultimo 3", "bipenne": "2/2 colpi, ul
+PROVA ok: con lo scudo Schiva da fermo para NORMALE
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 30 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 41 px, stato SCAVALCO, a terra false
+PROVA traccia: armi_da_mischia (784.0, 448.0) TIRO
+PROVA passaggio: pavimento>p3 salto_su ok -> (902.0, 356.0)
+PROVA passaggio: p3>p2 salto ok -> (772.0, 290.0)
+PROVA traccia: bottino (324.0, 474.0) SCAVALCO
+PROVA passaggio: pavimento>p3 salto_su NO -> (568.0, 480.0)
+PROVA passaggio: pavimento>p0 salto_su ok -> (346.0, 412.0)
+PROVA passaggio: p0>p1 salto ok -> (454.0, 344.0)
+PROVA traccia: bottino (540.0, 308.0) NORMALE
+PROVA passaggio: p1>p2 salto NO -> (590.0, 480.0)
+PROVA passaggio: pavimento>p4 salto_su NO -> (665.0, 480.0)
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 50 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 72 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 25 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 81 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro balzo (saltatore) a 31 px, stato NORMALE, a terra true
+PROVA difesa: salto contro balzo (saltatore) a 34 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro balzo (saltatore) a 25 px, stato COLPITO, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 30 px, stato NORMALE, a terra true
+PROVA traccia: bottino (742.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 31 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 32 px, stato COLPITO, a terra false
+PROVA difesa: salto contro sfera (scheletro) a 106 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro balzo (saltatore) a 25 px, stato NORMALE, a terra true
+PROVA evento: { "t": 583.9, "tipo": "morte", "x": 655, "y": 480, "da": "saltatore (livello 0, ondata 1)" }
+PROVA traccia: bottino (344.0, 414.0) SCAVALCO
+PROVA passaggio: pavimento>p3 salto_su NO -> (611.0, 480.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA passaggio: pavimento>p0 salto_su ok -> (344.0, 412.0)
+PROVA passaggio: p0>p1 salto ok -> (455.0, 344.0)
+PROVA fase interrotta: bottino (morto davvero)
+PROVA traccia: bottino (455.0, 344.0) NORMALE
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 66 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 48 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 47 px, stato NORMALE, a terra true
+PROVA traccia: tasti_a_schermo (594.0, 470.0) COLPITO
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 36 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 47 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 46 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 65 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato ATTACCO, a terra true
+PROVA ok: i tasti a schermo compaiono al tocco 
+PROVA ok: la leva a schermo muove il giocatore 566 -> 633
+PROVA ok: il tasto Colpo a schermo attacca 
+PROVA ok: i tasti Arma e Tira a schermo cambiano arma e tirano magia -> dardi, tiri 1
+PROVA ok: con un tasto fisico i tasti a schermo spariscono 
+PROVA ok: grandezza tasti: automatica e poi scelta a mano auto 1.00, scelta 1.45
+PROVA traccia: tasti_a_schermo (250.0, 480.0) NORMALE
+PROVA traccia: menu_mosse (250.0, 480.0) NORMALE
+PROVA traccia: menu_mosse (250.0, 480.0) NORMALE
+PROVA traccia: menu_mosse (250.0, 480.0) NORMALE
+PROVA traccia: menu_mosse (250.0, 480.0) NORMALE
+PROVA traccia: menu_mosse (250.0, 480.0) NORMALE
+PROVA traccia: menu_mosse (250.0, 480.0) NORMALE
+PROVA ok: pausa: menu aperto e gioco fermo 
+PROVA ok: aspetto: il protagonista è una figura viva 
+PROVA ok: aspetto: pezzi predefiniti addosso ["Mantello__Viandante", "Viandante__Bracciale", "Viandante__Brache", "Viandante__Cappuccio", "Viandante__Cinta", "Viandante__Giubba", "Viandante__Maniche", "Viandante__Spada", "Viandante__Stivali"]
+PROVA ok: aspetto: elmo scelto dal menu ["Cavaliere__Knight_Helmet", "Mantello__Viandante", "Viandante__Bracciale", "Viandante__Brache", "Viandante__Cappuccio", "Viandante__Cinta", "Viandante__Giubba", "Viandante__Maniche", "Viandante__Spad
+PROVA ok: aspetto: nuova foto anche in pausa foto 38 -> 39
+PROVA ok: aspetto: mantello color sangue (1.0, 0.55, 0.55, 1.0)
+PROVA ok: mosse: anteprima animata pronta tasti 53
+PROVA ok: mosse: ogni azione del menu si vede nell'anteprima []
+PROVA ok: aspetto: 12 combinazioni a caso tutte addosso { "testa": "volto_mago (naturale)", "copricapo": "elmo_sepolti (naturale)", "busto": "veste_eremita (naturale)", "braccia": "maniche_eremita (naturale)", "gambe": "tunica_eremita (ossa)", "mantello": 
+PROVA ok: aspetto: salvato su file 
+PROVA ok: aspetto: ogni oggetto ha i suoi pezzi nel manichino 
+PROVA ok: mosse: ogni gruppo ha le sue animazioni []
+PROVA ok: aspetto: ripristino 
+PROVA ok: menu: scheda gioco aperta dalla linguetta 
+PROVA ok: menu: scheda gioco con i suoi controlli 17
+PROVA ok: menu: scheda schermo aperta dalla linguetta 
+PROVA ok: menu: scheda schermo con i suoi controlli 25
+PROVA ok: menu: scheda grafica aperta dalla linguetta 
+PROVA ok: menu: scheda grafica con i suoi controlli 51
+PROVA ok: menu: scheda audio aperta dalla linguetta 
+PROVA ok: menu: scheda audio con i suoi controlli 16
+PROVA ok: menu: scheda accessibilita aperta dalla linguetta 
+PROVA ok: menu: scheda accessibilita con i suoi controlli 21
+PROVA ok: schermo: grandezze proposte dal dispositivo [[0, "Automatica (×1)"], [1, "×1 — 64 righe"]]
+PROVA ok: schermo: limiti FPS proposti [[0, "Consigliato (60)"], [30, "30"], [60, "60"]]
+PROVA ok: schermo: descrizione dello schermo GenericDevice · schermo 0×0 · frequenza non letta · 96 dpi
+Mondo di gioco 64×64 ingrandito ×1.0
+PROVA ok: gioco: descrizione del dispositivo GenericDevice · 24.04
+Processore: Intel(R) Xeon(R) 6973P-C, 4 core
+Memoria: 15.6 GB
+Grafica: 
+PROVA ok: schermo: sempre 360 righe (128, 128)
+PROVA ok: schermo: luminosità sull'immagine 
+PROVA ok: grafica: risoluzione interna al 50% (64, 64) -> (32, 32) ((64, 64))
+PROVA ok: grafica: filtro SGSR sull'immagine 2
+PROVA ok: grafica: livello basso dal menu 
+PROVA ok: grafica: il dettaglio scelto a mano vince sul livello 
+PROVA ok: grafica: ripristino dei valori consigliati (64, 64) -> (64, 64), filtro 0
+PROVA ok: audio: musica a zero = canale muto 
+PROVA ok: audio: mono acceso 
+PROVA ok: audio: dice dove esce il suono Il suono esce da: non rilevata (computer o versione senza plugin) · suoneria non rilevata
+PROVA ok: audio: ripristino 
+PROVA ok: accessibilità: didascalia del suono 
+PROVA ok: accessibilità: correzione per il daltonismo 2
+PROVA ok: accessibilità: ripristino 
+PROVA ok: menu: RB passa alla scheda dopo schermo
+PROVA ok: aggiornamenti: pulsante nel menu 
+PROVA ok: ripresa dal menu 
+PROVA traccia: menu_impostazioni (250.0, 480.0) NORMALE
+PROVA ok: qualità bassa: niente ombre 
+PROVA ok: ombre dei muri: si spengono a mano e tornano in automatico 
+PROVA ok: figure dettagliate in alta (densità 1) densità 1, mondo (64, 64)
+PROVA ok: figure: in bassa definizione normale, poi di nuovo dettagliate 
+PROVA cervello: alcova (65) vita 8
+PROVA passaggio: pavimento>terrazza salto NO -> (441.0, 458.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 52 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 42 px, stato ATTACCO, a terra true
+PROVA traccia: partita (479.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 42 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 52 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 39 px, stato COLPITO, a terra false
+PROVA traccia: partita (491.0, 480.0) ATTACCO
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 113 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 44 px, stato NORMALE, a terra true
+PROVA passaggio: pavimento>terrazza salto NO -> (703.0, 480.0)
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 77 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 76 px, stato ATTACCO, a terra true
+PROVA difesa: salto contro balzo (saltatore) a 57 px, stato NORMALE, a terra true
+PROVA traccia: partita (854.0, 419.0) NORMALE
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 59 px, stato COLPITO, a terra false
+PROVA difesa: rotolo_avanti contro sfera (saltatore) a 58 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 35 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 42 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 45 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 40 px, stato ATTACCO, a terra true
+PROVA traccia: partita (798.0, 480.0) NORMALE
+PROVA passaggio: pavimento>p4 salto_su ok -> (1017.0, 432.0)
+PROVA passaggio: p4>terrazza salto ok -> (1130.0, 384.0)
+PROVA passaggio: terrazza>galleria caduta ok -> (1523.0, 480.0)
+PROVA traccia: partita (1521.0, 480.0) TIRO
+PROVA difesa: rotolo_avanti contro colpo (pipistrello) a 170 px, stato NORMALE, a terra true
+PROVA partita: riuscito dalla terrazza si scende nella galleria (1448.647, 479.9253)
+PROVA partita: riuscito accanto alla leva il tasto dice «Leva» Leva
+PROVA partita: riuscito la leva apre la grata dell'alcova 
+PROVA passaggio: galleria>alcova passa ok -> (1266.0, 480.0)
+PROVA partita: riuscito dalla grata aperta si entra nell'alcova { "caduta": 3, "passa": 13, "rotola": 6, "salto": 23, "nuota": 6, "arrampica": 6, "attraversa": 7, "salto_su": 7 }
+PROVA partita: riuscito il forziere si apre col tasto, accanto { "frecce": 2, "pozioni": [{ "cosa": "pozione", "tipo": "mana", "taglia": "grande" }, { "cosa": "pozione", "tipo": "velocita", "taglia": "piccola" }], "frammento": "«Una leggenda incompiuta non muore: resta sulla soglia. E la soglia, col tempo, impara a camminare.»" }
+PROVA partita: riuscito dentro c'è un frammento della storia 
+PROVA partita: riuscito il forziere ridà le frecce finite { "frecce": 2, "pozioni": [{ "cosa": "pozione", "tipo": "mana", "taglia": "grande" }, { "cosa": "pozione", "tipo": "velocita", "taglia": "piccola" }], "frammento": "«Una leggenda incompiuta non muore: resta sulla soglia. E la soglia, col tempo, impara a camminare.»" }
+PROVA partita: riuscito il forziere cura chi è ferito vita 8 -> 8
+PROVA passaggio: alcova>galleria passa ok -> (1357.0, 480.0)
+PROVA cervello: cassa (48) vita 8
+PROVA traccia: partita (1535.0, 480.0) NORMALE
+PROVA trappola: passa @Node2D@31949 da 1549 verso 1
+PROVA trappola: passa @Node2D@31949 da 1549 verso 1
+PROVA trappola: passa @Node2D@31949 da 1550 verso 1
+PROVA trappola: passa @Node2D@31949 da 1551 verso 1
+PROVA trappola: passa @Node2D@31949 da 1553 verso 1
+PROVA trappola: passa @Node2D@31949 da 1555 verso 1
+PROVA trappola: passa @Node2D@31949 da 1557 verso 1
+PROVA trappola: passa @Node2D@31949 da 1560 verso 1
+PROVA trappola: passa @Node2D@31949 da 1563 verso 1
+PROVA trappola: passa @Node2D@31949 da 1566 verso 1
+PROVA trappola: passa @Node2D@31949 da 1568 verso 1
+PROVA trappola: passa @Node2D@31949 da 1571 verso 1
+PROVA trappola: passa @Node2D@31949 da 1574 verso 1
+PROVA trappola: passa @Node2D@31953 da 1734 verso 1
+PROVA trappola: passa @Node2D@31953 da 1734 verso 1
+PROVA trappola: passa @Node2D@31953 da 1735 verso 1
+PROVA trappola: passa @Node2D@31953 da 1736 verso 1
+PROVA trappola: passa @Node2D@31953 da 1737 verso 1
+PROVA trappola: passa @Node2D@31953 da 1739 verso 1
+PROVA trappola: passa @Node2D@31953 da 1741 verso 1
+PROVA trappola: passa @Node2D@31953 da 1743 verso 1
+PROVA trappola: passa @Node2D@31953 da 1746 verso 1
+PROVA trappola: passa @Node2D@31953 da 1748 verso 1
+PROVA trappola: passa @Node2D@31953 da 1751 verso 1
+PROVA trappola: passa @Node2D@31953 da 1753 verso 1
+PROVA trappola: passa @Node2D@31953 da 1756 verso 1
+PROVA trappola: passa @Node2D@31953 da 1758 verso 1
+PROVA evento: { "t": 755.52, "tipo": "piastra", "nome": "piastra_freccia", "cassa": false, "chi": "nemico" }
+PROVA passaggio: galleria>zoccolo salto ok -> (2122.0, 384.0)
+PROVA passaggio: zoccolo>sala caduta NO -> (2165.0, 384.0)
+PROVA passaggio: zoccolo>sala caduta ok -> (2244.0, 480.0)
+PROVA evento: { "t": 759.42, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": false, "chi": "giocatore" }
+PROVA traccia: partita (2441.0, 480.0) ATTACCO
+PROVA evento: { "t": 761.77, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": false, "chi": "giocatore" }
+PROVA evento: { "t": 762.45, "tipo": "piastra", "nome": "piastra_freccia", "cassa": false, "chi": "nemico" }
+PROVA evento: { "t": 763.58, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": false, "chi": "giocatore" }
+PROVA evento: { "t": 764.72, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": false, "chi": "giocatore" }
+PROVA difesa: rotolo_avanti contro colpo (bestione) a 56 px, stato NORMALE, a terra true
+PROVA passaggio: sala>balconata salto ok -> (2490.0, 352.0)
+PROVA traccia: partita (2516.0, 352.0) NORMALE
+PROVA difesa: rotolo_avanti contro sfera (freccia di arciere) a 68 px, stato NORMALE, a terra true
+PROVA passaggio: balconata>sala caduta ok -> (2445.0, 480.0)
+PROVA difesa: rotolo_avanti contro sfera (freccia di arciere) a 76 px, stato NORMALE, a terra true
+PROVA passaggio: sala>balconata salto ok -> (2490.0, 352.0)
+PROVA traccia: partita (2618.0, 343.0) NORMALE
+PROVA evento: { "t": 783.62, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": true, "chi": "cassa" }
+PROVA partita: riuscito spinge la cassa giù dalla balconata (2433.644, 480.3), nemici vicini ["mago (2516.0, 120.0) PATTUGLIA"]
+PROVA partita: riuscito la cassa sulla piastra tiene alzata la grata cassa (2433.644, 480.3), piastra true
+PROVA passaggio: sala>tesoro passa ok -> (2736.0, 480.0)
+PROVA partita: riuscito oltre la grata si apre il forziere del tesoro 
+PROVA cervello: caccia (52) vita 8
+PROVA passaggio: tesoro>sala passa ok -> (2650.0, 480.0)
+PROVA traccia: partita (2609.0, 480.0) NORMALE
+PROVA traccia: partita (2316.0, 465.0) NORMALE
+PROVA passaggio: sala>salone ascensore ok -> (2379.0, 120.0)
+PROVA cervello: caccia (37) vita 8
+PROVA traccia: partita (2365.0, 480.0) NORMALE
+PROVA passaggio: salone>sala ascensore ok -> (2268.0, 480.0)
+PROVA passaggio: sala>zoccolo salto ok -> (2198.0, 384.0)
+PROVA passaggio: zoccolo>galleria caduta ok -> (2076.0, 480.0)
+PROVA traccia: partita (1947.0, 480.0) NORMALE
+PROVA trappola: passa @Node2D@31953 da 1947 verso -1
+PROVA trappola: passa @Node2D@31953 da 1947 verso -1
+PROVA trappola: passa @Node2D@31953 da 1946 verso -1
+PROVA trappola: passa @Node2D@31953 da 1945 verso -1
+PROVA trappola: passa @Node2D@31953 da 1943 verso -1
+PROVA trappola: passa @Node2D@31953 da 1941 verso -1
+PROVA trappola: passa @Node2D@31953 da 1939 verso -1
+PROVA trappola: passa @Node2D@31953 da 1936 verso -1
+PROVA trappola: passa @Node2D@31953 da 1934 verso -1
+PROVA trappola: passa @Node2D@31953 da 1931 verso -1
+PROVA trappola: passa @Node2D@31953 da 1929 verso -1
+PROVA trappola: passa @Node2D@31953 da 1926 verso -1
+PROVA trappola: passa @Node2D@31953 da 1924 verso -1
+PROVA trappola: passa @Node2D@31953 da 1921 verso -1
+PROVA trappola: passa @Node2D@31949 da 1716 verso -1
+PROVA trappola: passa @Node2D@31949 da 1716 verso -1
+PROVA trappola: passa @Node2D@31949 da 1715 verso -1
+PROVA trappola: passa @Node2D@31949 da 1714 verso -1
+PROVA trappola: passa @Node2D@31949 da 1712 verso -1
+PROVA trappola: passa @Node2D@31949 da 1710 verso -1
+PROVA trappola: passa @Node2D@31949 da 1708 verso -1
+PROVA trappola: passa @Node2D@31949 da 1705 verso -1
+PROVA trappola: passa @Node2D@31949 da 1703 verso -1
+PROVA trappola: passa @Node2D@31949 da 1700 verso -1
+PROVA trappola: passa @Node2D@31949 da 1698 verso -1
+PROVA trappola: passa @Node2D@31949 da 1695 verso -1
+PROVA trappola: passa @Node2D@31949 da 1693 verso -1
+PROVA trappola: passa @Node2D@31949 da 1690 verso -1
+PROVA passaggio: galleria>alcova passa ok -> (1267.0, 480.0)
+PROVA passaggio: alcova>pavimento rotola ok -> (1094.0, 480.0)
+PROVA traccia: partita (792.0, 480.0) NORMALE
+PROVA passaggio: pavimento>p0 salto_su ok -> (342.0, 412.0)
+PROVA passaggio: p0>p1 salto ok -> (455.0, 344.0)
+PROVA passaggio: p1>p2 salto ok -> (585.0, 290.0)
+PROVA cervello: esplora (46) vita 7
+PROVA traccia: partita (685.0, 290.0) NORMALE
+PROVA passaggio: p2>pavimento attraversa ok -> (678.0, 480.0)
+PROVA passaggio: pavimento>p4 salto_su ok -> (1017.0, 432.0)
+PROVA passaggio: p4>p3 salto ok -> (924.0, 356.0)
+PROVA cervello: bracieri (35) vita 7
+PROVA passaggio: p3>pavimento attraversa ok -> (890.0, 480.0)
+PROVA passaggio: pavimento>alcova rotola ok -> (1211.0, 480.0)
+PROVA passaggio: alcova>galleria passa ok -> (1356.0, 480.0)
+PROVA traccia: partita (1495.0, 480.0) NORMALE
+PROVA trappola: passa @Node2D@31949 da 1547 verso 1
+PROVA trappola: passa @Node2D@31949 da 1548 verso 1
+PROVA trappola: passa @Node2D@31949 da 1548 verso 1
+PROVA trappola: passa @Node2D@31949 da 1550 verso 1
+PROVA trappola: passa @Node2D@31949 da 1551 verso 1
+PROVA trappola: passa @Node2D@31949 da 1553 verso 1
+PROVA trappola: passa @Node2D@31949 da 1556 verso 1
+PROVA trappola: passa @Node2D@31949 da 1558 verso 1
+PROVA trappola: passa @Node2D@31949 da 1561 verso 1
+PROVA trappola: passa @Node2D@31949 da 1563 verso 1
+PROVA trappola: passa @Node2D@31949 da 1566 verso 1
+PROVA trappola: passa @Node2D@31949 da 1568 verso 1
+PROVA trappola: passa @Node2D@31949 da 1571 verso 1
+PROVA trappola: passa @Node2D@31949 da 1573 verso 1
+PROVA trappola: passa @Node2D@31949 da 1576 verso 1
+PROVA trappola: passa @Node2D@31953 da 1731 verso 1
+PROVA trappola: passa @Node2D@31953 da 1731 verso 1
+PROVA trappola: passa @Node2D@31953 da 1732 verso 1
+PROVA trappola: passa @Node2D@31953 da 1733 verso 1
+PROVA trappola: passa @Node2D@31953 da 1735 verso 1
+PROVA trappola: passa @Node2D@31953 da 1737 verso 1
+PROVA trappola: passa @Node2D@31953 da 1739 verso 1
+PROVA trappola: passa @Node2D@31953 da 1742 verso 1
+PROVA trappola: passa @Node2D@31953 da 1744 verso 1
+PROVA trappola: passa @Node2D@31953 da 1747 verso 1
+PROVA trappola: passa @Node2D@31953 da 1749 verso 1
+PROVA trappola: passa @Node2D@31953 da 1752 verso 1
+PROVA trappola: passa @Node2D@31953 da 1754 verso 1
+PROVA trappola: passa @Node2D@31953 da 1757 verso 1
+PROVA trappola: passa @Node2D@31953 da 1759 verso 1
+PROVA passaggio: galleria>zoccolo salto ok -> (2122.0, 384.0)
+PROVA passaggio: zoccolo>sala caduta ok -> (2244.0, 480.0)
+PROVA traccia: partita (2298.0, 480.0) NORMALE
+PROVA passaggio: sala>salone ascensore ok -> (2379.0, 120.0)
+PROVA difesa: rotolo_avanti contro sfera (mago) a 116 px, stato NORMALE, a terra true
+PROVA traccia: partita (2522.0, 120.0) NORMALE
+PROVA partita: riuscito nell'ordine della tavoletta si alza il gradino segreto accesi [0, 1, 2], ordine [0, 1, 2]
+PROVA passaggio: salone>gradino salto NO -> (2777.0, 40.0)
+PROVA passaggio: salone>gradino salto NO -> (2777.0, 40.0)
+PROVA traccia: partita (2748.0, 120.0) NORMALE
+PROVA passaggio: salone>gradino salto NO -> (2777.0, 40.0)
+PROVA passaggio: salone>gradino salto NO -> (2777.0, 40.0)
+PROVA passaggio: salone>gradino salto ok -> (2794.0, 40.0)
+PROVA passaggio: gradino>nicchia salto ok -> (2758.0, -48.0)
+PROVA partita: riuscito dal gradino si sale alla nicchia segreta (2653.685, -48.07475)
+PROVA partita: riuscito il forziere d'oro dà un colore nuovo { "colore": "brace", "pozioni": [{ "cosa": "pozione", "tipo": "velocita", "taglia": "piccola" }], "frammento": "«Le ossa che si rialzano non portano rancore. Portano memoria. È peggio.»" }
+PROVA partita: riuscito il colore trovato si può indossare 
+PROVA partita: riuscito il mantello prende il colore trovato 
+PROVA cervello: raccogli (37) vita 8
+PROVA passaggio: nicchia>salone caduta ok -> (2564.0, 120.0)
+PROVA cervello: prova_arma (40) vita 8
+PROVA cervello: esplora (44) vita 8
+PROVA traccia: partita (2320.0, 161.0) NORMALE
+PROVA passaggio: salone>sala ascensore ok -> (2269.0, 480.0)
+PROVA passaggio: sala>zoccolo salto ok -> (2198.0, 384.0)
+PROVA passaggio: zoccolo>scalino salto ok -> (2054.0, 312.0)
+PROVA passaggio: scalino>galleria attraversa ok -> (2050.0, 480.0)
+PROVA passaggio: galleria>zoccolo salto ok -> (2122.0, 384.0)
+PROVA traccia: partita (2122.0, 384.0) NORMALE
+PROVA passaggio: zoccolo>galleria caduta ok -> (2084.0, 480.0)
+PROVA difesa: rotolo_avanti contro balzo (saltatore) a 35 px, stato COLPITO, a terra false
+PROVA passaggio: galleria>zoccolo salto ok -> (2122.0, 384.0)
+PROVA passaggio: zoccolo>scalino salto ok -> (2057.0, 312.0)
+PROVA passaggio: scalino>crollo2 salto_su NO -> (2089.0, 136.0)
+PROVA cervello: esplora (37) vita 7
+PROVA passaggio: torre_ovest>sala caduta ok -> (2244.0, 480.0)
+PROVA passaggio: sala>zoccolo salto ok -> (2198.0, 384.0)
+PROVA passaggio: zoccolo>galleria caduta ok -> (2076.0, 480.0)
+PROVA traccia: partita (2012.0, 412.0) NORMALE
+PROVA trappola: passa @Node2D@31953 da 1947 verso -1
+PROVA trappola: passa @Node2D@31953 da 1947 verso -1
+PROVA trappola: passa @Node2D@31953 da 1946 verso -1
+PROVA trappola: passa @Node2D@31953 da 1945 verso -1
+PROVA trappola: passa @Node2D@31953 da 1943 verso -1
+PROVA trappola: passa @Node2D@31953 da 1941 verso -1
+PROVA trappola: passa @Node2D@31953 da 1939 verso -1
+PROVA trappola: passa @Node2D@31953 da 1936 verso -1
+PROVA trappola: passa @Node2D@31953 da 1934 verso -1
+PROVA trappola: passa @Node2D@31953 da 1931 verso -1
+PROVA trappola: passa @Node2D@31953 da 1929 verso -1
+PROVA trappola: passa @Node2D@31953 da 1926 verso -1
+PROVA trappola: passa @Node2D@31953 da 1924 verso -1
+PROVA trappola: passa @Node2D@31953 da 1921 verso -1
+PROVA trappola: passa @Node2D@31949 da 1721 verso -1
+PROVA trappola: passa @Node2D@31949 da 1719 verso -1
+PROVA trappola: passa @Node2D@31949 da 1716 verso -1
+PROVA trappola: passa @Node2D@31949 da 1714 verso -1
+PROVA trappola: passa @Node2D@31949 da 1711 verso -1
+PROVA trappola: passa @Node2D@31949 da 1709 verso -1
+PROVA trappola: passa @Node2D@31949 da 1706 verso -1
+PROVA trappola: passa @Node2D@31949 da 1704 verso -1
+PROVA trappola: passa @Node2D@31949 da 1701 verso -1
+PROVA trappola: passa @Node2D@31949 da 1699 verso -1
+PROVA trappola: passa @Node2D@31949 da 1696 verso -1
+PROVA trappola: passa @Node2D@31949 da 1694 verso -1
+PROVA trappola: passa @Node2D@31949 da 1691 verso -1
+PROVA trappola: passa @Node2D@31949 da 1689 verso -1
+PROVA passaggio: galleria>alcova passa NO -> (1579.0, 480.0)
+PROVA passaggio: galleria>alcova passa ok -> (1265.0, 480.0)
+PROVA passaggio: alcova>camera_est attraversa ok -> (1279.0, 1040.0)
+PROVA traccia: partita (1190.0, 1040.0) NORMALE
+PROVA cervello: caccia (32) vita 6
+PROVA arrampicata: presa a (1243.0, 981.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 981, stamina 100)
+PROVA traccia: partita (1243.0, 713.0) ARRAMPICATA
+PROVA arrampicata: fine a (1227.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_est>alcova arrampica ok -> (1227.0, 480.0)
+PROVA passaggio: alcova>pavimento rotola ok -> (1082.0, 480.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA passaggio: alcova>camera_est attraversa ok -> (1279.0, 1040.0)
+PROVA traccia: partita (1146.0, 1040.0) NORMALE
+PROVA arrampicata: presa a (1243.0, 981.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 981, stamina 100)
+PROVA traccia: partita (1243.0, 615.0) ARRAMPICATA
+PROVA arrampicata: fine a (1227.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_est>alcova arrampica ok -> (1227.0, 480.0)
+PROVA passaggio: alcova>pavimento rotola ok -> (1094.0, 480.0)
+PROVA traccia: partita (1097.0, 473.0) COLPITO
+PROVA evento: { "t": 962.73, "tipo": "morte", "x": 1097, "y": 480, "da": "scheletro (livello 2, ondata 2)" }
+PROVA cervello: cassa (61) vita 8
+PROVA passaggio: pavimento>p4 salto_su NO -> (443.0, 458.0)
+PROVA traccia: partita (433.0, 467.0) ATTACCO
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 43 px, stato NORMALE, a terra true
+PROVA passaggio: pavimento>terrazza salto NO -> (895.0, 480.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 50 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA traccia: partita (923.0, 480.0) ATTACCO
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 92 px, stato COLPITO, a terra false
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 53 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_indietro contro colpo (scheletro) a 43 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 39 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro sfera (scheletro) a 80 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 55 px, stato NORMALE, a terra true
+PROVA passaggio: pavimento>p4 salto_su ok -> (1037.0, 432.0)
+PROVA traccia: partita (1067.0, 432.0) NORMALE
+PROVA passaggio: p4>terrazza salto ok -> (1130.0, 384.0)
+PROVA passaggio: terrazza>galleria caduta ok -> (1522.0, 480.0)
+PROVA difesa: rotolo_avanti contro colpo (pipistrello) a 182 px, stato NORMALE, a terra true
+PROVA traccia: partita (1431.0, 480.0) ATTACCO
+PROVA trappola: passa @Node2D@34119 da 1548 verso 1
+PROVA trappola: passa @Node2D@34119 da 1549 verso 1
+PROVA trappola: passa @Node2D@34119 da 1549 verso 1
+PROVA trappola: passa @Node2D@34119 da 1551 verso 1
+PROVA trappola: passa @Node2D@34119 da 1552 verso 1
+PROVA trappola: passa @Node2D@34119 da 1554 verso 1
+PROVA trappola: passa @Node2D@34119 da 1557 verso 1
+PROVA trappola: passa @Node2D@34119 da 1559 verso 1
+PROVA trappola: passa @Node2D@34119 da 1562 verso 1
+PROVA trappola: passa @Node2D@34119 da 1564 verso 1
+PROVA trappola: passa @Node2D@34119 da 1567 verso 1
+PROVA trappola: passa @Node2D@34119 da 1569 verso 1
+PROVA trappola: passa @Node2D@34119 da 1572 verso 1
+PROVA trappola: passa @Node2D@34119 da 1574 verso 1
+PROVA trappola: passa @Node2D@34123 da 1732 verso 1
+PROVA trappola: passa @Node2D@34123 da 1732 verso 1
+PROVA trappola: passa @Node2D@34123 da 1733 verso 1
+PROVA trappola: passa @Node2D@34123 da 1734 verso 1
+PROVA trappola: passa @Node2D@34123 da 1736 verso 1
+PROVA trappola: passa @Node2D@34123 da 1738 verso 1
+PROVA trappola: passa @Node2D@34123 da 1740 verso 1
+PROVA trappola: passa @Node2D@34123 da 1743 verso 1
+PROVA trappola: passa @Node2D@34123 da 1745 verso 1
+PROVA trappola: passa @Node2D@34123 da 1748 verso 1
+PROVA trappola: passa @Node2D@34123 da 1750 verso 1
+PROVA trappola: passa @Node2D@34123 da 1753 verso 1
+PROVA trappola: passa @Node2D@34123 da 1755 verso 1
+PROVA trappola: passa @Node2D@34123 da 1758 verso 1
+PROVA passaggio: galleria>zoccolo salto ok -> (2122.0, 384.0)
+PROVA traccia: partita (2164.0, 384.0) NORMALE
+PROVA passaggio: zoccolo>sala caduta ok -> (2242.0, 480.0)
+PROVA evento: { "t": 1011.78, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": false, "chi": "giocatore" }
+PROVA difesa: rotolo_indietro contro colpo (bestione) a 59 px, stato NORMALE, a terra true
+PROVA difesa: scatto_indietro contro picchiata (pipistrello) a 66 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (bestione) a 51 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro picchiata (pipistrello) a 19 px, stato ATTACCO, a terra true
+PROVA traccia: partita (2495.0, 480.0) NORMALE
+PROVA difesa: rotolo_avanti contro colpo (bestione) a 57 px, stato NORMALE, a terra true
+PROVA evento: { "t": 1020.92, "tipo": "morte", "x": 2566, "y": 480, "da": "bestione (livello 0, ondata 1)" }
+PROVA cervello: alcova (64) vita 8
+PROVA passaggio: pavimento>p4 salto_su NO -> (613.0, 480.0)
+PROVA traccia: partita (618.0, 480.0) ATTACCO
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 35 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 50 px, stato ATTACCO, a terra true
+PROVA difesa: scatto_indietro contro colpo (scheletro) a 59 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 57 px, stato COLPITO, a terra false
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 72 px, stato ATTACCO, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 44 px, stato NORMALE, a terra true
+PROVA traccia: partita (831.0, 480.0) ATTACCO
+PROVA passaggio: pavimento>terrazza salto ok -> (1114.0, 384.0)
+PROVA passaggio: terrazza>galleria caduta ok -> (1524.0, 480.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 38 px, stato NORMALE, a terra true
+PROVA traccia: partita (1498.0, 480.0) NORMALE
+PROVA partita: riuscito dalla terrazza si scende nella galleria (1447.92, 479.9253)
+PROVA partita: riuscito accanto alla leva il tasto dice «Leva» Leva
+PROVA partita: riuscito la leva apre la grata dell'alcova 
+PROVA passaggio: galleria>alcova passa ok -> (1265.0, 480.0)
+PROVA partita: riuscito dalla grata aperta si entra nell'alcova { "caduta": 15, "passa": 21, "rotola": 10, "salto": 47, "nuota": 6, "arrampica": 8, "attraversa": 12, "salto_su": 13, "ascensore": 4 }
+PROVA partita: riuscito il forziere si apre col tasto, accanto { "frecce": 2, "pozioni": [{ "cosa": "pozione", "tipo": "velocita", "taglia": "media" }, { "cosa": "pozione", "tipo": "stamina", "taglia": "piccola" }], "frammento": "«Quando l\'ultima storia sarà finita, qualcuno dovrà decidere se raccontarla o lasciarla dormire.»" }
+PROVA partita: riuscito dentro c'è un frammento della storia 
+PROVA partita: riuscito il forziere ridà le frecce finite { "frecce": 2, "pozioni": [{ "cosa": "pozione", "tipo": "velocita", "taglia": "media" }, { "cosa": "pozione", "tipo": "stamina", "taglia": "piccola" }], "frammento": "«Quando l\'ultima storia sarà finita, qualcuno dovrà decidere se raccontarla o lasciarla dormire.»" }
+PROVA partita: riuscito il forziere cura chi è ferito vita 7 -> 8
+PROVA passaggio: alcova>galleria passa ok -> (1358.0, 480.0)
+PROVA cervello: esplora (56) vita 8
+PROVA passaggio: galleria>alcova passa ok -> (1265.0, 480.0)
+PROVA passaggio: alcova>camera_est attraversa ok -> (1283.0, 1040.0)
+PROVA traccia: partita (1130.0, 1040.0) NORMALE
+PROVA passaggio: camera_est>camera_ovest_est nuota ok -> (538.0, 1040.0)
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 36 px, stato NORMALE, a terra true
+PROVA difesa: rotolo_avanti contro colpo (scheletro) a 52 px, stato ATTACCO, a terra true
+PROVA traccia: partita (514.0, 1040.0) NORMALE
+PROVA traccia: partita (514.0, 1040.0) NORMALE
+PROVA cervello: bracieri (39) vita 8
+PROVA traccia: partita (955.0, 1167.0) NUOTO
+PROVA passaggio: camera_ovest_est>camera_est nuota ok -> (1103.0, 1040.0)
+PROVA passaggio: camera_est>alcova arrampica NO -> (1249.0, 1040.0)
+PROVA arrampicata: presa a (1243.0, 980.0), stamina 100
+PROVA arrampicata: sosta sulla mensola a y 760 (piedi 980, stamina 100)
+PROVA traccia: partita (1243.0, 926.0) ARRAMPICATA
+PROVA arrampicata: fine a (1227.0, 480.0), stamina 27, NORMALE
+PROVA passaggio: camera_est>alcova arrampica ok -> (1227.0, 480.0)
+PROVA passaggio: alcova>galleria passa ok -> (1357.0, 480.0)
+PROVA traccia: partita (1490.0, 480.0) NORMALE
+PROVA trappola: passa @Node2D@35553 da 1547 verso 1
+PROVA trappola: passa @Node2D@35553 da 1548 verso 1
+PROVA trappola: passa @Node2D@35553 da 1549 verso 1
+PROVA trappola: passa @Node2D@35553 da 1550 verso 1
+PROVA trappola: passa @Node2D@35553 da 1552 verso 1
+PROVA trappola: passa @Node2D@35553 da 1554 verso 1
+PROVA trappola: passa @Node2D@35553 da 1556 verso 1
+PROVA trappola: passa @Node2D@35553 da 1559 verso 1
+PROVA trappola: passa @Node2D@35553 da 1561 verso 1
+PROVA trappola: passa @Node2D@35553 da 1564 verso 1
+PROVA trappola: passa @Node2D@35553 da 1566 verso 1
+PROVA trappola: passa @Node2D@35553 da 1569 verso 1
+PROVA trappola: passa @Node2D@35553 da 1571 verso 1
+PROVA trappola: passa @Node2D@35553 da 1574 verso 1
+PROVA trappola: passa @Node2D@35557 da 1731 verso 1
+PROVA trappola: passa @Node2D@35557 da 1731 verso 1
+PROVA trappola: passa @Node2D@35557 da 1732 verso 1
+PROVA trappola: passa @Node2D@35557 da 1733 verso 1
+PROVA trappola: passa @Node2D@35557 da 1735 verso 1
+PROVA trappola: passa @Node2D@35557 da 1737 verso 1
+PROVA trappola: passa @Node2D@35557 da 1740 verso 1
+PROVA trappola: passa @Node2D@35557 da 1742 verso 1
+PROVA trappola: passa @Node2D@35557 da 1745 verso 1
+PROVA trappola: passa @Node2D@35557 da 1747 verso 1
+PROVA trappola: passa @Node2D@35557 da 1750 verso 1
+PROVA trappola: passa @Node2D@35557 da 1752 verso 1
+PROVA trappola: passa @Node2D@35557 da 1755 verso 1
+PROVA trappola: passa @Node2D@35557 da 1757 verso 1
+PROVA trappola: passa @Node2D@35557 da 1760 verso 1
+PROVA passaggio: galleria>zoccolo salto ok -> (2122.0, 384.0)
+PROVA evento: { "t": 1117.03, "tipo": "piastra", "nome": "piastra_freccia", "cassa": false, "chi": "nemico" }
+PROVA passaggio: zoccolo>sala caduta ok -> (2242.0, 480.0)
+PROVA traccia: partita (2315.0, 480.0) NORMALE
+PROVA evento: { "t": 1123.83, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": false, "chi": "nemico" }
+PROVA evento: { "t": 1124.02, "tipo": "piastra", "nome": "piastra_freccia", "cassa": false, "chi": "nemico" }
+PROVA difesa: salto contro sfera (sfera di mago) a 60 px, stato NORMALE, a terra true
+PROVA passaggio: sala>salone ascensore ok -> (2374.0, 120.0)
+PROVA traccia: partita (2641.0, 120.0) ATTACCO
+PROVA partita: riuscito nell'ordine della tavoletta si alza il gradino segreto accesi [0, 2, 1], ordine [0, 2, 1]
+PROVA passaggio: salone>gradino salto ok -> (2794.0, 40.0)
+PROVA passaggio: gradino>nicchia salto ok -> (2758.0, -48.0)
+PROVA partita: riuscito dal gradino si sale alla nicchia segreta (2653.685, -48.07475)
+PROVA partita: riuscito il forziere d'oro dà un colore nuovo { "colore": "abisso", "frecce": 3, "pozioni": [{ "cosa": "pozione", "tipo": "mana", "taglia": "piccola" }] }
+PROVA partita: riuscito il colore trovato si può indossare 
+PROVA partita: riuscito il mantello prende il colore trovato 
+PROVA ok: partita: sceglie da solo obiettivi diversi { "alcova": [2, 2], "cassa": [2, 1], "caccia": [3, 1], "esplora": [4, 4], "bracieri": [2, 2], "raccogli": [1, 1], "prova_arma": [1, 1] }
+PROVA ok: partita: combatte e vince uccisi 25, morti 2
+PROVA ok: partita: esplora la stanza 19 su 23
+PROVA ok: partita: non resta mai bloccato fermo al massimo 16 s
+PROVA ok: partita: impara quale arma usare contro chi { "mago": { "spada": [2, 1] }, "pipistrello": { "ascia": [1, 0] } }
+PROVA ok: partita: nessun corpo resta dentro un altro 0.0 s di fila ()
+PROVA ok: partita: nessun nemico cammina sul posto 0.25 s di fila (arciere a (2615.0, 352.0) (PATTUGLIA))
+PROVA partita libera: {"armi_provate":["ascia"],"carattere":{"avidita":0.774727582931519,"coraggio":0.735415399074554,"curiosita":1.23025226593018,"prudenza":0.800754427909851},"diario":["0s alcova","55s cassa","94s caccia","110s caccia","145s esplora","151s bracieri","192s raccogli","194s prova_arma","194s esplora","211s esplora","226s caccia","273s cassa","331s alcova","362s esplora","391s bracieri"],"esiti":{"accanto alla leva il tasto dice «Leva»":true,"dal gradino si sale alla nicchia segreta":true,"dalla grata aperta si entra nell'alcova":true,"dalla terrazza si scende nella galleria":true,"dentro c'è un frammento della storia":true,"il colore trovato si può indossare":true,"il forziere cura chi è ferito":true,"il forziere d'oro dà un colore nuovo":true,"il forziere ridà le frecce finite":true,"il forziere si apre col tasto, accanto":true,"il mantello prende il colore trovato":true,"la cassa sulla piastra tiene alzata la grata":true,"la leva apre la grata dell'alcova":true,"nell'ordine della tavoletta si alza il gradino segreto":true,"oltre la grata si apre il forziere del tesoro":true,"spinge la cassa giù dalla balconata":true},"esito_armi":{"mago":{"spada":[2,1]},"pipistrello":{"ascia":[1,0]}},"fermate_lunghe":[],"fermo_massimo_s":16.3,"morti":2,"obiettivi":{"alcova":[2,2],"bracieri":[2,2],"caccia":[3,1],"cassa":[2,1],"esplora":[4,4],"prova_arma":[1,1],"raccogli":[1,1]},"ondate":1,"pericolosi":{"scheletro":1},"sogno_completato":false,"sovrapposti_chi":"","sovrapposti_massimo_s":0.0,"sul_posto_chi":"arciere a (2615.0, 352.0) (PATTUGLIA)","sul_posto_massimo_s":0.25,"uccisi":25,"zone_viste":"19 su 23"}
+PROVA passaggio: nicchia>salone caduta ok -> (2564.0, 120.0)
+PROVA traccia: partita (2520.0, 120.0) NORMALE
+PROVA passaggio: salone>sala ascensore NO -> (2345.0, 120.0)
+PROVA difesa: rotolo_avanti contro colpo (bestione) a 41 px, stato NORMALE, a terra true
+PROVA passaggio: sala>zoccolo salto ok -> (2198.0, 384.0)
+PROVA passaggio: zoccolo>galleria caduta ok -> (2076.0, 480.0)
+PROVA traccia: partita (1972.0, 446.0) NORMALE
+PROVA trappola: passa @Node2D@35557 da 1947 verso -1
+PROVA trappola: passa @Node2D@35557 da 1947 verso -1
+PROVA trappola: passa @Node2D@35557 da 1946 verso -1
+PROVA trappola: passa @Node2D@35557 da 1945 verso -1
+PROVA trappola: passa @Node2D@35557 da 1943 verso -1
+PROVA trappola: passa @Node2D@35557 da 1941 verso -1
+PROVA trappola: passa @Node2D@35557 da 1939 verso -1
+PROVA trappola: passa @Node2D@35557 da 1936 verso -1
+PROVA trappola: passa @Node2D@35557 da 1934 verso -1
+PROVA trappola: passa @Node2D@35557 da 1931 verso -1
+PROVA trappola: passa @Node2D@35557 da 1929 verso -1
+PROVA trappola: passa @Node2D@35557 da 1926 verso -1
+PROVA trappola: passa @Node2D@35557 da 1924 verso -1
+PROVA trappola: passa @Node2D@35557 da 1921 verso -1
+PROVA trappola: passa @Node2D@35553 da 1716 verso -1
+PROVA trappola: passa @Node2D@35553 da 1716 verso -1
+PROVA trappola: passa @Node2D@35553 da 1715 verso -1
+PROVA trappola: passa @Node2D@35553 da 1714 verso -1
+PROVA trappola: passa @Node2D@35553 da 1712 verso -1
+PROVA trappola: passa @Node2D@35553 da 1710 verso -1
+PROVA trappola: passa @Node2D@35553 da 1708 verso -1
+PROVA trappola: passa @Node2D@35553 da 1705 verso -1
+PROVA trappola: passa @Node2D@35553 da 1703 verso -1
+PROVA trappola: passa @Node2D@35553 da 1700 verso -1
+PROVA trappola: passa @Node2D@35553 da 1698 verso -1
+PROVA trappola: passa @Node2D@35553 da 1695 verso -1
+PROVA trappola: passa @Node2D@35553 da 1693 verso -1
+PROVA trappola: passa @Node2D@35553 da 1690 verso -1
+PROVA passaggio: galleria>terrazza salto ok -> (1478.0, 384.0)
+PROVA passaggio: terrazza>pavimento caduta NO -> (1068.0, 432.0)
+PROVA passaggio: p4>pavimento attraversa ok -> (1031.0, 480.0)
+PROVA traccia: partita (987.0, 480.0) NORMALE
+PROVA traccia: prestazioni_bassa (587.0, 480.0) ATTACCO
+PROVA traccia: prestazioni_media (656.0, 480.0) ATTACCO
+PROVA traccia: prestazioni_ultra (571.0, 480.0) ATTACCO
+PROVA traccia: prestazioni_ultra (568.0, 480.0) NORMALE
+PROVA traccia: prestazioni_120fps (510.0, 480.0) ROTOLATA
+PROVA ok: i nemici non vanno mai in pausa durante il bot viste 0
+PROVA ok: rapporto salvato e leggibile 88646 caratteri
+PROVA ok: nessun errore del motore errori: 0
+PROVA ok: prove rovinate dai nemici fino all'ultimo: al massimo 2 ["la magia caricata costa di più ed esplode"]
+PROVA ok: scatto registrato con il contesto { "t": 1210.2, "tipo": "scatto", "ms": 120.0, "shader_nuovi": 3, "nodi": 2378, "disegni": 0, "stato": "NORMALE", "x": 492, "y": 480, "torce_con_ombra": 0, "nemici": 5, "menu": false, "foto_figura": 10228, "bot": "" }
+PROVA ok: il bot rimette impostazioni e aspetto di prima 
+PROVA ok: memoria dei nemici: il bot non la cancella e i nemici crescono xp veterani 0 -> 241, sogni 0 -> 3
+PROVA ok: bot: cresce e ricorda ogni giro {  } -> { "combattere": 182.0, "enigmi": 23.0, "muoversi": 70.0, "schivare": 129.0, "tirare": 8.0 }
+PROVA ok: bot: livelli dall'esperienza 
+PROVA ok: bot: l'ordine delle prove cambia a ogni giro ["menu_e_aspetto", "oggetti", "armi_a_distanza", "movimento", "armi_da_mischia", "mosse_in_partita", "ambiente", "tasti_a_schermo", "sotterraneo", "bottino", "qualita"] / ["tasti_a_schermo", "mosse_in_partita", "menu_e_aspetto", "movimento", "sotterraneo", "oggetti", "armi_da_mischia", "ambiente", "bottino", "qualita", "armi_a_distanza"]
+PROVA ok: la lezione che fallisce sempre viene lasciata raffica 17 su 200
+PROVA ok: il bot non può mettere in pausa i nemici 
+PROVA ok: bot fermato: i nemici tornano a muoversi e a farsi colpire []
+PROVA ok: impostazioni: ogni chiave sta in una scheda []
+PROVA ok: impostazioni: ogni chiave ha il suo controllo nel menu []
+PROVA ok: impostazioni: il ripristino di una scheda tocca solo quella 
+PROVA ok: accessibilità: danni a metà vita 7
+PROVA ok: accessibilità: invincibile vita 7
+PROVA ok: accessibilità: mira assistita spenta 
+PROVA ok: accessibilità: mira assistita forte 
+PROVA ok: accessibilità: contorni chiari sui nemici senza contorno 0
+PROVA ok: schermo: Pixel 8 Pro a ×4 come prima { "scala": 4.0, "dimensione": (748, 336), "resa": (748, 336), "area": (2992, 1344), "densita": 1 }
+PROVA ok: schermo: grandezza ×3 scelta a mano { "scala": 3.0, "dimensione": (998, 448), "resa": (998, 448), "area": (2992, 1344), "densita": 1 }
+PROVA ok: schermo: 16:9 con bande { "scala": 3.0, "dimensione": (797, 448), "resa": (797, 448), "area": (2389, 1344), "densita": 1 }
+PROVA ok: grafica: risoluzione interna 50% { "scala": 3.0, "dimensione": (797, 448), "resa": (399, 224), "area": (2389, 1344), "densita": 1 }
+PROVA ok: schermo: limiti FPS sempre con 30 e 60 
+PROVA ok: suoni: file presenti []
+PROVA ok: musica: tre strati lunghi uguali e ripetuti [64.0, 64.0, 64.0]
+PROVA ok: musica: la lotta entra in fretta ed esce piano [0.85, 0.6, 1.0] [1.0, 0.31428571428571, 0.71428571428571] [1.0, 0.0, 0.0]
+PROVA ok: musica: un nemico addosso è tensione di lotta tensione 2
+PROVA ok: scossa: trauma che sposta la vista e cala da solo 0.42 (0.0, 0.0)
+PROVA ok: atterraggio: schiacciato e poi di nuovo dritto (1.0, 1.0)
+PROVA ok: suoni: sotterraneo con il suo ambiente, sott'acqua ovattato [0.0, 1.0]
+PROVA ok: suoni: canali musica, effetti, ambiente, interfaccia 
+PROVA ok: suoni: si sentono salto e forziere ["sfera_nemica", "avviso_attacco", "salto", "colpito", "spuntoni", "forziere"]
+PROVA ok: accessibilità: didascalia con la direzione 
+PROVA ok: audio: generale a zero = tutto muto 
+PROVA ok: audio: modalità notte automatica solo sul telefono 
+PROVA ok: aggiornamento: confronto delle versioni 
+PROVA ok: aggiornamento: impronta giusta accettata, sbagliata rifiutata 
+PROVA ok: aggiornamento: senza plugin sul computer (Android lo ha) 
+PROVA ok: dispositivo: poca memoria = qualità bassa 
+PROVA ok: dispositivo: grafica potente e memoria = alta 
+PROVA ok: dispositivo: fascia media = media 
+PROVA ok: dispositivo: nome commerciale del processore Snapdragon 8 Gen 2 (SM8550)
+PROVA ok: dispositivo: i dati del plugin riempiono memoria e processore { "sistema": "Linux", "distribuzione": "Ubuntu 24.04.5 LTS", "versione_sistema": "Android 13", "modello": "Ayn Odin2 Portal", "processore": "Snapdragon 8 Gen 2 (SM8550)", "core": 8, "ram_mb": 7680, "gpu": "", "gpu_produttore": "", "gpu_api": "", "renderer": "mobile", "driver_grafico": "vulkan", "schermo": [0, 0], "dpi": 96, "hz": -1.0, "touch": false, "area_sicura": [0, 0, 0, 0], "ritagli": [], "lingua": "C", "android": "13", "classe_prestazioni": 0.0, "frequenza_max_mhz": 3187.0, "giroscopio": true, "produttore": "AYN", "ram_libera_mb": 3100.0, "sdk": 33.0, "soc_modello": "SM8550", "soc_produttore": "QTI", "spazio_libero_mb": 90000.0, "spazio_totale_mb": 120000.0, "vibrazione": true, "vibrazione_dosabile": true }
+PROVA ok: dispositivo: il menu dice cosa ha riconosciuto Ayn Odin2 Portal · Android 13
+Processore: Snapdragon 8 Gen 2 (SM8550), 8 core fino a 3.19 GHz
+Memoria: 7.5 GB (libera 3.0 GB)
+Grafica: 
+Spazio libero: 87.9 GB su 117
+Sensori: giroscopio, vibrazione dosabile
+PROVA ok: dispositivo: risparmio energetico = un livello in meno e 30 FPS ["alta", 60] ["media", 30] ["alta", 60] ["media", 30]
+PROVA ok: compenetrazioni: il personaggio non entra nel nemico distanza 28.0
+PROVA ok: compenetrazioni: col rotolo gli si passa attraverso 961 contro 913
+PROVA ok: compenetrazioni: due nemici non stanno uno dentro l'altro 28.0
+PROVA ok: compenetrazioni: il barile non si attraversa 796
+PROVA ok: compenetrazioni: il nemico sfonda il barile sulla sua strada 
+PROVA ok: compenetrazioni: l'arma si disegna sopra a testa e busto 
+PROVA ok: da giocatore: il riquadro tecnico parte spento 
+PROVA ok: da giocatore: nessun nemico parte dentro un forziere []
+PROVA ok: da giocatore: un nemico fermo esce dal forziere 35.0 px
+PROVA ok: da giocatore: il saltatore vicino non cammina sul posto 0.00 s
+PROVA ok: da giocatore: un nemico dietro un compagno non cammina sul posto 0.00 s
+PROVA ok: da giocatore: contro una cassa il nemico non trema 2 cambi in 3 s
+PROVA ok: da giocatore: freccia arriva dove mira 0.7 px
+PROVA ok: da giocatore: dardo arriva dove mira 0.5 px
+PROVA ok: da giocatore: freccia_eroe arriva dove mira 0.7 px
+PROVA ok: da giocatore: la freccia nemica punta dove vola 1.00
+PROVA ok: da giocatore: la stanza ricomincia dietro il velo nero velo 0.00
+PROVA ok: da giocatore: personaggi senza strisce d'ombra 0
+PROVA ok: da giocatore: oggetti senza strisce d'ombra []
+PROVA ok: da giocatore: nessuna luce con le ombre del motore (coni neri) []
+PROVA ok: da giocatore: i messaggi stanno in alto 154 su 1280
+PROVA ok: da giocatore: la frase del risveglio sta sopra il velo 
+PROVA ok: da giocatore: interruttori del menu leggibili 
+PROVA ok: da giocatore: la vendetta dice il nome Qualcosa giura vendetta. Tornerà come Brace del Pozzo lo Sfregiato.
+PROVA ok: da giocatore: sotto terra le sagome della stanza spariscono 
+PROVA ok: da giocatore: sott'acqua il personaggio si vede sott'acqua true, z 16
+PROVA ok: da giocatore: fuori dall'acqua torna normale 
+PROVA ok: ombre: personaggio, nemici, casse, barili, forzieri e bracieri hanno l'ombra []
+PROVA ok: ombre: le torce fanno ombra ai corpi 
+PROVA ok: ombre: piegate dalla parte opposta alla luce 
+PROVA ok: ombre: vicino alla torcia (destra) c'è la sagoma, corta e stesa lontano dalla fiamma sagome 1, terra 0.0, punta (14.4567, 13.06961)
+PROVA ok: ombre: vicino alla torcia (sinistra) c'è la sagoma, corta e stesa lontano dalla fiamma sagome 1, terra 0.0, punta (-11.45873, 12.35009)
+PROVA ok: ombre: in aria la macchia si stringe e sbiadisce terra 68.8, alfa 0.70 -> 0.20
+PROVA ok: ombre: con la qualità bassa solo la macchia 
+PROVA ok: ombre: si scelgono a mano 
+PROVA ok: ombre dei muri: accese con la qualità alta, corte muri 323, lunghezza 56
+PROVA ok: ombre dei muri: solo muri e pilastri (non corpi e oggetti) 
+PROVA ok: ombre dei muri: spente con la qualità bassa, senza materiale 
+PROVA ok: ombre dei muri: i valori vecchi valgono sì 
+PROVA ok: movimenti: densità dei fotogrammi 
+PROVA ok: movimenti: animazioni ad almeno 24 fotogrammi al secondo []
+PROVA ok: movimenti: le durate delle mosse non cambiano attacco1 0.375, issata 0.462
+PROVA ok: movimenti: salto ad arco guidato dalla velocità [0, 13, 23]
+PROVA ok: movimenti: sospensione in cima al salto -0.83
+PROVA ok: movimenti: si cammina con la leva appena inclinata passo 60 px/s, leva 0.40
+PROVA ok: movimenti: la falcata segue la velocità 
+PROVA ok: movimenti: ci si piega in avanti nello slancio e indietro nella frenata 7.0 / -4.0 gradi
+PROVA ok: movimenti: spigolo sopra la testa scansato piedi saliti fino a 77 px
+PROVA ok: movimenti: bordo alto preso in aria = issata, poi sopra issata true, arrivo (1129.0, 384.0), più in basso 47
+PROVA ok: movimenti: da terra si scavalca senza issata 
+PROVA ok: movimenti: i nemici partono senza scatti e con passi lenti 8.67 px/s, passo 0.35
+PROVA ok: movimenti: al limite della distanza il nemico non fa passettini partenze 1, avanzato 10.6 px, stato 5
+PROVA ok: movimenti: i nemici si girano passando di fronte giro visto true, verso 1, specchiato false
+PROVA ok: movimenti: arrampicata a strattoni con la stessa velocità media media 1.00, min 0.15, max 1.85
+PROVA ok: movimenti: arrampicata con un ciclo vero e spinte a ogni presa pose 24, velocità 11-137, salito 52 px
+PROVA ok: movimenti: fermi sulla parete si resta nella posa del ciclo 
+PROVA ok: movimenti: da un'azione all'altra il corpo sfuma (niente scatti) 
+PROVA ok: movimenti: girandosi il personaggio passa di fronte 38 gradi a metà
+PROVA ok: atmosfera: ogni livello ha bagliore, raggi e colori []
+PROVA ok: atmosfera: ultra solo sopra il Pixel 8 Pro 
+PROVA ok: atmosfera: con la qualità alta bagliore, colori del film e raggi raggi 11
+PROVA ok: atmosfera: con la qualità bassa niente bagliore né raggi (costano) 
+PROVA ok: atmosfera: si scelgono a mano 
+PROVA ok: atmosfera: il livello ultra esiste e si sceglie 
+PROVA ok: figure: ogni nemico ha il foglio doppio, con gli stessi tempi e i fotogrammi ritagliati []
+PROVA ok: figure: fogli ritagliati più leggeri 642x548
+PROVA ok: figure: sul Pixel in alta il mondo si disegna al doppio { "scala": 4.0, "dimensione": (748, 336), "resa": (1496, 672), "area": (2992, 1344), "densita": 2 } { "scala": 4.0, "dimensione": (748, 336), "resa": (374, 168), "area": (2992, 1344), "densita": 1 } { "scala": 4.0, "dimensione": (748, 336), "resa": (748, 336), "area": (2992, 1344), "densita": 1 }
+PROVA ok: figure: normali, densità 1 { "densita": 1, "nemico": 1, "figura": 96.0, "scala": 1.0, "anim": "cammina", "mondo": 64, "attesa": 1 }
+PROVA ok: figure: dettagliate, densità 1 { "densita": 1, "nemico": 1, "figura": 96.0, "scala": 1.0, "anim": "cammina", "mondo": 64, "attesa": 1 }
+PROVA ok: figure: il nemico resta grande uguale e con la stessa animazione 40.0 40.0 { 0: { "densita": 1, "nemico": 1, "figura": 96.0, "scala": 1.0, "anim": "cammina", "mondo": 64, "attesa": 1 }, 1: { "densita": 1, "nemico": 1, "figura": 96.0, "scala": 1.0, "anim": "cammina", "mondo": 64, "attesa": 1 } }
+PROVA ok: figure: contorno e ombra seguono la densità 
+PROVA ok: quaternius: scheletro con proporzioni vere (dita, clavicole, bacino) 65
+PROVA ok: quaternius: ogni clip c'è (UAL e KayKit adattate) []
+PROVA ok: quaternius: animazioni KayKit adattate allo scheletro nuovo 
+PROVA ok: quaternius: mantelli legati alle ossa e testa scoperta solo testa punto più basso della testa 1.53
+PROVA ok: quaternius: nemici fatti coi pezzi e le animazioni del protagonista []
+PROVA ok: armi, scudi ed elmi rifatti nello stile nuovo; pozioni, pipistrello e munizioni nuovi 30 rifatti, vuoti []
+PROVA ok: ambienti e arredi nello stile nuovo vecchi [], arredi mancanti []
+PROVA ok: armi impugnate dal manico con la punta verso fuori 16 armi, storte []
+PROVA ok: armature al loro posto e nel verso giusto []
+PROVA ok: quaternius: stoffa e pelle con i loro materiali, rilievo e pieghe 
+PROVA ok: salvataggi: scrittura sicura con copia di riserva 
+ERROR: ConfigFile parse error at user://prova_salvataggio.cfg:0: Unexpected EOF while parsing simple tag.
+   at: _parse (core/io/config_file.cpp:293)
+   GDScript backtrace (most recent call first):
+       [0] leggi_cfg (res://script/salvataggio.gd:40)
+       [1] _prova_titolo_e_salvataggi (res://test/prova.gd:356)
+       [2] _esegui (res://test/prova.gd:316)
+       [3] _prova_figure (res://test/prova.gd:1462)
+       [4] _fotogrammi (res://test/prova.gd:37)
+WARNING: Salvataggio: user://prova_salvataggio.cfg rovinato, ripreso dalla copia
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] leggi_cfg (res://script/salvataggio.gd:49)
+         [1] _prova_titolo_e_salvataggi (res://test/prova.gd:356)
+         [2] _esegui (res://test/prova.gd:316)
+         [3] _prova_figure (res://test/prova.gd:1462)
+         [4] _fotogrammi (res://test/prova.gd:37)
+PROVA ok: salvataggi: un file rovinato si riprende dalla copia esito 0, valore 1
+PROVA ok: salvataggi: si cancellano anche le copie 
+PROVA ok: partita: si salva e si rilegge Sogno 4 · terza ondata
+PROVA ok: titolo: si apre sopra il gioco in pausa 
+PROVA ok: titolo: Continua riprende ondata, vita, munizioni e arma ondata 3 vita 5 dardi 3 arma frecce sogno 4
+PROVA ok: pausa: "Salva e torna al titolo" salva e mostra il titolo { "arma": "frecce", "completato": false, "energia": 100.0, "munizioni": { "dardi": 3, "frecce": 5 }, "ondata": 3, "quando": 1795866708.58606, "sogno": 4, "vita": 6 }
+PROVA ok: titolo: le impostazioni si aprono e si torna al titolo 
+PROVA ok: titolo: Indietro due volte per uscire 
+PROVA ok: titolo: Nuovo sogno chiede conferma e riparte da capo sogno 5 ondata 1 vita 8
+PROVA ok: partita: una nuova ondata la salva 
+PROVA ok: sotterraneo: il muro crepato si rompe a colpi 
+PROVA ok: sotterraneo: giù per il pozzo fino in fondo (113.0, 1040.0)
+PROVA ok: sotterraneo: la telecamera mostra il sotterraneo 
+PROVA ok: arrampicata: ci si aggrappa saltando verso la parete ARRAMPICATA
+PROVA ok: arrampicata: mani e piedi toccano la parete, non ci entrano -5.0
+PROVA ok: arrampicata: restare appesi stanca, salire stanca di più appeso 8.0 salito 20.0
+PROVA ok: arrampicata: senza stamina si cade 
+PROVA ok: arrampicata: a terra la stamina torna 52
+PROVA ok: acqua: dentro si nuota 
+PROVA ok: acqua: sott'acqua il respiro cala 93
+PROVA ok: acqua: senza respiro si perde vita vita 8 -> 7
+PROVA ok: accessibilità: respiro infinito 60.0
+PROVA ok: acqua: a galla il respiro torna 100
+PROVA ok: hud: barre di stamina e respiro 
+PROVA ok: hud: al pieno le barre spariscono 
+PROVA ok: sotterraneo: le assi di legno si rompono 
+PROVA ok: bottino: i nemici deboli non lasciano niente 
+PROVA ok: bottino: battuto con la magia lascia pozioni di mana { "mana": 237, "dardi": 0, "frecce": 0, "salute": 107, "stamina": 89, "velocita": 28 }
+PROVA ok: bottino: con la balestra dardi, con l'arco frecce { "mana": 0, "dardi": 241, "frecce": 0, "salute": 108, "stamina": 68, "velocita": 35 } { "mana": 0, "dardi": 0, "frecce": 260, "salute": 112, "stamina": 76, "velocita": 34 }
+PROVA ok: bottino: sempre possibili salute e stamina, più di rado velocità { "mana": 0, "dardi": 0, "frecce": 0, "salute": 106, "stamina": 63, "velocita": 40 }
+PROVA ok: bottino: il mimic lascia sempre almeno due pozioni medie o grandi 
+PROVA ok: bottino: pozioni piccole, medie e grandi (le grandi rare) { "piccola": 449, "media": 132, "grande": 19 }
+PROVA ok: pozioni: due insieme si sommano (più forte e più lunga) { "forza": 1.0, "tempo": 4.0, "durata": 4.0 } -> { "forza": 3.0, "tempo": 10.0, "durata": 10.0 }
+PROVA ok: pozioni: con la velocità si corre più forte 195
+PROVA ok: pozioni: in alto si vede l'effetto in corso 
+PROVA ok: pozioni: salute, stamina e mana tornano nel tempo vita 5 stamina 100 energia 100
+PROVA ok: pozioni: finito il tempo l'effetto sparisce {  }
+PROVA ok: pozioni: si raccolgono passandoci sopra { "stamina": { "forza": 3.0, "tempo": 7.86666666666662, "durata": 9.0 } }
+PROVA ok: forzieri: oggetti a caso, almeno una pozione, niente storia { "vita": 1, "dardi": 3, "pozioni": [{ "cosa": "pozione", "tipo": "mana", "taglia": "piccola" }] }
+PROVA ok: forzieri: le pozioni escono e cadono a terra, e restano ["(722.1706, 290.0) (0.0, 0.0) true"]
+PROVA ok: forzieri: il contenuto cambia ogni volta 28 diversi
+PROVA ok: mimic: il forziere si sveglia e diventa un nemico 
+PROVA ok: mimic: salta addosso e morde vita 6 -> 4
+PROVA ok: mimic: non diventa una nemesi 
+PROVA ok: mimic: battuto lascia pozioni migliori [{ "cosa": "pozione", "tipo": "velocita", "taglia": "media" }, { "cosa": "pozione", "tipo": "mana", "taglia": "grande" }]
+PROVA ok: bottino: il nemico forte lascia gli oggetti nella stanza [{ "cosa": "dardi", "quante": 3 }]
+PROVA ok: passando sopra le munizioni si raccolgono dardi 5
+PROVA ok: aiuto alla mira: prende il nemico nel cono davanti, non quello alle spalle direzione (0.964927, -0.262517)
+PROVA ok: lo spadone e le asce rompono la corazza del bestione 
+PROVA ok: il bestione para da davanti, non la magia né i colpi alle spalle davanti false, magia true, spalle true
+PROVA ok: lo scudo para i colpi da davanti, non quelli alle spalle vita 8 -> 7
+PROVA ok: seconda arma: un colpo in più e più veloce 
+PROVA ok: chi ti uccide diventa una nemesi 
+PROVA ok: la nemesi che vince ancora cresce e impara una capacità { "id": "n1", "tipo": "scheletro", "nome": "Ossa di Fossa", "titolo": "il Tiranno", "potere": 2, "vittorie": 2, "sconfitte": 0, "esito": "vittoria", "lezione": "", "cicatrice": false, "incontri": 0, "capacita": ["furia"], "arma_nemica": "" }
+PROVA ok: battuta, la nemesi ricorda l'arma e impara ancora { "id": "n1", "tipo": "scheletro", "nome": "Ossa di Fossa", "titolo": "lo Sfregiato", "potere": 3, "vittorie": 2, "sconfitte": 1, "esito": "sconfitta", "lezione": "", "cicatrice": true, "incontri": 1, "capacita": ["furia", "pelle_dura"], "arma_nemica": "ascia" }
+PROVA ok: la nemesi torna più forte vita 10
+PROVA ok: i veterani salgono di livello e tornano più forti livello 2, vita 6
+PROVA ok: la leva apre la grata dell'alcova 
+PROVA ok: il forziere cura, ridà le frecce e ha un frammento { "vita": 5, "frecce": 3, "pozioni": [{ "cosa": "pozione", "tipo": "mana", "taglia": "piccola" }, { "cosa": "pozione", "tipo": "salute", "taglia": "piccola" }], "frammento": "«Le leggende non nacquero per essere raccontate, ma per essere ripetute. Ogni ripetizione è un punto di sutura sulle palpebre del Dormiente.»" }
+PROVA evento: { "t": 1300.12, "tipo": "piastra", "nome": "piastra_freccia", "cassa": false, "chi": "giocatore" }
+PROVA evento: { "t": 1300.7, "tipo": "trappola", "cosa": "freccia", "x": 2020 }
+PROVA evento: { "t": 1300.95, "tipo": "piastra", "nome": "piastra_freccia", "cassa": false, "chi": "giocatore" }
+PROVA ok: la piastra fa scattare la balestra 
+PROVA evento: { "t": 1302.68, "tipo": "trappola", "cosa": "spuntoni", "x": 1634, "stato": "COLPITO" }
+PROVA ok: gli spuntoni feriscono chi ci resta sopra 
+PROVA evento: { "t": 1303.88, "tipo": "lastra_trema", "nome": "crollo1" }
+PROVA evento: { "t": 1304.78, "tipo": "crollo", "nome": "crollo1" }
+PROVA ok: la lastra fragile crolla e poi torna 
+PROVA ok: il montacarichi sale e scende [3, 4, 6, 9, 11, 12, 8]
+PROVA evento: { "t": 1318.67, "tipo": "piastra", "nome": "piastra_tesoro", "cassa": true, "chi": "cassa" }
+PROVA ok: la cassa sulla piastra tiene alzata la grata del tesoro 
+PROVA ok: bracieri: nell'ordine sbagliato si spengono 
+PROVA ok: bracieri: nell'ordine giusto si alza il gradino segreto 
+PROVA ok: il forziere d'oro dà un colore nuovo { "colore": "brace", "pozioni": [{ "cosa": "pozione", "tipo": "mana", "taglia": "piccola" }, { "cosa": "pozione", "tipo": "salute", "taglia": "grande" }], "frammento": "«Chi scavò questa cripta non seppelliva i morti. Seppelliva le storie che avevano smesso di funzionare.»" }
+PROVA ok: ondate: i caduti tornano, ogni volta più forti, e dopo la quarta il sogno si quieta ondata 1 -> 4, forza per ondata [1, 2, 3, 0]
+PROVA ok: il bot prova anche il limite FPS di chi gioca 
+PROVA bot: 110 controlli, fasi ["avvio 1s","movimento 2s","attacchi 3s","ambiente 26s","ambiente 28s","sotterraneo 69s","sotterraneo 90s","sotterraneo 81s","cassa_e_barili 12s","armi_a_distanza 44s","armi_a_distanza 63s","armi_a_distanza 40s","armi_a_distanza 32s","mosse 37s","armi_da_mischia 30s","bottino 44s","tasti_a_schermo 20s","menu 0s","menu_mosse 67s","menu_impostazioni 2s","qualita 2s","partita 471s","prestazioni_bassa 9s","prestazioni_media 9s","prestazioni_alta 9s","prestazioni_ultra 8s","prestazioni_120fps 8s"]
+PROVA ok: la memoria vera torna intera dopo i controlli 
+PROVA FINE falliti: 0
+WARNING: 19 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 6 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)
