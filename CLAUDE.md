@@ -37,6 +37,9 @@ lì non c'è. (Errore da non ripetere: per i coni neri delle torce erano state t
   Opus 5.5, Sonnet 5.5, Haiku 5.5 e l'impegno), secondo il lavoro: Fable 5.2 per i lavori lunghi con tante scelte visive,
   Opus 5.5 per i lavori complessi normali, Sonnet 5.5 per correzioni precise, Haiku 5.5 per risposte rapide. Claude dice
   quale ha scelto e perché in una riga; il cambio nell'app lo fa Vincenzo (Claude non può cambiarlo da sé).
+- Regola di Vincenzo (28/11/2026), per ogni fase della roadmap: prima di partire Claude fa la Ricerca 10 volte (dieci giri
+  di ricerca diversi: fonti, licenze, download veri, prove nel gioco) e va avanti solo se è sicuro al 100% che le fonti
+  scelte funzionano. Se non lo è, cerca ancora o lo dice a Vincenzo, invece di partire.
 
 ## Procedura
 
