@@ -62,3 +62,79 @@ restano: il mimic nasce dal forziere e cambierà con gli ambienti. Tappa 2, quar
 (dieci giri di ricerca). Tappa 2, quinta parte, fatta nella 0.1.41: gli ambienti (muri, pavimenti, colonne, casse, barili,
 forzieri e mimic, torce, bracieri, montacarichi, leve e balestre murate) e gli arredi (catene, gabbie, lampadario, stendardi,
 libri, statua, sarcofago, ossa, rocce, monete, edera). Restano a forme semplici le grate, gli spuntoni e la sega del pendolo.
+
+Spada capovolta (issue #1, priorità): corretta nella 0.1.42. Spade, pugnali e bacchetta si tengono dal manico, il verso
+della punta è scritto per ogni arma e una prova automatica controlla armi e armature.
+
+---
+
+Punti dal 5 al 9: comando di Vincenzo del 28/11/2026 (issue #1, "riferisci"). Regola "una stanza perfetta, poi si
+cresce": prima tutto nella stanza di prova; mondi veri, boss dei mondi, NPC e storia vengono dopo la base. Dove una cosa
+esiste già in parte (trappole, accessibilità, nemesi, calore, vibrazione) si completa e si migliora, non si rifà.
+Prima di ogni fase: impegno, modello, Ricerca (dieci giri quando servono fonti nuove) e il "via" di Vincenzo.
+
+## 5. Combattimento che si sente
+- Fase 5.1, suoni veri: pacchetti CC0 (per esempio Kenney) per colpi, passi, ossa, acqua, al posto di quelli fatti al
+  computer; musica che segue le azioni (tamburi sui colpi riusciti, suono grave quando si è quasi morti).
+- Fase 5.2, colpi: parata al momento giusto che apre la guardia (Blasphemous), colpi caricati con la luce che cresce e
+  sfondano le difese, esecuzioni sui nemici storditi, schizzi e scintille diversi per ossa, pietra e legno, barcollare
+  diverso secondo l'arma, vibrazione sul Pixel per colpi, atterraggi e danni (c'è già: completare), telecamera da regista
+  (zoom sui colpi forti, rallentatore sull'ultimo nemico dell'ondata, inquadratura larga nelle stanze grandi).
+- Fase 5.3, ambiente come arma: trappole usate contro i nemici (spuntoni, lame, pavimenti che crollano: già li feriscono,
+  completare), colpo critico al nemico spinto in acqua, sugli spuntoni o giù da una piattaforma, torce che si spengono con
+  colpi o acqua (al buio si vede meno, nemici compresi).
+- Fase 5.4, rifiniture: accessibilità completa (daltonismo, sottotitoli dei suoni, mira assistita, velocità: c'è già in
+  parte), adattamento al telefono senza scatti con calore o batteria bassa (c'è già: completare).
+
+## 6. Intelligenza e memoria di tutti
+- Fase 6.1, quaderno di regole: dal bot di Minecraft le regole scritte dopo ogni scontro ("contro questo giocatore la
+  schivata a sinistra fallisce"), rilette e usate la volta dopo; dal Nemesis System memoria personale, rancori, cicatrici,
+  crescita. Un quaderno per ogni personaggio (protagonista, nemici semplici, più avanti mid boss, boss, NPC), mai
+  cancellato, unito alla `Memoria` di adesso.
+- Fase 6.2, nemici che si comportano da gruppo: arciere indietro mentre lo scheletro blocca, mago che cura i feriti, paura
+  (i deboli soli o feriti scappano e tornano con rinforzi), osservatori che scappano a "riferire", rivalità (chi è stato
+  abbandonato non protegge il compagno).
+- Fase 6.3, nemesi più profonde: prede che diventano predatori (chi ti uccide più volte sale di grado, cambia aspetto,
+  diventa mini-boss con nome e cicatrice), vendette su misura (arma che contrasta la tua, evita il fuoco se l'hai bruciato),
+  ferite che restano (protezione o meno uso della parte colpita, cicatrici visibili), leggende di chi gioca (dopo imprese
+  rare alcuni nemici scappano al primo sguardo).
+- Fase 6.4, il protagonista impara: contro i nemici battuti spesso colpisce un po' più forte e legge prima i loro
+  attacchi; il gioco mostra, senza numeri, quali mosse di chi gioca sono prevedibili.
+
+## 7. Crescita del protagonista
+Obiettivo: nemici intelligenti e duri, il gioco non si finisce alla prima partita, ma chi gioca cresce e combatte alla pari.
+- Fase 7.1, essenza e livelli: essenza dai nemici (di più da nemesi e boss), livelli e punti in vita, forza, agilità,
+  resistenza, mente. Alla morte restano livelli, statistiche, abilità, magie e miglioramenti fissi; si perdono pozioni,
+  reliquie, potenziamenti temporanei ed essenza non spesa, che resta dove si è morti: ritrovata, si recupera tutta oppure
+  si libera il fantasma del Non Narrato (forza in proporzione all'essenza, combatte con lo stile imparato dalle partite e
+  dal bot, si può tenere da parte e chiamare dopo, per esempio contro il boss).
+- Fase 7.2, albero delle abilità: rami guerriero, cacciatore con l'arco, mistico, acrobata, mescolabili; armi che si
+  evolvono con l'uso (mosse nuove).
+- Fase 7.3, oggetti: armi e armature migliorate coi materiali dei nemici, effetti (fuoco, sanguinamento, veleno), magie
+  trovate che crescono con l'uso, reliquie a scelta che cambiano le regole del sogno (Hades), altari del patto (vita
+  massima in cambio di un potere forte).
+- Equilibrio: più si cresce, più i nemici si adattano; il gioco non diventa mai facile, ma la crescita si sente.
+
+## 8. Il livello di prova completo
+- Fase 8.1, mid boss alla fine della quarta ondata.
+- Fase 8.2, segreti: un esempio del sistema dei boss segreti (un frammento di sigillo nascosto con il suo indizio e una
+  porta segreta che si accende), mappa dei segreti che si disegna esplorando e segna i muri sospetti, stanze sfida (a
+  tempo, senza danni, solo con l'arco) con ricompense rare.
+- Fase 8.3, il sogno: statistiche di fine sogno (come sei morto, chi ti ha ucciso, cosa hanno imparato i nemici), diario
+  del Non Narrato che si scrive da solo, meteo dei sogni (nebbia, pioggia, sangue, silenzio), il Dormiente che si agita
+  (più resti, più il mondo trema e arrivano nemici strani), bot spettatore (replica accelerata con le scritte delle sue
+  decisioni).
+
+## 9. Dopo la base: mondi, boss, NPC
+- Mondi veri, ognuno col suo boss e un boss segreto. Boss segreti stile Final Fantasy X: tre frammenti di sigillo per mondo
+  in tre stanze segrete diverse (dietro un muro da rompere, in un passaggio sommerso, dopo una stanza sfida), ognuno con un
+  indizio (filastrocca o leggenda); porta sigillata visibile subito, un simbolo si accende a ogni frammento; il boss segreto
+  è la leggenda del mondo "riscritta" dal Dormiente, più forte di tutto il resto; ricompensa: arma o reliquia unica e una
+  pagina segreta del diario sul Dormiente.
+- Final boss (finale normale) e secret final boss (finale vero), due boss diversi: il secondo si apre battendo tutti i boss
+  segreti.
+- Boss preparati (leggono le regole imparate dai nemici del loro mondo), alleanze fra boss (un boss segreto lasciato in vita
+  compare nello scontro del mondo dopo).
+- NPC con memoria: mercanti (prezzi che cambiano se torni spesso), missioni (sanno se li hai traditi), NPC salvati che
+  aiutano contro un boss, voci di corridoio su chi ti dà la caccia, mercante della nemesi che vende informazioni.
+- Salvataggio nel cloud fra dispositivi: per ora solo predisposizione (la Odin non si considera).
