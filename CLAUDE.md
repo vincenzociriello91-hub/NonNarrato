@@ -33,6 +33,10 @@ lì non c'è. (Errore da non ripetere: per i coni neri delle torce erano state t
 5. Bottino: i mob deboli non lasciano niente, quelli forti lasciano consumabili secondo l'arma usata (dardi/frecce per balestra e arco, pozioni di mana per la magia) e sempre possibili pozioni di salute e stamina; pozioni di velocità; le pozioni danno un effetto di qualche secondo che si somma (più ne prendi insieme, più forte e più lungo). (0.1.19)
 6. Forzieri con oggetti a caso; alcuni sono mimic che, sconfitti, lasciano pozioni migliori; pozioni piccole, medie e grandi. (0.1.19)
 - Regola di lavoro: prima di ogni lavoro grosso Claude dice impegno, modello e Ricerca, poi aspetta la parola "via".
+- Regola di Vincenzo (28/11/2026): il modello lo sceglie Claude fra tutti quelli disponibili nell'app (oggi Fable 5.2,
+  Opus 5.5, Sonnet 5.5, Haiku 5.5 e l'impegno), secondo il lavoro: Fable 5.2 per i lavori lunghi con tante scelte visive,
+  Opus 5.5 per i lavori complessi normali, Sonnet 5.5 per correzioni precise, Haiku 5.5 per risposte rapide. Claude dice
+  quale ha scelto e perché in una riga; il cambio nell'app lo fa Vincenzo (Claude non può cambiarlo da sé).
 
 ## Procedura
 
