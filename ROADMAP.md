@@ -138,3 +138,32 @@ Obiettivo: nemici intelligenti e duri, il gioco non si finisce alla prima partit
 - NPC con memoria: mercanti (prezzi che cambiano se torni spesso), missioni (sanno se li hai traditi), NPC salvati che
   aiutano contro un boss, voci di corridoio su chi ti dà la caccia, mercante della nemesi che vende informazioni.
 - Salvataggio nel cloud fra dispositivi: per ora solo predisposizione (la Odin non si considera).
+
+## 10. Guida di stile (issue #2, decisione di Vincenzo del 28/11/2026)
+Riferimento: 52 brevi clip dark fantasy mandate da Vincenzo (non nel repository e mai da mettere: sono di altri). Solo
+ispirazione: niente copie, niente personaggi riconoscibili. Vale per tutti i punti, dal 5 in poi.
+- Cosa hanno in comune: quasi in bianco e nero (34 su 52) o con un solo colore dominante (blu notte, arancio di fuoco,
+  qualche fiamma verde malata o rosa); buio quasi totale, contrasto forte, luce di taglio sui bordi dell'armatura, figure
+  lette dalla sagoma; movimento lento e solenne (mantelli, capelli, cenere, neve, braci, corvi); tono sacro e decaduto,
+  lutto, penitenza, regalità corrotta, silenzio.
+- Nel gioco (pixel art a circa 640x360: si traducono colori, sagome e luce, non il fotorealismo):
+  - ambienti: base grigia desaturata e un solo colore d'accento per zona o per meteo dei sogni (blu notte, arancio fuoco,
+    verde malato per il Dormiente); nebbia a strati, rovine, campi di spade conficcate, corvi, cenere che cade;
+  - protagonista: armatura scura e logora con mantello, sagoma leggibile, luce di taglio dalle normali; posa in ginocchio
+    appoggiato alla spada per la rinascita, il riposo e la schermata iniziale;
+  - bot: stesso stile del protagonista; come fantasma (dell'essenza, delle partite passate) sagoma pallida che si dissolve
+    in polvere;
+  - nemici: cavalieri caduti in armatura pesante e figure incappucciate; morendo si dissolvono in cenere o polvere;
+  - boss, mid boss e boss segreti ("leggende corrotte"): corone di spine o di punte, maschere di pietra spaccata, aureole
+    spezzate, fiamme di colore innaturale (verde, rosa);
+  - NPC: figure velate o incappucciate, penitenti e pellegrini, sagome tranquille e palette più calda (una candela, una
+    lanterna) per distinguerli dai nemici;
+  - interfaccia e titolo: nero, argento consumato, un solo colore d'accento, scritte sobrie;
+  - suoni e musica: bordoni gravi, cori lontani, campane, archi bassi, metallo che stride, vento, braci; il silenzio come
+    strumento (la musica sparisce prima dei momenti forti); solo CC0 o generato nel codice;
+  - particelle: cenere, braci, neve, corvi, polvere di dissoluzione, legate a `Dispositivo.profilo`.
+- Fase 10.1, atmosfera della stanza di prova: tinta d'accento per zona (cripta, galleria, sotterraneo), desaturazione dei
+  colori del film, cenere e corvi, interfaccia e titolo in nero e argento.
+- Fase 10.2, figure: posa in ginocchio (rinascita, titolo), nemici che muoiono dissolvendosi in cenere, luce di taglio più
+  marcata sui bordi delle armature. Le figure dei boss e degli NPC vanno con i punti 8 e 9.
+- Controllo: a ogni versione grafica, foto confrontate con questa guida (vedi CLAUDE.md, controllo da giocatore).

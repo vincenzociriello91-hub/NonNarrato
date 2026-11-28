@@ -53,6 +53,15 @@ lì non c'è. (Errore da non ripetere: per i coni neri delle torce erano state t
   nemici, correzioni delicate) modello forte e impegno alto; lavori semplici (controlli, foto, ricerche nei file, prove
   ripetitive) modello leggero e impegno basso o medio; se un pezzo fallisce o il risultato è dubbio si ripete più in alto.
   Nel resoconto di fine versione Claude scrive quali modelli e impegni ha usato e per cosa.
+- Regola di Vincenzo (28/11/2026, issue #2): ogni "riferisci" di Vincenzo è un'issue nuova. Le issue si seguono in ordine
+  di numero, una dopo l'altra, a fine di ogni versione. Un'issue aperta non cambia più: le aggiunte arrivano in un'issue
+  nuova.
+- Regola di Vincenzo (28/11/2026, issue #2), contro i doppioni: prima di iniziare qualsiasi punto di un'issue si guarda
+  `ROADMAP.md`; se il punto c'è già (fatto, in corso o in programma) non si rifà e non si duplica. Nel commento di chiusura
+  si scrive punto per punto "fatto", "messo in roadmap" oppure "già presente, saltato".
+- Guida di stile di Vincenzo (28/11/2026, issue #2): in `ROADMAP.md`, punto 10. Vale per protagonista, nemici, NPC,
+  ambienti, interfaccia, suoni e musica. Solo ispirazione: niente copie, niente personaggi riconoscibili, e le clip di
+  riferimento non vanno mai nel repository (sono di altri).
 
 ## Procedura
 
@@ -263,7 +272,9 @@ Prova a distanza sulla Odin (solo se la batteria non è bassa; poi chiudere il g
   - suoni mancanti o fuori posto; scatti e cali di FPS;
   - stato lasciato sporco dal bot o da una prova;
   - armi impugnate al contrario, armature fuori posto o girate (foto ingrandite fisse di ogni arma in mano e di ogni
-    pezzo d'armatura indossato, fotogramma per fotogramma, guardate una per una).
+    pezzo d'armatura indossato, fotogramma per fotogramma, guardate una per una);
+  - nelle versioni grafiche, foto confrontate con la guida di stile (ROADMAP punto 10): buio, una sola tinta d'accento,
+    sagome leggibili anche sul Pixel.
 - Quello che si trova va corretto nella stessa versione o, se è grosso, proposto subito a Vincenzo.
 
 ## Controllo da giocatore (0.1.23)
